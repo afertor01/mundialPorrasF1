@@ -1,10 +1,14 @@
 from app.db.models import _all
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi import UploadFile, File # <--- Importante para subir archivos
+import json
 from datetime import datetime
 from app.db.session import SessionLocal
 from app.db.models.season import Season
 from app.db.models.user import User
 from app.db.models.grand_prix import GrandPrix
+from app.db.models.team import Team
+from app.db.models.team_member import TeamMember
 from app.core.deps import require_admin
 from app.schemas.season import SeasonCreate
 
@@ -150,6 +154,59 @@ def create_grand_prix(season_id: int, name: str, race_datetime: datetime, curren
     db.close()
     return gp
 
+# -----------------------
+# Carga Masiva de GPs
+# -----------------------
+@router.post("/seasons/{season_id}/import-gps")
+async def import_gps(
+    season_id: int, 
+    file: UploadFile = File(...), 
+    current_user = Depends(require_admin)
+):
+    """
+    Espera un archivo JSON con estructura:
+    [
+        {"name": "Bahrain GP", "race_datetime": "2024-03-02T16:00:00"},
+        {"name": "Saudi Arabian GP", "race_datetime": "2024-03-09T18:00:00"}
+    ]
+    """
+    db = SessionLocal()
+    season = db.query(Season).get(season_id)
+    if not season:
+        db.close()
+        raise HTTPException(404, "Temporada no encontrada")
+
+    try:
+        content = await file.read()
+        data = json.loads(content)
+        
+        created_count = 0
+        for item in data:
+            # Parsear fecha (asumiendo ISO format)
+            race_dt = datetime.fromisoformat(item["race_datetime"])
+            
+            # Verificar si ya existe por nombre en esa temporada para no duplicar
+            existing = db.query(GrandPrix).filter(
+                GrandPrix.season_id == season_id,
+                GrandPrix.name == item["name"]
+            ).first()
+            
+            if not existing:
+                gp = GrandPrix(
+                    name=item["name"],
+                    race_datetime=race_dt,
+                    season_id=season_id
+                )
+                db.add(gp)
+                created_count += 1
+        
+        db.commit()
+        db.close()
+        return {"message": f"Importados {created_count} Grandes Premios exitosamente"}
+
+    except Exception as e:
+        db.close()
+        raise HTTPException(400, f"Error procesando archivo: {str(e)}")
 
 @router.delete("/grand-prix/{gp_id}")
 def delete_grand_prix(gp_id: int, current_user = Depends(require_admin)):
@@ -272,3 +329,83 @@ def upsert_prediction_admin(
     db.commit()
     db.close()
     return {"message": "Predicción guardada"}
+
+# -----------------------
+# Gestión de Escuderías (Teams)
+# -----------------------
+@router.get("/seasons/{season_id}/teams")
+def list_teams(season_id: int, current_user = Depends(require_admin)):
+    db = SessionLocal()
+    teams = db.query(Team).filter(Team.season_id == season_id).all()
+    
+    # Enriquecemos la respuesta con los nombres de los miembros
+    result = []
+    for t in teams:
+        members = [m.user.username for m in t.members]
+        result.append({
+            "id": t.id,
+            "name": t.name,
+            "members": members
+        })
+        
+    db.close()
+    return result
+
+@router.post("/seasons/{season_id}/teams")
+def create_team(season_id: int, name: str, current_user = Depends(require_admin)):
+    db = SessionLocal()
+    team = Team(name=name, season_id=season_id)
+    db.add(team)
+    db.commit()
+    db.refresh(team)
+    db.close()
+    return team
+
+@router.post("/teams/{team_id}/members")
+def add_team_member(team_id: int, user_id: int, current_user = Depends(require_admin)):
+    db = SessionLocal()
+    
+    team = db.query(Team).get(team_id)
+    if not team:
+        db.close()
+        raise HTTPException(404, "Equipo no encontrado")
+
+    # 1. Validar si el equipo ya tiene 2 miembros
+    if len(team.members) >= 2:
+        db.close()
+        raise HTTPException(400, "El equipo ya está completo (máx 2)")
+
+    # 2. Validar si el usuario ya está en OTRO equipo esta temporada
+    existing_membership = (
+        db.query(TeamMember)
+        .filter(TeamMember.user_id == user_id, TeamMember.season_id == team.season_id)
+        .first()
+    )
+    if existing_membership:
+        db.close()
+        raise HTTPException(400, "El usuario ya pertenece a una escudería esta temporada")
+
+    new_member = TeamMember(
+        team_id=team_id,
+        user_id=user_id,
+        season_id=team.season_id
+    )
+    db.add(new_member)
+    db.commit()
+    db.close()
+    return {"message": "Usuario añadido al equipo"}
+
+@router.delete("/teams/{team_id}")
+def delete_team(team_id: int, current_user = Depends(require_admin)):
+    db = SessionLocal()
+    team = db.query(Team).get(team_id)
+    if not team:
+        db.close() 
+        raise HTTPException(404)
+        
+    # Borrar miembros primero (cascade manual si no está configurado en DB)
+    db.query(TeamMember).filter(TeamMember.team_id == team_id).delete()
+    db.delete(team)
+    db.commit()
+    db.close()
+    return {"message": "Equipo eliminado"}
