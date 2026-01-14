@@ -1,0 +1,25 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.pytest_cache/
+
+# --- Base de datos (SQLite) ---
+*.db
+*.sqlite3
+# Si quieres guardar la estructura de la DB pero no los datos, ignora esto
+
+# --- Frontend / Node ---
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# --- Logs y OS ---
+*.log
+.DS_Store
+
+# --- Scripts Bash y demás pruebas ---
+ignore/
