@@ -10,3 +10,5 @@ from app.db.models.race_result import RaceResult
 from app.db.models.race_position import RacePosition
 from app.db.models.race_event import RaceEvent
 from app.db.models.multiplier_config import MultiplierConfig
+from app.db.models.constructor import Constructor
+from app.db.models.driver import Driver

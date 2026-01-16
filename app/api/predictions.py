@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime
+from sqlalchemy.orm import joinedload
 from app.db.session import SessionLocal
 from app.db.models.prediction import Prediction
 from app.db.models.prediction_position import PredictionPosition
@@ -81,8 +82,13 @@ def get_my_prediction(
 ):
     db = SessionLocal()
 
+    # Usamos options(joinedload(...)) para cargar las relaciones ANTES de cerrar la sesión
     prediction = (
         db.query(Prediction)
+        .options(
+            joinedload(Prediction.positions),
+            joinedload(Prediction.events)
+        )
         .filter(
             Prediction.user_id == current_user.id,
             Prediction.gp_id == gp_id
@@ -93,6 +99,11 @@ def get_my_prediction(
     if not prediction:
         db.close()
         return None
+
+    # Forzamos la lectura de datos para asegurar que están en memoria
+    # (FastAPI lo hace solo, pero con db.close() explícito es mejor asegurar)
+    _ = prediction.positions
+    _ = prediction.events
 
     db.close()
     return prediction

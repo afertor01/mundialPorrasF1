@@ -9,6 +9,8 @@ from app.db.models.user import User
 from app.db.models.grand_prix import GrandPrix
 from app.db.models.team import Team
 from app.db.models.team_member import TeamMember
+from app.db.models.constructor import Constructor
+from app.db.models.driver import Driver
 from app.core.deps import require_admin
 from app.schemas.season import SeasonCreate
 
@@ -164,11 +166,9 @@ async def import_gps(
     current_user = Depends(require_admin)
 ):
     """
-    Espera un archivo JSON con estructura:
-    [
-        {"name": "Bahrain GP", "race_datetime": "2024-03-02T16:00:00"},
-        {"name": "Saudi Arabian GP", "race_datetime": "2024-03-09T18:00:00"}
-    ]
+    Carga un JSON de GPs.
+    - Si el GP (por nombre) ya existe en la temporada: ACTUALIZA su fecha.
+    - Si no existe: LO CREA.
     """
     db = SessionLocal()
     season = db.query(Season).get(season_id)
@@ -181,17 +181,29 @@ async def import_gps(
         data = json.loads(content)
         
         created_count = 0
+        updated_count = 0
+
         for item in data:
             # Parsear fecha (asumiendo ISO format)
-            race_dt = datetime.fromisoformat(item["race_datetime"])
+            try:
+                race_dt = datetime.fromisoformat(item["race_datetime"])
+            except ValueError:
+                # Si falla el formato, saltamos o lanzamos error. 
+                # Aquí optamos por saltar para no bloquear todo el archivo.
+                continue
             
-            # Verificar si ya existe por nombre en esa temporada para no duplicar
-            existing = db.query(GrandPrix).filter(
+            # Buscar si ya existe este GP en esta temporada
+            existing_gp = db.query(GrandPrix).filter(
                 GrandPrix.season_id == season_id,
                 GrandPrix.name == item["name"]
             ).first()
             
-            if not existing:
+            if existing_gp:
+                # --- ACTUALIZAR (Sobreescribir fecha) ---
+                existing_gp.race_datetime = race_dt
+                updated_count += 1
+            else:
+                # --- CREAR NUEVO ---
                 gp = GrandPrix(
                     name=item["name"],
                     race_datetime=race_dt,
@@ -202,12 +214,15 @@ async def import_gps(
         
         db.commit()
         db.close()
-        return {"message": f"Importados {created_count} Grandes Premios exitosamente"}
+        
+        return {
+            "message": f"Proceso completado: {created_count} creados, {updated_count} actualizados."
+        }
 
     except Exception as e:
         db.close()
         raise HTTPException(400, f"Error procesando archivo: {str(e)}")
-
+    
 @router.delete("/grand-prix/{gp_id}")
 def delete_grand_prix(gp_id: int, current_user = Depends(require_admin)):
     db = SessionLocal()
@@ -409,3 +424,90 @@ def delete_team(team_id: int, current_user = Depends(require_admin)):
     db.commit()
     db.close()
     return {"message": "Equipo eliminado"}
+
+# -----------------------
+# GESTIÓN PARRILLA F1 (Constructores y Pilotos)
+# -----------------------
+
+@router.get("/seasons/{season_id}/constructors")
+def list_constructors(season_id: int, current_user = Depends(require_admin)):
+    db = SessionLocal()
+    constructors = db.query(Constructor).filter(Constructor.season_id == season_id).all()
+    
+    result = []
+    for c in constructors:
+        result.append({
+            "id": c.id,
+            "name": c.name,
+            "color": c.color,
+            "drivers": [
+                {"id": d.id, "code": d.code, "name": d.name} 
+                for d in c.drivers
+            ]
+        })
+    db.close()
+    return result
+
+@router.post("/seasons/{season_id}/constructors")
+def create_constructor(
+    season_id: int, 
+    name: str, 
+    color: str, 
+    current_user = Depends(require_admin)
+):
+    db = SessionLocal()
+    # Verificar duplicado
+    exists = db.query(Constructor).filter(Constructor.season_id==season_id, Constructor.name==name).first()
+    if exists:
+        db.close()
+        raise HTTPException(400, "Ya existe esa escudería en esta temporada")
+
+    new_c = Constructor(name=name, color=color, season_id=season_id)
+    db.add(new_c)
+    db.commit()
+    db.refresh(new_c)
+    db.close()
+    return new_c
+
+@router.post("/constructors/{constructor_id}/drivers")
+def create_driver(
+    constructor_id: int, 
+    code: str, 
+    name: str, 
+    current_user = Depends(require_admin)
+):
+    db = SessionLocal()
+    driver = Driver(
+        code=code.upper(), 
+        name=name, 
+        constructor_id=constructor_id
+    )
+    db.add(driver)
+    db.commit()
+    db.refresh(driver)
+    db.close()
+    return driver
+
+@router.delete("/constructors/{id}")
+def delete_constructor(id: int, current_user = Depends(require_admin)):
+    db = SessionLocal()
+    c = db.query(Constructor).get(id)
+    if not c:
+        db.close()
+        raise HTTPException(404)
+    # Borrar pilotos asociados primero
+    db.query(Driver).filter(Driver.constructor_id == id).delete()
+    db.delete(c)
+    db.commit()
+    db.close()
+    return {"message": "Constructor eliminado"}
+
+@router.delete("/drivers/{id}")
+def delete_driver(id: int, current_user = Depends(require_admin)):
+    db = SessionLocal()
+    d = db.query(Driver).get(id)
+    if d:
+        db.delete(d)
+        db.commit()
+    db.close()
+    return {"message": "Piloto eliminado"}

@@ -2,16 +2,17 @@ import axios from "axios";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
+// ✅ Configuración de AXIOS
 const client = axios.create({
   baseURL: BASE_URL,
   paramsSerializer: {
-    indexes: null 
+    indexes: null // Esto convierte params=[1,2] en ?params=1&params=2
   }
 });
 
-// 🔒 INTERCEPTOR MÁGICO: Inyecta el token en cada petición automáticamente
+// 🔒 INTERCEPTOR: Inyecta el token automáticamente en cada petición
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token"); // Recuperamos el token guardado al hacer Login
+  const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -56,7 +57,7 @@ export const getRanking = async (season_id: number, type: "users" | "teams", mod
 };
 
 // ==========================================
-// ⚙️ ADMINISTRACIÓN - TEMPORADAS
+// ⚙️ ADMIN - TEMPORADAS
 // ==========================================
 
 export const getSeasons = async () => {
@@ -80,7 +81,7 @@ export const deleteSeason = async (id: number) => {
 };
 
 // ==========================================
-// ⚙️ ADMINISTRACIÓN - USUARIOS
+// ⚙️ ADMIN - USUARIOS
 // ==========================================
 
 export const getUsers = async () => {
@@ -89,7 +90,6 @@ export const getUsers = async () => {
 };
 
 export const createUser = async (data: { email: string; username: string; password: string; role: string }) => {
-  // Enviamos los datos como params porque así lo definimos en el backend (admin.py)
   const res = await client.post("/admin/users", null, {
     params: data
   });
@@ -102,7 +102,7 @@ export const deleteUser = async (user_id: number) => {
 };
 
 // ==========================================
-// ⚙️ ADMINISTRACIÓN - EQUIPOS (ESCUDERÍAS)
+// ⚙️ ADMIN - EQUIPOS DE USUARIOS (ESCUDERÍAS JUGADORES)
 // ==========================================
 
 export const getTeams = async (season_id: number) => {
@@ -130,7 +130,7 @@ export const deleteTeam = async (team_id: number) => {
 };
 
 // ==========================================
-// ⚙️ ADMINISTRACIÓN - GRANDES PREMIOS (GPs)
+// ⚙️ ADMIN - GRANDES PREMIOS (GPs)
 // ==========================================
 
 export const getGPs = async (season_id: number) => {
@@ -146,4 +146,58 @@ export const importGPs = async (season_id: number, file: File) => {
     headers: { "Content-Type": "multipart/form-data" }
   });
   return res.data;
+};
+
+// ==========================================
+// 🏎️ ADMIN - PARRILLA F1 (Constructores/Pilotos)
+// ==========================================
+
+export const getF1Grid = async (season_id: number) => {
+    const res = await client.get(`/admin/seasons/${season_id}/constructors`);
+    return res.data; 
+};
+
+export const createConstructor = async (season_id: number, name: string, color: string) => {
+    const res = await client.post(`/admin/seasons/${season_id}/constructors`, null, {
+        params: { name, color }
+    });
+    return res.data;
+};
+
+export const createDriver = async (constructor_id: number, code: string, name: string) => {
+    const res = await client.post(`/admin/constructors/${constructor_id}/drivers`, null, {
+        params: { code, name }
+    });
+    return res.data;
+};
+
+export const deleteConstructor = async (id: number) => {
+    return await client.delete(`/admin/constructors/${id}`);
+};
+
+export const deleteDriver = async (id: number) => {
+    return await client.delete(`/admin/drivers/${id}`);
+};
+
+// ==========================================
+// 🔮 PREDICCIONES
+// ==========================================
+
+export const getMyPrediction = async (gp_id: number) => {
+    try {
+      const res = await client.get(`/predictions/${gp_id}/me`);
+      return res.data; 
+    } catch (error) {
+      // Si devuelve 404 o null, simplemente retornamos null para que el frontend sepa que no hay predicción
+      return null;
+    }
+};
+  
+export const savePrediction = async (gp_id: number, positions: Record<number, string>, events: Record<string, string>) => {
+    // Enviamos un JSON Body
+    const res = await client.post(`/predictions/${gp_id}`, {
+        positions,
+        events
+    });
+    return res.data;
 };

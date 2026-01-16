@@ -4,7 +4,7 @@ import * as API from "../api/api";
 
 const Admin: React.FC = () => {
   const { token } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState<"seasons" | "users" | "teams" | "gps">("seasons");
+  const [activeTab, setActiveTab] = useState<"seasons" | "users" | "teams" | "gps" | "grid" >("seasons");
 
   // Estado global de temporadas (necesario para el selector superior)
   const [seasons, setSeasons] = useState<any[]>([]);
@@ -133,7 +133,7 @@ const Admin: React.FC = () => {
     );
   };
 
-// ------------------------------------------
+  // ------------------------------------------
   // TAB: USUARIOS (Actualizado con Creación)
   // ------------------------------------------
   const UsersTab = () => {
@@ -408,6 +408,105 @@ const Admin: React.FC = () => {
   }
 
   // ------------------------------------------
+  // TAB: PARRILLA F1 (Constructores y Pilotos)
+  // ------------------------------------------
+  const F1GridTab = () => {
+      const [constructors, setConstructors] = useState<any[]>([]);
+      
+      // Inputs para crear Constructor
+      const [cName, setCName] = useState("");
+      const [cColor, setCColor] = useState("#ff0000");
+
+      // Inputs para crear Piloto (asociado a un constructor seleccionado)
+      const [dCode, setDCode] = useState("");
+      const [dName, setDName] = useState("");
+      const [selectedConstructorId, setSelectedConstructorId] = useState<number|null>(null);
+
+      useEffect(() => {
+          if(selectedSeasonId) loadGrid();
+      }, [selectedSeasonId]);
+
+      const loadGrid = async () => {
+          if(!selectedSeasonId) return;
+          const data = await API.getF1Grid(selectedSeasonId);
+          setConstructors(data);
+      }
+
+      const handleCreateConstructor = async () => {
+          if(!cName) return;
+          await API.createConstructor(selectedSeasonId!, cName, cColor);
+          setCName("");
+          loadGrid();
+      }
+
+      const handleCreateDriver = async (constId: number) => {
+        // Usamos prompt simple o un estado local para no complicar la UI por ahora
+        const code = prompt("Acrónimo del piloto (Ej: ALO):");
+        if(!code) return;
+        const name = prompt("Nombre completo:");
+        if(!name) return;
+
+        try {
+            await API.createDriver(constId, code, name);
+            loadGrid();
+        } catch(e) { alert("Error al crear piloto"); }
+      }
+
+      const handleDeleteDriver = async (id: number) => {
+          if(confirm("¿Borrar piloto?")) {
+              await API.deleteDriver(id);
+              loadGrid();
+          }
+      }
+
+      if (!selectedSeasonId) return <p>Selecciona temporada.</p>;
+
+      return (
+          <div>
+              <h3>Configuración Parrilla F1</h3>
+              
+              {/* Crear Escudería */}
+              <div style={{marginBottom: 20, padding: 15, border: '1px solid #ccc', borderRadius: 5, background: '#f9f9f9'}}>
+                  <h4>Nueva Escudería F1</h4>
+                  <div style={{display:'flex', gap: 10}}>
+                      <input value={cName} onChange={e=>setCName(e.target.value)} placeholder="Nombre (Ej: Ferrari)" />
+                      <input type="color" value={cColor} onChange={e=>setCColor(e.target.value)} title="Color oficial" />
+                      <button onClick={handleCreateConstructor}>Crear Escudería</button>
+                  </div>
+              </div>
+
+              {/* Listado */}
+              <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 15}}>
+                  {constructors.map(c => (
+                      <div key={c.id} style={{border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden'}}>
+                          <div style={{backgroundColor: c.color, padding: 10, color: 'white', display:'flex', justifyContent:'space-between'}}>
+                              <strong>{c.name}</strong>
+                              <button onClick={() => API.deleteConstructor(c.id).then(loadGrid)} style={{fontSize:'0.7em', color:'black'}}>X</button>
+                          </div>
+                          <div style={{padding: 10}}>
+                              <ul style={{paddingLeft: 20, margin: '5px 0'}}>
+                                  {c.drivers.map((d: any) => (
+                                      <li key={d.id} style={{marginBottom: 5}}>
+                                          <strong>{d.code}</strong> - {d.name}
+                                          <span onClick={() => handleDeleteDriver(d.id)} style={{cursor:'pointer', marginLeft: 10}}>🗑️</span>
+                                      </li>
+                                  ))}
+                              </ul>
+                              <button 
+                                onClick={() => handleCreateDriver(c.id)} 
+                                style={{width:'100%', marginTop: 5, fontSize: '0.8em'}}
+                              >
+                                + Añadir Piloto
+                              </button>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )
+  }
+
+  // ------------------------------------------
   // RENDER PRINCIPAL DEL ADMIN
   // ------------------------------------------
   return (
@@ -436,7 +535,8 @@ const Admin: React.FC = () => {
           {id: 'seasons', label: '📅 Temporadas'},
           {id: 'users', label: '👥 Usuarios'},
           {id: 'teams', label: '🏎️ Escuderías'},
-          {id: 'gps', label: '🏁 Grandes Premios'}
+          {id: 'gps', label: '🏁 Grandes Premios'},
+          {id: 'grid', label: '🏎️ Parrilla F1'}
         ].map(tab => (
             <button 
                 key={tab.id}
@@ -462,6 +562,7 @@ const Admin: React.FC = () => {
         {activeTab === 'users' && <UsersTab />}
         {activeTab === 'teams' && <TeamsTab />}
         {activeTab === 'gps' && <GPsTab />}
+        {activeTab === 'grid' && <F1GridTab />}
       </div>
     </div>
   );
