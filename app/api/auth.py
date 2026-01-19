@@ -1,33 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, HTTPException
+from app.schemas.user import UserCreate, UserLogin
 from app.db.session import SessionLocal
 from app.db.models.user import User
 from app.core.security import hash_password, verify_password, create_access_token
 from datetime import timedelta
 
-router = APIRouter()
-
-class UserCreate(BaseModel):
-    email: EmailStr
-    username: str
-    password: str
-    acronym: str
-
-class UserLogin(BaseModel):
-    email: str
-    password: str
-
-# Dependencia para DB
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/register")
-def register(user: UserCreate, db: Session = Depends(get_db)):
+def register(user: UserCreate):
+    db = SessionLocal()
+
     # 1. Validar que no exista email o username
     existing_user = db.query(User).filter(
         (User.email == user.email) | (User.username == user.username)
@@ -44,22 +27,32 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         email=user.email,
         username=user.username,
         acronym=user.acronym.upper(), # Guardar siempre en mayúsculas
-        hashed_password=hash_password(user.password)
+        hashed_password=hash_password(user.password),
+        role="user" # Por defecto
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    db.close()
+
     return {"message": "Usuario creado exitosamente"}
 
 @router.post("/login")
-def login(user_data: UserLogin, db: Session = Depends(get_db)):
-    # ... (El código de login se queda igual que estaba)
-    user = db.query(User).filter(User.email == user_data.email).first()
-    if not user or not verify_password(user_data.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Credenciales incorrectas")
-    
-    # IMPORTANTE: Ahora incluimos el acrónimo en el token para tenerlo fácil en el frontend
-    access_token = create_access_token(
-        data={"sub": user.email, "role": user.role, "username": user.username, "acronym": user.acronym}
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+def login(user: UserLogin):
+    db = SessionLocal()
+    db_user = db.query(User).filter(User.email == user.email).first()
+
+    if not db_user or not verify_password(user.password, db_user.hashed_password):
+        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+
+# 3. Crear Token (Añadimos acrónimo para que el frontend lo use)
+    token = create_access_token({
+        "sub": db_user.email, # Usamos email como identidad principal
+        "id": db_user.id,
+        "role": db_user.role,
+        "username": db_user.username,
+        "acronym": db_user.acronym
+    })
+    db.close()
+
+    return {"access_token": token, "token_type": "bearer"}

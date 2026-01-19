@@ -93,6 +93,7 @@ def create_users_and_teams(db, season):
         db.add(u)
     db.commit()
     
+
     print("👥 Creando escuderías de jugadores...")
     # Aseguramos que TODOS tienen equipo
     # Si somos 20 usuarios, creamos 10 equipos

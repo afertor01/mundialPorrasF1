@@ -12,10 +12,10 @@ router = APIRouter(prefix="/stats", tags=["Stats"])
 @router.get("/evolution")
 def evolution(
     season_id: int,
-    type: str = Query(..., regex="^(users|teams)$"),
+    type: str = Query(..., pattern="^(users|teams)$"),
     ids: list[int] = Query(None),
     names: list[str] = Query(None),
-    mode: str = Query("total", regex="^(base|total|multiplier)$")
+    mode: str = Query("total", pattern="^(base|total|multiplier)$")
 ):
     db: Session = SessionLocal()
     response = {}
@@ -154,8 +154,8 @@ def evolution(
 @router.get("/ranking")
 def ranking(
     season_id: int,
-    type: str = Query(..., regex="^(users|teams)$"),
-    mode: str = Query("total", regex="^(base|total|multiplier)$"),
+    type: str = Query(..., pattern="^(users|teams)$"),
+    mode: str = Query("total", pattern="^(base|total|multiplier)$"),
     limit: int = Query(None)
 ):
     db: Session = SessionLocal()

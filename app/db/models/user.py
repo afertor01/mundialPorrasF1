@@ -13,10 +13,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     username: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    
-    # Campo nuevo
     acronym: Mapped[str] = mapped_column(String(3), nullable=True) 
-    
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, default="user")
 

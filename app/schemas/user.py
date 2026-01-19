@@ -4,6 +4,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     username: str
     password: str
+    acronym: str
 
 class UserLogin(BaseModel):
     email: EmailStr

@@ -13,6 +13,7 @@ const client = axios.create({
 // 🔒 INTERCEPTOR: Inyecta el token automáticamente en cada petición
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
+  console.log("👮 Interceptor revisando token:", token);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
