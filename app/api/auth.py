@@ -4,6 +4,7 @@ from app.db.session import SessionLocal
 from app.db.models.user import User
 from app.core.security import hash_password, verify_password, create_access_token
 from datetime import timedelta
+from sqlalchemy import or_
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -13,11 +14,13 @@ def register(user: UserCreate):
 
     # 1. Validar que no exista email o username
     existing_user = db.query(User).filter(
-        (User.email == user.email) | (User.username == user.username)
+        (User.email == user.email) | 
+        (User.username == user.username) |
+        (User.acronym == user.acronym.upper())
     ).first()
     if existing_user:
-        raise HTTPException(status_code=400, detail="El email o usuario ya está registrado")
-
+        raise HTTPException(status_code=400, detail="El email, usuario o acrónimo ya está registrado")
+    
     # 2. Validar acrónimo
     if len(user.acronym) > 3:
         raise HTTPException(status_code=400, detail="El acrónimo debe tener máximo 3 letras")
@@ -40,8 +43,10 @@ def register(user: UserCreate):
 @router.post("/login")
 def login(user: UserLogin):
     db = SessionLocal()
-    db_user = db.query(User).filter(User.email == user.email).first()
-
+    db_user = db.query(User).filter(
+        (User.email == user.identifier) | 
+        (User.acronym == user.identifier.upper())
+    ).first()
     if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
