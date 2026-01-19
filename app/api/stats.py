@@ -21,41 +21,24 @@ def evolution(
     response = {}
 
     try:
-        # --- 1. LÓGICA AUTOMÁTICA (Top 5 por defecto si no hay filtros) ---
-        if not ids and not names:
-            if type == "users":
-                # Buscamos todos los usuarios y calculamos sus puntos totales en la temporada
-                all_users = db.query(User).all()
-                temp_ranking = []
-                for u in all_users:
-                    # Sumamos los puntos (usamos 'points' por defecto para el ranking inicial)
-                    total = db.query(func.sum(Prediction.points)).join(GrandPrix).filter(
-                        Prediction.user_id == u.id, GrandPrix.season_id == season_id
-                    ).scalar() or 0
-                    temp_ranking.append((u, total))
-                
-                # Ordenamos y cogemos los 5 mejores
-                temp_ranking.sort(key=lambda x: x[1], reverse=True)
-                top_users = [x[0] for x in temp_ranking[:5]]
-                ids = [u.id for u in top_users]
-            
-            elif type == "teams":
-                 all_teams = db.query(Team).filter(Team.season_id == season_id).all()
-                 # Cogemos los 5 primeros (podrías hacer ranking real aquí también, pero esto basta)
-                 ids = [t.id for t in all_teams[:5]]
+        # --- PROCESAMIENTO SEGÚN TIPO ---
+        # Hemos eliminado el filtro automático de Top 5 para devolver todos los datos
+        # y que el frontend pueda buscar usuarios.
 
-        # --- 2. PROCESAMIENTO SEGÚN TIPO ---
         if type == "users":
             query = db.query(User)
+            
+            # Aplicar filtros solo si se especifican
             if ids and names:
                 query = query.filter(or_(User.id.in_(ids), User.username.in_(names)))
             elif ids:
                 query = query.filter(User.id.in_(ids))
             elif names:
                 query = query.filter(User.username.in_(names))
-
+            
+            # Si no hay filtros, query.all() devuelve TODOS los usuarios (admins incluidos)
             items = query.all()
-            # Si no hay items (DB vacía), devolvemos vacío sin error
+            
             if not items:
                 return {}
 
@@ -91,6 +74,7 @@ def evolution(
 
         elif type == "teams":
             query = db.query(Team).filter(Team.season_id == season_id)
+            
             if ids and names:
                 query = query.filter(or_(Team.id.in_(ids), Team.name.in_(names)))
             elif ids:
