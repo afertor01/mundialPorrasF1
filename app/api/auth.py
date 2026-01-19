@@ -47,7 +47,7 @@ def login(user: UserLogin):
 
 # 3. Crear Token (Añadimos acrónimo para que el frontend lo use)
     token = create_access_token({
-        "sub": db_user.email, # Usamos email como identidad principal
+        "sub": str(db_user.id),
         "id": db_user.id,
         "role": db_user.role,
         "username": db_user.username,
