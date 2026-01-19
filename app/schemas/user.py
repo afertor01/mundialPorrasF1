@@ -7,7 +7,7 @@ class UserCreate(BaseModel):
     acronym: str
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    identifier: str    
     password: str
 
 class UserOut(BaseModel):

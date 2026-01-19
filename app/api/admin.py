@@ -12,6 +12,7 @@ from app.db.models.team_member import TeamMember
 from app.db.models.constructor import Constructor
 from app.db.models.driver import Driver
 from app.core.deps import require_admin
+from app.core.security import hash_password
 from app.schemas.season import SeasonCreate
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -39,11 +40,15 @@ def create_user(
 ):
     db = SessionLocal()
     # 1. Validar duplicados
-    existing = db.query(User).filter((User.email == email) | (User.username == username)).first()
+    existing = db.query(User).filter(
+        (User.email == email) | 
+        (User.username == username) |
+        (User.acronym == acronym.upper()) # <--- ESTA LÍNEA ES CLAVE
+    ).first()    
     if existing:
         db.close()
-        raise HTTPException(400, "Email o usuario ya existen")
-    
+        raise HTTPException(status_code=400, detail="Email, usuario o acrónimo ya están registrados")  
+      
     # 2. Validar longitud acrónimo
     if len(acronym) > 3:
         db.close()
