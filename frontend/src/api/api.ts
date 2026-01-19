@@ -23,7 +23,7 @@ client.interceptors.request.use((config) => {
 // 🔐 AUTENTICACIÓN
 // ==========================================
 
-export const register = async (data: { email: string; username: string; password: string }) => {
+export const register = async (data: { email: string; username: string; password: string; acronym: string }) => {
   const res = await client.post(`/auth/register`, data);
   return res.data;
 };
@@ -89,7 +89,7 @@ export const getUsers = async () => {
   return res.data;
 };
 
-export const createUser = async (data: { email: string; username: string; password: string; role: string }) => {
+export const createUser = async (data: { email: string; username: string; password: string; role: string; acronym: string }) => {
   const res = await client.post("/admin/users", null, {
     params: data
   });

@@ -14,6 +14,7 @@ from app.api.grand_prix import router as grand_prix_router
 from app.api.predictions import router as predictions_router
 from app.api.race_results import router as race_results_router
 from app.api.admin import router as admin_router
+from app.api import stats
 
 app = FastAPI(
     title="Mundial de Porras F1",
@@ -29,6 +30,7 @@ app.include_router(grand_prix_router)
 app.include_router(predictions_router)
 app.include_router(race_results_router)
 app.include_router(admin_router)
+app.include_router(stats.router)
 
 # Configuramos el permiso para que React pueda hablar con Python
 app.add_middleware(
@@ -43,5 +45,5 @@ app.add_middleware(
 )
 
 @app.get("/")
-def root():
-    return {"status": "ok", "message": "Backend funcionando"}
+def read_root():
+    return {"message": "API Mundial F1 funcionando 🏎️"}

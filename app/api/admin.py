@@ -29,24 +29,39 @@ def list_users(current_user = Depends(require_admin)):
 
 
 @router.post("/users")
-def create_user(email: str, username: str, password: str, role: str = "user", current_user = Depends(require_admin)):
-    from app.core.security import hash_password
+def create_user(
+    email: str, 
+    username: str, 
+    password: str, 
+    role: str, 
+    acronym: str, # <--- AÑADIR ESTE ARGUMENTO
+    current_user = Depends(require_admin)
+):
     db = SessionLocal()
-    if db.query(User).filter(User.email == email).first():
+    # 1. Validar duplicados
+    existing = db.query(User).filter((User.email == email) | (User.username == username)).first()
+    if existing:
         db.close()
-        raise HTTPException(400, "Email ya registrado")
-    new_user = User(
-        email=email,
-        username=username,
-        hashed_password=hash_password(password),
-        role=role
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    db.close()
-    return new_user
+        raise HTTPException(400, "Email o usuario ya existen")
+    
+    # 2. Validar longitud acrónimo
+    if len(acronym) > 3:
+        db.close()
+        raise HTTPException(400, "El acrónimo debe ser de máx 3 letras")
 
+    # 3. Crear usuario
+    user = User(
+        email=email, 
+        username=username, 
+        hashed_password=hash_password(password), 
+        role=role,
+        acronym=acronym.upper() # <--- GUARDARLO (Siempre mayúsculas)
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    db.close()
+    return user
 
 @router.delete("/users/{user_id}")
 def delete_user(user_id: int, current_user = Depends(require_admin)):

@@ -144,6 +144,7 @@ const Admin: React.FC = () => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [role, setRole] = useState("user");
+    const [acronym, setAcronym] = useState("");
 
     useEffect(() => {
       loadUsers();
@@ -154,17 +155,18 @@ const Admin: React.FC = () => {
     };
 
     const handleCreateUser = async () => {
-      if (!email || !username || !password) {
+      if (!email || !username || !password || !acronym) {
         alert("Rellena todos los campos");
         return;
       }
       try {
-        await API.createUser({ email, username, password, role });
+        await API.createUser({ email, username, password, role, acronym });
         alert("Usuario creado correctamente ✅");
         // Limpiar formulario
         setEmail("");
         setUsername("");
         setPassword("");
+        setAcronym("");
         setRole("user");
         // Recargar lista
         loadUsers();
@@ -204,6 +206,15 @@ const Admin: React.FC = () => {
                 value={username} onChange={e => setUsername(e.target.value)} 
                 style={{padding: 5}}
               />
+            </div>
+            <div>
+                <label style={{display:"block", fontSize:"0.8em"}}>Acrónimo</label>
+                <input 
+                type="text" placeholder="ALO" 
+                value={acronym} onChange={e => setAcronym(e.target.value.toUpperCase())} 
+                maxLength={3}
+                style={{padding: 5, width: 60}}
+                />
             </div>
             <div>
               <label style={{display:"block", fontSize:"0.8em"}}>Contraseña</label>

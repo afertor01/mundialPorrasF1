@@ -5,13 +5,14 @@ import { register as apiRegister } from "../api/api"; // función axios post a /
 const Register: React.FC = () => {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
+  const [acronym, setAcronym] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await apiRegister({ email, username, password });
+      await apiRegister({ email, username, password, acronym });
       alert("Registro exitoso. Ahora puedes iniciar sesión.");
       navigate("/login"); // redirige a login
     } catch (err: any) {
