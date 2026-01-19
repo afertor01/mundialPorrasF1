@@ -149,6 +149,30 @@ export const importGPs = async (season_id: number, file: File) => {
   return res.data;
 };
 
+export const getAdminGPs = async (seasonId?: number) => {
+  const url = seasonId ? `/admin/gps?season_id=${seasonId}` : '/admin/gps';
+  const res = await client.get(url);
+  return res.data;
+};
+
+// Crear (Manual)
+export const createGP = async (data: { name: string, race_datetime: string, season_id: number }) => {
+  const res = await client.post('/admin/gps', null, { params: data });
+  return res.data;
+};
+
+// Editar
+export const updateGP = async (gpId: number, data: { name: string, race_datetime: string, season_id: number }) => {
+  const res = await client.put(`/admin/gps/${gpId}`, null, { params: data });
+  return res.data;
+};
+
+// Borrar
+export const deleteGP = async (gpId: number) => {
+  const res = await client.delete(`/admin/gps/${gpId}`);
+  return res.data;
+};
+
 // ==========================================
 // 🏎️ ADMIN - PARRILLA F1 (Constructores/Pilotos)
 // ==========================================

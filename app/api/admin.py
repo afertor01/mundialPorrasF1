@@ -176,6 +176,102 @@ def create_grand_prix(season_id: int, name: str, race_datetime: datetime, curren
     db.close()
     return gp
 
+@router.get("/gps")
+def get_admin_gps_list(season_id: int = None, current_user = Depends(require_admin)):
+    """
+    Lista los GPs para la tabla de administración.
+    Ordenados por FECHA (ya que no existe el campo 'round').
+    """
+    db = SessionLocal()
+    query = db.query(GrandPrix)
+    
+    if season_id:
+        query = query.filter(GrandPrix.season_id == season_id)
+    
+    # Ordenamos por fecha
+    gps = query.order_by(GrandPrix.race_datetime.asc()).all()
+    db.close()
+    return gps
+
+@router.post("/gps")
+def create_gp_manual(
+    name: str, 
+    season_id: int, 
+    race_datetime: datetime,
+    current_user = Depends(require_admin)
+):
+    """
+    Creación manual desde el panel (además del import masivo que ya tienes).
+    """
+    db = SessionLocal()
+    season = db.query(Season).filter(Season.id == season_id).first()
+    if not season:
+        db.close()
+        raise HTTPException(400, "Temporada no encontrada")
+
+    new_gp = GrandPrix(
+        name=name,
+        season_id=season_id,
+        race_datetime=race_datetime
+    )
+    db.add(new_gp)
+    db.commit()
+    db.refresh(new_gp)
+    db.close()
+    return new_gp
+
+@router.put("/gps/{gp_id}")
+def update_gp_manual(
+    gp_id: int,
+    name: str,
+    race_datetime: datetime,
+    season_id: int, # Permitimos cambiarlo de temporada si hubo error
+    current_user = Depends(require_admin)
+):
+    """
+    Edita nombre y fecha SIN tocar el ID.
+    Las predicciones NO se pierden.
+    """
+    db = SessionLocal()
+    gp = db.query(GrandPrix).filter(GrandPrix.id == gp_id).first()
+    if not gp:
+        db.close()
+        raise HTTPException(404, "GP no encontrado")
+
+    gp.name = name
+    gp.race_datetime = race_datetime
+    gp.season_id = season_id
+
+    db.commit()
+    db.refresh(gp)
+    db.close()
+    return gp
+
+@router.delete("/gps/{gp_id}")
+def delete_gp_manual(gp_id: int, current_user = Depends(require_admin)):
+    """
+    Borra el GP. 
+    ATENCIÓN: Si no tienes CASCADE configurado en la BD, 
+    habría que borrar las predicciones manualmente antes.
+    """
+    db = SessionLocal()
+    gp = db.query(GrandPrix).filter(GrandPrix.id == gp_id).first()
+    if not gp:
+        db.close()
+        raise HTTPException(404, "GP no encontrado")
+
+    # Limpieza proactiva de datos hijos (por seguridad)
+    from app.db.models.prediction import Prediction
+    # from app.db.models.race_result import RaceResult (si existe)
+    
+    db.query(Prediction).filter(Prediction.gp_id == gp_id).delete()
+    # db.query(RaceResult).filter(RaceResult.gp_id == gp_id).delete()
+    
+    db.delete(gp)
+    db.commit()
+    db.close()
+    return {"message": "GP eliminado correctamente"}
+
 # -----------------------
 # Carga Masiva de GPs
 # -----------------------
