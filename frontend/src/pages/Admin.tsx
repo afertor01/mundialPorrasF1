@@ -368,67 +368,88 @@ const Admin: React.FC = () => {
     );
   };
   
-  // ------------------------------------------
-  // TAB: GRANDES PREMIOS (GPs)
+// ------------------------------------------
+  // TAB: GRANDES PREMIOS (GPs) + RESULTADOS
   // ------------------------------------------
   const GPsTab = () => {
     const [gps, setGps] = useState<any[]>([]);
     const [file, setFile] = useState<File | null>(null);
+    const [driversList, setDriversList] = useState<any[]>([]); // Para los selects
 
-    // --- ESTADOS PARA GESTIÓN MANUAL ---
+    // --- ESTADOS GESTIÓN MANUAL GP ---
     const [showModal, setShowModal] = useState(false);
     const [editingGp, setEditingGp] = useState<any | null>(null);
     const [gpForm, setGpForm] = useState({ name: "", race_datetime: "" });
     
-    // Estados para borrado seguro
+    // --- ESTADOS GESTIÓN RESULTADOS ---
+    const [showResultsModal, setShowResultsModal] = useState(false);
+    const [resultGp, setResultGp] = useState<any | null>(null);
+    const [positions, setPositions] = useState<Record<number, string>>({});
+    const [events, setEvents] = useState({
+        FASTEST_LAP: "",
+        SAFETY_CAR: "No",
+        DNFS: "0",
+        DNF_DRIVER: ""
+    });
+
+    // Estados borrado
     const [deleteStep, setDeleteStep] = useState(0); 
     const [deleteCandidate, setDeleteCandidate] = useState<any | null>(null);
 
     useEffect(() => {
-        if(selectedSeasonId) loadGps();
+        if(selectedSeasonId) {
+            loadGps();
+            loadDrivers(); // Cargar pilotos para los desplegables
+        }
     }, [selectedSeasonId]);
 
     const loadGps = () => {
         if(selectedSeasonId) API.getGPs(selectedSeasonId).then(setGps);
     }
 
-    // --- IMPORTACIÓN MASIVA (Tu código original) ---
+    const loadDrivers = async () => {
+        if(!selectedSeasonId) return;
+        try {
+            const grid = await API.getF1Grid(selectedSeasonId);
+            // Aplanar lista: Constructores -> Pilotos
+            const flat: any[] = [];
+            grid.forEach((team: any) => {
+                team.drivers.forEach((d: any) => {
+                    flat.push({ code: d.code, name: d.name, team: team.name });
+                });
+            });
+            flat.sort((a, b) => a.code.localeCompare(b.code));
+            setDriversList(flat);
+        } catch (e) { console.error("Error cargando pilotos", e); }
+    }
+
+    // --- IMPORTACIÓN ---
     const handleImport = async () => {
         if(!selectedSeasonId || !file) return;
         try {
             const res = await API.importGPs(selectedSeasonId, file);
             alert(res.message);
             loadGps();
-        } catch(e: any) { 
-            alert("Error importando: " + (e.response?.data?.detail || e.message)); 
-        }
+        } catch(e: any) { alert("Error importando: " + (e.response?.data?.detail || e.message)); }
     }
 
-    // --- GESTIÓN MANUAL: ABRIR MODAL ---
+    // --- CRUD GP MANUAL ---
     const handleOpenModal = (gp?: any) => {
         if (gp) {
             setEditingGp(gp);
-            // Formatear fecha para el input datetime-local (yyyy-MM-ddThh:mm)
             const isoDate = new Date(gp.race_datetime).toISOString().slice(0, 16);
             setGpForm({ name: gp.name, race_datetime: isoDate });
         } else {
             setEditingGp(null);
-            // Fecha por defecto: hoy
             setGpForm({ name: "", race_datetime: new Date().toISOString().slice(0, 16) });
         }
         setShowModal(true);
     };
 
-    // --- GESTIÓN MANUAL: GUARDAR ---
-    const handleSave = async () => {
+    const handleSaveGp = async () => {
         if (!selectedSeasonId) return;
         try {
-            const payload = {
-                name: gpForm.name,
-                race_datetime: gpForm.race_datetime,
-                season_id: selectedSeasonId
-            };
-
+            const payload = { name: gpForm.name, race_datetime: gpForm.race_datetime, season_id: selectedSeasonId };
             if (editingGp) {
                 await API.updateGP(editingGp.id, payload);
                 alert("✅ GP Actualizado");
@@ -438,27 +459,80 @@ const Admin: React.FC = () => {
             }
             setShowModal(false);
             loadGps();
+        } catch (e: any) { alert("Error: " + (e.response?.data?.detail || e.message)); }
+    };
+
+    // --- RESULTADOS ---
+    const handleOpenResults = async (gp: any) => {
+        setResultGp(gp);
+        
+        // 1. Resetear formulario a valores por defecto (limpieza inicial)
+        const defaultPos: any = {};
+        for(let i=1; i<=10; i++) defaultPos[i] = "";
+        setPositions(defaultPos);
+        
+        setEvents({ 
+            FASTEST_LAP: "", 
+            SAFETY_CAR: "No", 
+            DNFS: "0", 
+            DNF_DRIVER: "" 
+        });
+
+        // 2. Intentar cargar datos existentes del servidor
+        try {
+            const data = await API.getRaceResult(gp.id);
+            
+            if (data) {
+                // Si hay datos, rellenamos los estados
+                // data.positions viene como { "1": "VER", "2": "ALO"... }
+                // Aseguramos que las keys sean números para nuestro state
+                const loadedPositions = { ...defaultPos, ...data.positions };
+                setPositions(loadedPositions);
+
+                // data.events viene como { "FASTEST_LAP": "VER"... }
+                // Hacemos merge con los defaults por si faltase algún campo nuevo en el futuro
+                setEvents(prev => ({ ...prev, ...data.events }));
+            }
+        } catch (error) {
+            console.log("No hay resultados previos o error al cargar", error);
+            // No pasa nada, se queda con el formulario vacío para rellenar
+        }
+
+        // 3. Mostrar el modal
+        setShowResultsModal(true);
+    };
+
+    const handleSaveResults = async () => {
+        if (!resultGp) return;
+        
+        // Validaciones básicas
+        const filled = Object.values(positions).filter(p => p !== "");
+        if (filled.length < 10) return alert("⚠️ Rellena las 10 posiciones");
+        if (!events.FASTEST_LAP) return alert("⚠️ Falta Vuelta Rápida");
+
+        try {
+            await API.saveRaceResult(resultGp.id, positions, events);
+            alert(`✅ Resultados guardados para ${resultGp.name}. \nPuntos recalculados.`);
+            setShowResultsModal(false);
         } catch (e: any) {
-            alert("Error guardando GP: " + (e.response?.data?.detail || e.message));
+            alert("Error guardando resultados: " + (e.response?.data?.detail || e.message));
         }
     };
 
-    // --- GESTIÓN MANUAL: BORRAR ---
-    const handleDeleteClick = (gp: any) => {
-        setDeleteCandidate(gp);
-        setDeleteStep(1); // Confirmación inicial
-    };
-
+    // --- BORRADO ---
+    const handleDeleteClick = (gp: any) => { setDeleteCandidate(gp); setDeleteStep(1); };
     const confirmDelete = async () => {
-        if (deleteCandidate) {
-            try {
-                await API.deleteGP(deleteCandidate.id);
-                loadGps();
-            } catch (e) { alert("Error eliminando GP"); }
-        }
-        setDeleteStep(0);
-        setDeleteCandidate(null);
+        if (deleteCandidate) await API.deleteGP(deleteCandidate.id).then(loadGps).catch(()=>alert("Error"));
+        setDeleteStep(0); setDeleteCandidate(null);
     };
+
+    // Helper render options
+    const renderDriverOptions = () => (
+        <>
+            <option value="">--</option>
+            {driversList.map(d => <option key={d.code} value={d.code}>{d.code} - {d.name}</option>)}
+        </>
+    );
 
     if (!selectedSeasonId) return <p>⚠️ Selecciona una temporada arriba primero.</p>;
 
@@ -466,68 +540,144 @@ const Admin: React.FC = () => {
         <div>
             <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
                 <h3>Grandes Premios</h3>
-                <button onClick={() => handleOpenModal()} style={styles.btnAdd}>+ Añadir GP Manual</button>
+                <button onClick={() => handleOpenModal()} style={styles.btnAdd}>+ GP Manual</button>
             </div>
 
-            {/* SECCIÓN IMPORTACIÓN */}
-            <div style={{marginBottom: 20, padding: 15, border: '1px solid #ccc', borderRadius: 5, background: "#f9f9f9"}}>
-                <h4 style={{marginTop: 0}}>Importar desde JSON</h4>
+            {/* Importación */}
+            <div style={{marginBottom: 20, padding: 10, border: '1px solid #ddd', borderRadius: 5, background: "#f9f9f9", fontSize: "0.9em"}}>
+                <h4 style={{marginTop: 0, marginBottom: 5}}>Importar JSON</h4>
                 <div style={{display: "flex", gap: 10}}>
                     <input type="file" accept=".json" onChange={e => setFile(e.target.files ? e.target.files[0] : null)} />
-                    <button onClick={handleImport} disabled={!file}>Subir Archivo</button>
+                    <button onClick={handleImport} disabled={!file}>Subir</button>
                 </div>
             </div>
             
-            {/* LISTA DE GPS */}
+            {/* Tabla GPs */}
             <table border={1} style={{width: "100%", borderCollapse: "collapse"}}>
                 <thead style={{background: "#eee"}}>
                     <tr>
-                        <th style={{padding: 10}}>Fecha</th>
-                        <th style={{padding: 10}}>Nombre</th>
-                        <th style={{padding: 10}}>Acciones</th>
+                        <th style={{padding: 8}}>Fecha</th>
+                        <th style={{padding: 8}}>GP</th>
+                        <th style={{padding: 8, textAlign: "center"}}>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {gps.map(gp => (
                         <tr key={gp.id}>
-                            <td style={{padding: 10}}>{new Date(gp.race_datetime).toLocaleString()}</td>
-                            <td style={{padding: 10, fontWeight: "bold"}}>{gp.name}</td>
-                            <td style={{padding: 10, textAlign: "center"}}>
-                                <button onClick={() => handleOpenModal(gp)} style={styles.btnEdit}>✏️</button>
-                                <button onClick={() => handleDeleteClick(gp)} style={styles.btnDelete}>🗑️</button>
+                            <td style={{padding: 8, fontSize: "0.9em"}}>{new Date(gp.race_datetime).toLocaleDateString()}</td>
+                            <td style={{padding: 8, fontWeight: "bold"}}>{gp.name}</td>
+                            <td style={{padding: 8, textAlign: "center"}}>
+                                <button onClick={() => handleOpenResults(gp)} style={{...styles.btnEdit, backgroundColor: "#6f42c1", color: "white", marginRight: 10}} title="Introducir Resultados">
+                                    🏆 Resultados
+                                </button>
+                                <button onClick={() => handleOpenModal(gp)} style={styles.btnEdit} title="Editar">✏️</button>
+                                <button onClick={() => handleDeleteClick(gp)} style={styles.btnDelete} title="Borrar">🗑️</button>
                             </td>
                         </tr>
                     ))}
                 </tbody>
             </table>
-            {gps.length === 0 && <p style={{color: '#666', textAlign: "center"}}>No hay carreras registradas.</p>}
-
-            {/* --- MODAL EDICIÓN/CREACIÓN --- */}
+            
+            {/* --- MODAL EDITAR GP --- */}
             {showModal && (
                 <div style={styles.modalBackdrop}>
                     <div style={styles.modal}>
                         <h3>{editingGp ? "Editar GP" : "Nuevo GP"}</h3>
                         <div style={styles.formGroup}>
                             <label>Nombre:</label>
-                            <input 
-                                type="text" 
-                                value={gpForm.name} 
-                                onChange={e => setGpForm({...gpForm, name: e.target.value})} 
-                                style={styles.input}
-                            />
+                            <input type="text" value={gpForm.name} onChange={e => setGpForm({...gpForm, name: e.target.value})} style={styles.input}/>
                         </div>
                         <div style={styles.formGroup}>
-                            <label>Fecha y Hora:</label>
-                            <input 
-                                type="datetime-local" 
-                                value={gpForm.race_datetime} 
-                                onChange={e => setGpForm({...gpForm, race_datetime: e.target.value})} 
-                                style={styles.input}
-                            />
+                            <label>Fecha:</label>
+                            <input type="datetime-local" value={gpForm.race_datetime} onChange={e => setGpForm({...gpForm, race_datetime: e.target.value})} style={styles.input}/>
                         </div>
-                        <div style={{display: "flex", gap: 10, marginTop: 20, justifyContent: "flex-end"}}>
+                        <div style={{display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 15}}>
                             <button onClick={() => setShowModal(false)} style={styles.btnCancel}>Cancelar</button>
-                            <button onClick={handleSave} style={styles.btnSave}>Guardar</button>
+                            <button onClick={handleSaveGp} style={styles.btnSave}>Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL RESULTADOS --- */}
+            {showResultsModal && resultGp && (
+                <div style={styles.modalBackdrop}>
+                    <div style={{...styles.modal, width: "600px", maxHeight: "90vh", overflowY: "auto"}}>
+                        <h3 style={{borderBottom: "2px solid #e10600", paddingBottom: 10}}>
+                            🏆 Resultados: {resultGp.name}
+                        </h3>
+                        
+                        <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: 15}}>
+                            {/* Top 10 */}
+                            <div>
+                                <h4 style={{marginTop: 0, color: "#333"}}>Clasificación</h4>
+                                {[...Array(10)].map((_, i) => (
+                                    <div key={i+1} style={{marginBottom: 8}}>
+                                        <label style={{fontSize: "0.85em", fontWeight: "bold", marginRight: 5}}>#{i+1}</label>
+                                        <select 
+                                            value={positions[i+1] || ""} 
+                                            onChange={e => setPositions({...positions, [i+1]: e.target.value})}
+                                            style={{padding: 5, width: "80%"}}
+                                        >
+                                            {renderDriverOptions()}
+                                        </select>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Eventos */}
+                            <div>
+                                <h4 style={{marginTop: 0, color: "#007bff"}}>Eventos Extra</h4>
+                                <div style={{marginBottom: 15}}>
+                                    <label style={{display:"block", fontSize:"0.9em"}}>🟣 Vuelta Rápida</label>
+                                    <select 
+                                        value={events.FASTEST_LAP} 
+                                        onChange={e => setEvents({...events, FASTEST_LAP: e.target.value})}
+                                        style={{width: "100%", padding: 5}}
+                                    >
+                                        {renderDriverOptions()}
+                                    </select>
+                                </div>
+                                <div style={{marginBottom: 15}}>
+                                    <label style={{display:"block", fontSize:"0.9em"}}>🟡 Safety Car</label>
+                                    <select 
+                                        value={events.SAFETY_CAR} 
+                                        onChange={e => setEvents({...events, SAFETY_CAR: e.target.value})}
+                                        style={{width: "100%", padding: 5}}
+                                    >
+                                        <option value="No">No</option>
+                                        <option value="Yes">Sí</option>
+                                    </select>
+                                </div>
+                                <div style={{marginBottom: 15}}>
+                                    <label style={{display:"block", fontSize:"0.9em"}}>🔴 Nº Abandonos (DNFs)</label>
+                                    <input 
+                                        type="number" min="0" max="20"
+                                        value={events.DNFS} 
+                                        onChange={e => setEvents({...events, DNFS: e.target.value})}
+                                        style={{width: "100%", padding: 5}}
+                                    />
+                                </div>
+                                {parseInt(events.DNFS) > 0 && (
+                                    <div>
+                                        <label style={{display:"block", fontSize:"0.9em"}}>☠️ Piloto DNF</label>
+                                        <select 
+                                            value={events.DNF_DRIVER} 
+                                            onChange={e => setEvents({...events, DNF_DRIVER: e.target.value})}
+                                            style={{width: "100%", padding: 5}}
+                                        >
+                                            {renderDriverOptions()}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div style={{display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20, borderTop: "1px solid #eee", paddingTop: 15}}>
+                            <button onClick={() => setShowResultsModal(false)} style={styles.btnCancel}>Cancelar</button>
+                            <button onClick={handleSaveResults} style={{...styles.btnSave, backgroundColor: "#28a745", fontSize: "1.1em"}}>
+                                ✅ GUARDAR Y CALCULAR
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -537,32 +687,33 @@ const Admin: React.FC = () => {
             {deleteStep === 1 && (
                 <div style={styles.modalBackdrop}>
                     <div style={styles.modal}>
-                        <h3>⚠️ ¿Borrar {deleteCandidate?.name}?</h3>
-                        <p>Esto eliminará el GP de la lista.</p>
-                        <div style={{display: "flex", gap: 10, marginTop: 20, justifyContent: "center"}}>
-                            <button onClick={() => setDeleteStep(0)} style={styles.btnCancel}>Cancelar</button>
-                            <button onClick={() => setDeleteStep(2)} style={styles.btnWarning}>Continuar...</button>
+                        <h3>⚠️ Confirmar Borrado</h3>
+                        <p>¿Eliminar <strong>{deleteCandidate?.name}</strong>?</p>
+                        <div style={{display: "flex", gap: 10, justifyContent: "center", marginTop: 20}}>
+                            <button onClick={() => setDeleteStep(0)} style={styles.btnCancel}>No</button>
+                            <button onClick={() => setDeleteStep(2)} style={styles.btnWarning}>Sí, continuar</button>
                         </div>
                     </div>
                 </div>
             )}
-
-            {/* --- MODAL BORRADO PASO 2 (PELIGRO) --- */}
+            
+            {/* --- MODAL BORRADO PASO 2 --- */}
             {deleteStep === 2 && (
                 <div style={styles.modalBackdrop}>
                     <div style={styles.modalDanger}>
-                        <h3 style={{color: "white"}}>☠️ CONFIRMACIÓN FINAL</h3>
-                        <p style={{color: "white"}}>Se borrarán todas las <strong>predicciones</strong> asociadas a este GP.</p>
-                        <div style={{display: "flex", gap: 10, marginTop: 20, justifyContent: "center"}}>
+                        <h3 style={{color: "white"}}>☠️ PELIGRO</h3>
+                        <p style={{color: "white"}}>Se borrarán todas las predicciones de este GP.</p>
+                        <div style={{display: "flex", gap: 10, justifyContent: "center", marginTop: 20}}>
                             <button onClick={() => setDeleteStep(0)} style={{...styles.btnCancel, background: "white", color: "black"}}>Cancelar</button>
-                            <button onClick={confirmDelete} style={{...styles.btnDelete, background: "white", color: "red", fontWeight: "bold"}}>SÍ, BORRAR TODO</button>
+                            <button onClick={confirmDelete} style={{...styles.btnDelete, background: "white", color: "#c82333", fontWeight: "bold"}}>BORRAR TODO</button>
                         </div>
                     </div>
                 </div>
             )}
         </div>
     )
-  }
+  }  
+  
   // ------------------------------------------
   // TAB: PARRILLA F1 (Constructores y Pilotos)
   // ------------------------------------------

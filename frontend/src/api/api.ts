@@ -205,6 +205,25 @@ export const deleteDriver = async (id: number) => {
 };
 
 // ==========================================
+// ⚙️ ADMIN - RESULTADOS DE CARRERA
+// ==========================================
+
+export const saveRaceResult = async (
+  gpId: number, 
+  positions: Record<number, string>, 
+  events: Record<string, string>
+) => {
+  // Enviamos positions y events en el body
+  const res = await client.post(`/admin/results/${gpId}`, { positions, events });
+  return res.data;
+};
+
+export const getRaceResult = async (gpId: number) => {
+  const res = await client.get(`/admin/results/${gpId}`);
+  return res.data;
+};
+
+// ==========================================
 // 🔮 PREDICCIONES
 // ==========================================
 

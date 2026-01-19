@@ -11,6 +11,7 @@ from app.db.models.team import Team
 from app.db.models.team_member import TeamMember
 from app.db.models.constructor import Constructor
 from app.db.models.driver import Driver
+from app.db.models.race_result import RaceResult
 from app.core.deps import require_admin
 from app.core.security import hash_password
 from app.schemas.season import SeasonCreate
@@ -354,6 +355,31 @@ def delete_grand_prix(gp_id: int, current_user = Depends(require_admin)):
 # -----------------------
 # Resultados de GP
 # -----------------------
+
+@router.get("/results/{gp_id}")
+def get_race_result_admin(gp_id: int, current_user = Depends(require_admin)):
+    db = SessionLocal()
+    
+    # Buscar si existe resultado
+    result = db.query(RaceResult).filter(RaceResult.gp_id == gp_id).first()
+    
+    if not result:
+        db.close()
+        # Devolvemos null/vacío para indicar que no hay datos
+        return None 
+
+    # Formatear posiciones: {1: "VER", 2: "ALO"...}
+    positions = {p.position: p.driver_name for p in result.positions}
+    
+    # Formatear eventos: {"FASTEST_LAP": "VER", ...}
+    events = {e.event_type: e.value for e in result.events}
+
+    db.close()
+    
+    return {
+        "positions": positions,
+        "events": events
+    }
 
 @router.post("/results/{gp_id}")
 def upsert_race_result(
