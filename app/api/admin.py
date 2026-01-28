@@ -15,6 +15,8 @@ from app.db.models.race_result import RaceResult
 from app.core.deps import require_admin
 from app.core.security import hash_password
 from app.schemas.season import SeasonCreate
+from typing import Optional
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -81,6 +83,35 @@ def delete_user(user_id: int, current_user = Depends(require_admin)):
     db.close()
     return {"message": "Usuario eliminado"}
 
+class UserUpdate(BaseModel):
+    role: str
+    password: Optional[str] = None # Opcional, solo si se quiere cambiar
+
+@router.patch("/users/{user_id}")
+def update_user(
+    user_id: int, 
+    user_data: UserUpdate,
+    current_user = Depends(require_admin)
+):
+    db = SessionLocal()
+    user = db.query(User).get(user_id)
+    
+    if not user:
+        db.close()
+        raise HTTPException(404, "Usuario no encontrado")
+
+    # 1. Actualizar Rol
+    user.role = user_data.role
+
+    # 2. Actualizar Contraseña (solo si viene en el JSON)
+    if user_data.password and len(user_data.password.strip()) > 0:
+        user.hashed_password = hash_password(user_data.password)
+
+    db.commit()
+    db.refresh(user)
+    db.close()
+    
+    return user
 
 # -----------------------
 # Temporadas

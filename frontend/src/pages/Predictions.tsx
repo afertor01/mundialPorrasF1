@@ -1,119 +1,28 @@
 import React, { useEffect, useState } from "react";
 import * as API from "../api/api";
-
-// 🎨 Estilos Inline
-const styles = {
-  container: {
-    padding: "20px",
-    maxWidth: "1200px",
-    margin: "0 auto",
-    fontFamily: "'Segoe UI', Roboto, sans-serif"
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-    gap: "20px",
-    marginTop: "20px"
-  },
-  card: {
-    border: "1px solid #e0e0e0",
-    borderRadius: "12px",
-    padding: "20px",
-    backgroundColor: "white",
-    boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    position: "relative" as const
-  },
-  cardDisabled: {
-    backgroundColor: "#f9f9f9",
-    opacity: 0.7,
-    cursor: "default"
-  },
-  badge: (isOpen: boolean, hasPred: boolean) => ({
-    display: "inline-block",
-    padding: "4px 12px",
-    borderRadius: "20px",
-    fontSize: "0.75rem",
-    fontWeight: "bold" as const,
-    textTransform: "uppercase" as const,
-    marginBottom: "10px",
-    backgroundColor: !isOpen ? (hasPred ? "#e2e6ea" : "#e0e0e0") : (hasPred ? "#d4edda" : "#fff3cd"),
-    color: !isOpen ? (hasPred ? "#495057" : "#666") : (hasPred ? "#155724" : "#856404"),
-  }),
-  formContainer: {
-    backgroundColor: "white",
-    padding: "30px",
-    borderRadius: "15px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-    maxWidth: "800px",
-    margin: "0 auto",
-    borderTop: "5px solid #e10600"
-  },
-  sectionTitle: {
-    borderBottom: "2px solid #eee",
-    paddingBottom: "10px",
-    marginBottom: "20px",
-    color: "#333",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "baseline"
-  },
-  selectGroup: {
-    marginBottom: "15px"
-  },
-  select: {
-    width: "100%",
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    fontSize: "1rem",
-    backgroundColor: "#fff",
-    cursor: "pointer"
-  },
-  saveButton: {
-    backgroundColor: "#e10600",
-    color: "white",
-    padding: "15px",
-    fontSize: "1.2rem",
-    fontWeight: "bold",
-    border: "none",
-    borderRadius: "8px",
-    width: "100%",
-    cursor: "pointer",
-    marginTop: "30px",
-    transition: "background 0.2s"
-  },
-  countdown: {
-    marginTop: "10px",
-    padding: "8px",
-    backgroundColor: "#fff3cd",
-    color: "#856404",
-    border: "1px solid #ffeeba",
-    borderRadius: "6px",
-    fontSize: "0.85rem",
-    fontWeight: "bold" as const,
-    textAlign: "center" as const,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "6px",
-    animation: "pulse 2s infinite" 
-  }
-};
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Trophy, 
+  Flag, 
+  AlertTriangle, 
+  Clock, 
+  Save, 
+  ChevronLeft, 
+  Lock, 
+  CheckCircle,
+  Timer,
+  Zap
+} from "lucide-react";
 
 const Predictions: React.FC = () => {
-  // --- ESTADOS DE DATOS ---
+  // --- ESTADOS DE DATOS (Mismos que tu original) ---
   const [activeSeason, setActiveSeason] = useState<any>(null);
   const [gps, setGps] = useState<any[]>([]);
   const [driversList, setDriversList] = useState<any[]>([]);
-  
-  // --- ESTADOS DE UI ---
   const [selectedGp, setSelectedGp] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [existingPreds, setExistingPreds] = useState<Record<number, boolean>>({});
 
-  // --- ESTADOS DEL FORMULARIO ---
   const [positions, setPositions] = useState<Record<number, string>>({});
   const [events, setEvents] = useState<Record<string, string>>({
     "FASTEST_LAP": "",
@@ -122,11 +31,8 @@ const Predictions: React.FC = () => {
     "DNF_DRIVER": ""
   });
 
-  useEffect(() => {
-    loadInitialData();
-  }, []);
+  useEffect(() => { loadInitialData(); }, []);
 
-  // 1. Cargar Datos
   const loadInitialData = async () => {
     try {
       const seasons = await API.getSeasons();
@@ -159,38 +65,28 @@ const Predictions: React.FC = () => {
         }
         setExistingPreds(predsMap);
       }
-    } catch (error) {
-      console.error("Error cargando datos:", error);
-    }
+    } catch (error) { console.error("Error:", error); }
   };
 
-  // 2. Abrir modo edición
   const handleOpenGp = async (gp: any) => {
     const isClosed = new Date() >= new Date(gp.race_datetime);
     const hasPred = existingPreds[gp.id]; 
-
-    // Bloqueo inicial
     if (isClosed && !hasPred) {
       alert("⚠️ El plazo para este Gran Premio ha finalizado.");
       return;
     }
-
     setLoading(true);
     setSelectedGp(gp);
-
-    // Resetear formulario
     const defaultPos: any = {};
     for(let i=1; i<=10; i++) defaultPos[i] = "";
     setPositions(defaultPos);
     setEvents({ "FASTEST_LAP": "", "SAFETY_CAR": "No", "DNFS": "0", "DNF_DRIVER": "" });
 
-    // Cargar predicción existente
     const existing = await API.getMyPrediction(gp.id);
     if (existing) {
         const posMap: any = {};
         existing.positions.forEach((p: any) => posMap[p.position] = p.driver_name); 
         setPositions(prev => ({ ...prev, ...posMap }));
-
         const evtMap: any = {};
         existing.events.forEach((e: any) => evtMap[e.event_type] = e.value);
         setEvents(prev => ({ ...prev, ...evtMap }));
@@ -198,63 +94,40 @@ const Predictions: React.FC = () => {
     setLoading(false);
   };
 
-  // 3. Guardar Predicción
   const handleSave = async () => {
     const filledPositions = Object.values(positions).filter(p => p !== "");
     const uniqueDrivers = new Set(filledPositions);
-
-    if (filledPositions.length < 10) {
-        alert("⚠️ Completa las 10 posiciones.");
-        return;
-    }
-    if (filledPositions.length !== uniqueDrivers.size) {
-        alert("⚠️ Has repetido pilotos en el Top 10.");
-        return;
-    }
-    if (!events.FASTEST_LAP) {
-        alert("⚠️ Selecciona la Vuelta Rápida.");
-        return;
-    }
+    if (filledPositions.length < 10) return alert("⚠️ Completa las 10 posiciones.");
+    if (filledPositions.length !== uniqueDrivers.size) return alert("⚠️ Has repetido pilotos.");
+    if (!events.FASTEST_LAP) return alert("⚠️ Selecciona la Vuelta Rápida.");
 
     try {
         await API.savePrediction(selectedGp.id, positions, events);
         alert("✅ Predicción guardada.");
         setExistingPreds(prev => ({ ...prev, [selectedGp.id]: true }));
         setSelectedGp(null);
-    } catch (err: any) {
-        alert("❌ Error: " + (err.response?.data?.detail || "No se pudo guardar"));
-    }
+    } catch (err: any) { alert("❌ Error al guardar"); }
   };
 
-  // 4. 🔥 AUTO-CIERRE: Kick out si el tiempo se agota mientras estás dentro
   useEffect(() => {
     if (!selectedGp) return;
-
     const raceDate = new Date(selectedGp.race_datetime);
     const now = new Date();
     const msUntilClose = raceDate.getTime() - now.getTime();
-
-    // Solo activamos el timer si estamos ANTES de la fecha límite
-    // (Si entraste a consultar una porra antigua, msUntilClose será negativo y no hará nada)
     if (msUntilClose > 0) {
-        console.log(`⏱️ Auto-cierre programado en ${msUntilClose / 1000} segundos`);
-        
         const timer = setTimeout(() => {
-            alert("⏳ ¡TIEMPO AGOTADO! \nSe ha cerrado el plazo de votación.");
-            setSelectedGp(null); // Esto te saca del formulario a la lista
+            alert("⏳ ¡TIEMPO AGOTADO!");
+            setSelectedGp(null);
         }, msUntilClose);
-
-        return () => clearTimeout(timer); // Limpieza si desmonta
+        return () => clearTimeout(timer);
     }
   }, [selectedGp]);
 
-
-  // --- Render Helpers ---
   const renderDriverOptions = () => (
     <>
       <option value="">-- Seleccionar --</option>
       {driversList.map((d) => (
-        <option key={d.code} value={d.code} style={{ color: d.color, fontWeight: "bold" }}>
+        <option key={d.code} value={d.code}>
             {d.code} - {d.name} ({d.team_name})
         </option>
       ))}
@@ -262,186 +135,236 @@ const Predictions: React.FC = () => {
   );
 
   // ==========================
-  // VISTA 1: DASHBOARD
+  // VISTA 1: DASHBOARD (Listado de GPs)
   // ==========================
   if (!selectedGp) {
     return (
-      <div style={styles.container}>
-        <h1 style={{color: "#333"}}>🏁 Mis Predicciones</h1>
-        <div style={styles.grid}>
-          {gps.map((gp) => {
-            const raceDate = new Date(gp.race_datetime);
-            const now = new Date();
-            const isOpen = now < raceDate;
-            const hasPred = existingPreds[gp.id];
-            const canView = isOpen || hasPred;
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-6xl mx-auto">
+          <header className="flex items-center gap-4 mb-10">
+            <div className="bg-f1-red p-3 rounded-lg shadow-lg">
+                <Flag className="text-white" size={32} />
+            </div>
+            <div>
+                <h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase">Mis Predicciones</h1>
+                <p className="text-gray-500 font-medium">Temporada {activeSeason?.year}</p>
+            </div>
+          </header>
 
-            // Countdown Logic
-            const diffMs = raceDate.getTime() - now.getTime();
-            const isUrgent = isOpen && diffMs < 86400000; 
-            let timeString = "";
-            if (isUrgent) {
-                const hours = Math.floor(diffMs / (1000 * 60 * 60));
-                const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                timeString = `${hours}h ${minutes}m`;
-            }
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {gps.map((gp, idx) => {
+              const raceDate = new Date(gp.race_datetime);
+              const now = new Date();
+              const isOpen = now < raceDate;
+              const hasPred = existingPreds[gp.id];
+              const canView = isOpen || hasPred;
+              const diffMs = raceDate.getTime() - now.getTime();
+              const isUrgent = isOpen && diffMs < 86400000; 
 
-            return (
-              <div 
-                key={gp.id} 
-                style={{ ...styles.card, ...(canView ? {} : styles.cardDisabled) }}
-                onClick={() => canView && handleOpenGp(gp)}
-              >
-                <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                    <div style={styles.badge(isOpen, hasPred)}>
-                        {isOpen ? (hasPred ? "✅ Modificar" : "🟡 Pendiente") : (hasPred ? "👁️ Ver Porra" : "🔒 Cerrado")}
+              return (
+                <motion.div 
+                  key={gp.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  whileHover={canView ? { y: -8, scale: 1.02 } : {}}
+                  onClick={() => canView && handleOpenGp(gp)}
+                  className={`relative bg-white rounded-3xl p-6 shadow-sm border-2 transition-all cursor-pointer overflow-hidden ${
+                    !canView ? 'opacity-60 grayscale bg-gray-100 border-gray-200' : 
+                    isOpen ? 'border-transparent hover:border-f1-red/20 shadow-xl' : 'border-gray-100 shadow-md'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-6">
+                    <span className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${
+                      !isOpen ? 'bg-gray-200 text-gray-600' : hasPred ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {!isOpen ? <Lock size={12}/> : hasPred ? <CheckCircle size={12}/> : <Timer size={12}/>}
+                      {!isOpen ? (hasPred ? "Finalizado" : "Cerrado") : (hasPred ? "Completado" : "Pendiente")}
+                    </span>
+                    {isUrgent && <Zap size={20} className="text-f1-red animate-pulse" />}
+                  </div>
+
+                  <h2 className="text-2xl font-bold text-gray-800 mb-4 line-clamp-1">{gp.name}</h2>
+                  
+                  <div className="space-y-2 text-gray-500 font-medium text-sm mb-6">
+                    <div className="flex items-center gap-2">
+                        <Clock size={16} className="text-gray-400" />
+                        <span>{raceDate.toLocaleDateString()} · {raceDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                     </div>
-                </div>
-                <h2 style={{margin: "10px 0"}}>{gp.name}</h2>
-                <div style={{color: "#555", fontSize: "0.9rem"}}>
-                    📅 {raceDate.toLocaleDateString()} <br/>
-                    ⏰ {raceDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                </div>
-                {isUrgent && (
-                    <div style={styles.countdown}>
-                        <span>🔥</span><span>Cierra en <strong>{timeString}</strong></span>
+                  </div>
+
+                  {canView && (
+                    <div className={`text-center py-3 rounded-2xl font-black text-xs uppercase tracking-tighter transition-colors ${
+                      isOpen ? (hasPred ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-f1-red text-white shadow-lg shadow-red-200') : 'bg-gray-800 text-white'
+                    }`}>
+                      {isOpen ? (hasPred ? "Modificar" : "Hacer Predicción") : "Consultar"}
                     </div>
-                )}
-                {canView && (
-                    <button style={{
-                        marginTop: "15px", width: "100%", padding: "10px", 
-                        backgroundColor: isOpen ? (hasPred ? "#007bff" : "#28a745") : "#6c757d", 
-                        color: "white", border: "none", borderRadius: "6px", cursor: "pointer"
-                    }}>
-                        {isOpen ? (hasPred ? "Editar Porra" : "Hacer Porra") : "Consultar Predicción"}
-                    </button>
-                )}
-              </div>
-            );
-          })}        
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
   }
 
   // ==========================
-  // VISTA 2: FORMULARIO
+  // VISTA 2: FORMULARIO (Hoja de Tiempos)
   // ==========================
-  const isLocked = selectedGp && new Date() >= new Date(selectedGp.race_datetime);
+  const isLocked = new Date() >= new Date(selectedGp.race_datetime);
 
   return (
-    <div style={{ backgroundColor: "#f4f7f6", minHeight: "100vh", padding: "20px 0" }}>
-        <div style={styles.container}>
+    <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="max-w-4xl mx-auto bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100"
+      >
+        {/* Cabecera Formulario */}
+        <div className="bg-f1-dark p-8 text-white relative">
             <button 
                 onClick={() => setSelectedGp(null)} 
-                style={{ marginBottom: "20px", background: "none", border: "none", color: "#666", cursor: "pointer" }}
+                className="absolute left-8 top-8 text-white/50 hover:text-white transition-colors flex items-center gap-1 text-sm font-bold"
             >
-                ⬅ Volver
+                <ChevronLeft size={18} /> SALIR
             </button>
-
-            <div style={styles.formContainer}>
-                <div style={styles.sectionTitle}>
-                    <h2 style={{margin: 0}}>{selectedGp.name}</h2>
-                    {isLocked ? (
-                        <span style={{padding: "5px 10px", background: "#6c757d", color: "white", borderRadius: "4px", fontSize: "0.8rem"}}>
-                            🔒 Lectura
-                        </span>
-                    ) : (
-                        <span style={{fontSize: "0.8rem", color: "#d32f2f", fontWeight: "bold"}}>
-                            Cierre: {new Date(selectedGp.race_datetime).toLocaleString()}
-                        </span>
-                    )}
+            <div className="text-center mt-4">
+                <h2 className="text-3xl font-black uppercase tracking-tighter italic">{selectedGp.name}</h2>
+                <div className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-white/10 rounded-full backdrop-blur-md border border-white/10 text-xs font-bold">
+                    {isLocked ? <Lock size={14} className="text-gray-400" /> : <Clock size={14} className="text-f1-red animate-pulse" />}
+                    <span className={isLocked ? "text-gray-300" : "text-f1-red"}>
+                        {isLocked ? "MODO LECTURA" : `CIERRE: ${new Date(selectedGp.race_datetime).toLocaleString()}`}
+                    </span>
                 </div>
+            </div>
+        </div>
 
-                {loading ? <p>Cargando...</p> : (
-                <>
-                    <h3 style={{color: "#e10600", marginTop: 0}}>🏆 Top 10</h3>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
-                        {[...Array(10)].map((_, i) => {
-                            const pos = i + 1;
-                            return (
-                                <div key={pos} style={styles.selectGroup}>
-                                    <label style={{display:"block", fontSize:"0.9rem", fontWeight: "600"}}>Puesto {pos}</label>
+        <div className="p-8 lg:p-12">
+            {loading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                    <div className="w-12 h-12 border-4 border-f1-red border-t-transparent rounded-full animate-spin"></div>
+                    <p className="font-bold text-gray-400 animate-pulse">CARGANDO DATOS DEL BOX...</p>
+                </div>
+            ) : (
+                <div className="space-y-12">
+                    {/* Top 10 Section */}
+                    <section>
+                        <div className="flex items-center gap-3 mb-8">
+                            <Trophy className="text-f1-red" size={24} />
+                            <h3 className="text-xl font-black uppercase italic text-gray-800 tracking-tighter">Parrilla de Resultados (Top 10)</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4">
+                            {[...Array(10)].map((_, i) => {
+                                const pos = i + 1;
+                                return (
+                                    <div key={pos} className="group flex items-center gap-4 bg-gray-50 p-2 rounded-2xl hover:bg-gray-100 transition-colors">
+                                        <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shadow-sm ${
+                                            pos === 1 ? 'bg-yellow-400 text-white' : 
+                                            pos === 2 ? 'bg-gray-300 text-white' : 
+                                            pos === 3 ? 'bg-amber-600 text-white' : 'bg-white text-gray-400'
+                                        }`}>
+                                            {pos}
+                                        </div>
+                                        <div className="flex-grow">
+                                            <select 
+                                                className="w-full bg-transparent border-none text-sm font-bold text-gray-700 focus:ring-0 cursor-pointer disabled:cursor-default"
+                                                value={positions[pos] || ""}
+                                                onChange={(e) => setPositions({...positions, [pos]: e.target.value})}
+                                                disabled={isLocked}
+                                            >
+                                                {renderDriverOptions()}
+                                            </select>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </section>
+
+                    <div className="h-px bg-gray-100 w-full" />
+
+                    {/* Eventos Section */}
+                    <section>
+                        <div className="flex items-center gap-3 mb-8">
+                            <AlertTriangle className="text-f1-red" size={24} />
+                            <h3 className="text-xl font-black uppercase italic text-gray-800 tracking-tighter">Eventos y Telemetría</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-gray-50 p-6 rounded-[2rem] border-2 border-transparent focus-within:border-f1-red/10 transition-all">
+                                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">🟣 Vuelta Rápida</label>
+                                <select 
+                                    className="w-full bg-white border-none rounded-xl text-sm font-bold p-3 shadow-sm focus:ring-2 focus:ring-f1-red/20"
+                                    value={events["FASTEST_LAP"]}
+                                    onChange={e => setEvents({...events, "FASTEST_LAP": e.target.value})}
+                                    disabled={isLocked}
+                                >
+                                    {renderDriverOptions()}
+                                </select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-gray-50 p-6 rounded-[2rem]">
+                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Safety Car</label>
                                     <select 
-                                        style={{
-                                            ...styles.select,
-                                            backgroundColor: isLocked ? "#f9f9f9" : "#fff",
-                                            cursor: isLocked ? "default" : "pointer"
-                                        }}
-                                        value={positions[pos] || ""}
-                                        onChange={(e) => setPositions({...positions, [pos]: e.target.value})}
+                                        className="w-full bg-white border-none rounded-xl text-sm font-bold p-3 shadow-sm"
+                                        value={events["SAFETY_CAR"]}
+                                        onChange={e => setEvents({...events, "SAFETY_CAR": e.target.value})}
+                                        disabled={isLocked}
+                                    >
+                                        <option value="No">No</option>
+                                        <option value="Yes">Sí</option>
+                                    </select>
+                                </div>
+                                <div className="bg-gray-50 p-6 rounded-[2rem]">
+                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Abandonos</label>
+                                    <input 
+                                        type="number" min="0"
+                                        className="w-full bg-white border-none rounded-xl text-sm font-bold p-3 shadow-sm"
+                                        value={events["DNFS"]}
+                                        onChange={e => setEvents({...events, "DNFS": e.target.value})}
+                                        disabled={isLocked}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <AnimatePresence>
+                            {parseInt(events["DNFS"]) > 0 && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: -10 }} 
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="mt-6 bg-amber-50 p-6 rounded-[2rem] border-2 border-amber-100"
+                                >
+                                    <label className="block text-xs font-black text-amber-600 uppercase tracking-widest mb-3">☠️ Primer Piloto en Abandonar</label>
+                                    <select 
+                                        className="w-full bg-white border-none rounded-xl text-sm font-bold p-3 shadow-sm focus:ring-2 focus:ring-amber-200"
+                                        value={events["DNF_DRIVER"]}
+                                        onChange={e => setEvents({...events, "DNF_DRIVER": e.target.value})}
                                         disabled={isLocked}
                                     >
                                         {renderDriverOptions()}
                                     </select>
-                                </div>
-                            )
-                        })}
-                    </div>
-
-                    <hr style={{ margin: "30px 0", borderTop: "1px solid #eee" }} />
-                    <h3 style={{color: "#007bff"}}>⚡ Eventos</h3>
-
-                    <div style={styles.selectGroup}>
-                        <label style={{fontWeight: "bold"}}>🟣 Vuelta Rápida</label>
-                        <select 
-                            style={{...styles.select, backgroundColor: isLocked ? "#f9f9f9" : "#fff"}}
-                            value={events["FASTEST_LAP"]}
-                            onChange={e => setEvents({...events, "FASTEST_LAP": e.target.value})}
-                            disabled={isLocked}
-                        >
-                            {renderDriverOptions()}
-                        </select>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-                        <div style={styles.selectGroup}>
-                            <label style={{fontWeight: "bold"}}>Safety Car</label>
-                            <select 
-                                style={{...styles.select, backgroundColor: isLocked ? "#f9f9f9" : "#fff"}}
-                                value={events["SAFETY_CAR"]}
-                                onChange={e => setEvents({...events, "SAFETY_CAR": e.target.value})}
-                                disabled={isLocked}
-                            >
-                                <option value="No">No</option>
-                                <option value="Yes">Sí</option>
-                            </select>
-                        </div>
-                        <div style={styles.selectGroup}>
-                            <label style={{fontWeight: "bold"}}>DNFs</label>
-                            <input 
-                                type="number" min="0" max="20"
-                                style={{...styles.select, backgroundColor: isLocked ? "#f9f9f9" : "#fff"}}
-                                value={events["DNFS"]}
-                                onChange={e => setEvents({...events, "DNFS": e.target.value})}
-                                disabled={isLocked}
-                            />
-                        </div>
-                    </div>
-
-                    {parseInt(events["DNFS"]) > 0 && (
-                        <div style={{ marginTop: "10px", padding: "15px", backgroundColor: "#fff3cd", borderRadius: "8px" }}>
-                            <label style={{fontWeight: "bold", display: "block"}}>☠️ Piloto DNF</label>
-                            <select 
-                                style={{...styles.select, backgroundColor: isLocked ? "#f9f9f9" : "#fff"}}
-                                value={events["DNF_DRIVER"]}
-                                onChange={e => setEvents({...events, "DNF_DRIVER": e.target.value})}
-                                disabled={isLocked}
-                            >
-                                {renderDriverOptions()}
-                            </select>
-                        </div>
-                    )}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </section>
 
                     {!isLocked && (
-                        <button onClick={handleSave} style={styles.saveButton}>
-                            GUARDAR PREDICCIÓN
-                        </button>
+                        <motion.button 
+                            whileHover={{ scale: 1.02, backgroundColor: '#c40500' }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={handleSave} 
+                            className="w-full bg-f1-red text-white py-6 rounded-3xl font-black text-xl uppercase tracking-tighter italic shadow-2xl shadow-red-500/40 flex items-center justify-center gap-3 transition-all"
+                        >
+                            <Save size={24} /> GUARDAR PREDICCIÓN
+                        </motion.button>
                     )}
-                </>
-                )}
-            </div>
+                </div>
+            )}
         </div>
+      </motion.div>
     </div>
   );
 };
