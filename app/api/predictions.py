@@ -6,6 +6,7 @@ from app.db.models.prediction import Prediction
 from app.db.models.prediction_position import PredictionPosition
 from app.db.models.prediction_event import PredictionEvent
 from app.db.models.grand_prix import GrandPrix
+from app.db.models.user import User
 from app.core.deps import get_current_user
 
 router = APIRouter(prefix="/predictions", tags=["Predictions"])
@@ -107,3 +108,33 @@ def get_my_prediction(
 
     db.close()
     return prediction
+
+@router.get("/{gp_id}/all")
+def get_all_predictions_for_gp(
+    gp_id: int,
+    current_user = Depends(get_current_user)
+):
+    db = SessionLocal()
+    
+    # Obtenemos el GP para saber si la carrera ya empezó (opcional, por si quieres ocultar antes)
+    # Por ahora lo dejamos abierto como pediste.
+    
+    predictions = (
+        db.query(Prediction)
+        .filter(Prediction.gp_id == gp_id)
+        .all()
+    )
+    
+    results = []
+    for p in predictions:
+        # Construimos un diccionario limpio
+        results.append({
+            "username": p.user.username,
+            "points": p.points,
+            "multiplier": p.multiplier,
+            "positions": {pos.position: pos.driver_name for pos in p.positions},
+            "events": {evt.event_type: evt.value for evt in p.events}
+        })
+        
+    db.close()
+    return results

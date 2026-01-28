@@ -62,7 +62,7 @@ export const getRanking = async (season_id: number, type: "users" | "teams", mod
 // ==========================================
 
 export const getSeasons = async () => {
-  const res = await client.get("/admin/seasons");
+  const res = await client.get("/seasons/");
   return res.data;
 };
 
@@ -102,12 +102,22 @@ export const deleteUser = async (user_id: number) => {
   return res.data;
 };
 
+export const updateUser = async (userId: number, role: string, password?: string) => {
+  // Enviamos body JSON
+  const body: any = { role };
+  if (password && password.trim() !== "") {
+    body.password = password;
+  }
+  const res = await client.patch(`/admin/users/${userId}`, body);
+  return res.data;
+};
+
 // ==========================================
 // ⚙️ ADMIN - EQUIPOS DE USUARIOS (ESCUDERÍAS JUGADORES)
 // ==========================================
 
 export const getTeams = async (season_id: number) => {
-  const res = await client.get(`/admin/seasons/${season_id}/teams`);
+  const res = await client.get(`/seasons/${season_id}/teams`);
   return res.data;
 };
 
@@ -162,9 +172,13 @@ export const createGP = async (data: { name: string, race_datetime: string, seas
 };
 
 // Editar
-export const updateGP = async (gpId: number, data: { name: string, race_datetime: string, season_id: number }) => {
-  const res = await client.put(`/admin/gps/${gpId}`, null, { params: data });
-  return res.data;
+export const updateGP = async (gpId: number, name: string, race_datetime: string, season_id: number) => {
+    // Tu backend actual: @router.put("/gps/{gp_id}") recibe parámetros sueltos (query), no un body Pydantic.
+    // Así que lo mandamos como params.
+    const res = await client.put(`/admin/gps/${gpId}`, null, {
+        params: { name, race_datetime, season_id }
+    });
+    return res.data;
 };
 
 // Borrar
@@ -178,7 +192,7 @@ export const deleteGP = async (gpId: number) => {
 // ==========================================
 
 export const getF1Grid = async (season_id: number) => {
-    const res = await client.get(`/admin/seasons/${season_id}/constructors`);
+    const res = await client.get(`/seasons/${season_id}/constructors`);
     return res.data; 
 };
 
@@ -244,4 +258,27 @@ export const savePrediction = async (gp_id: number, positions: Record<number, st
         events
     });
     return res.data;
+};
+
+// ==========================================
+// 🏁 ZONA PÚBLICA (Dashboard / Race Control)
+// ==========================================
+
+// 1. Obtener predicciones de TODOS los usuarios en un GP (para la tabla del Dashboard)
+export const getGpPredictions = async (gpId: number) => {
+  // Usamos 'client' que es tu variable configurada, no axiosInstance
+  const response = await client.get(`/predictions/${gpId}/all`);
+  return response.data;
+};
+
+// 2. Obtener resultados oficiales de un GP (Endpoint Público)
+// NOTA: Lo llamamos 'getPublicRaceResult' porque ya tienes un 'getRaceResult' en la zona de ADMIN.
+export const getPublicRaceResult = async (gpId: number) => {
+  try {
+    const response = await client.get(`/results/${gpId}`);
+    return response.data;
+  } catch (error) {
+    // Si no hay resultados aún (404), devolvemos null para que el front no explote
+    return null;
+  }
 };

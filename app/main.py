@@ -15,6 +15,7 @@ from app.api.predictions import router as predictions_router
 from app.api.race_results import router as race_results_router
 from app.api.admin import router as admin_router
 from app.api import stats
+from app.api.seasons import router as seasons_router
 
 app = FastAPI(
     title="Mundial de Porras F1",
@@ -31,6 +32,7 @@ app.include_router(predictions_router)
 app.include_router(race_results_router)
 app.include_router(admin_router)
 app.include_router(stats.router)
+app.include_router(seasons_router)
 
 # Configuramos el permiso para que React pueda hablar con Python
 app.add_middleware(

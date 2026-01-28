@@ -26,12 +26,14 @@ const Dashboard: React.FC = () => {
   const [evolution, setEvolution] = useState<any>({});
   const [teamsMap, setTeamsMap] = useState<Record<string, string>>({}); 
 
-  // 1. EXTRAER USUARIO (Sincronizado con tu auth.py)
+  // ✅ 1. AÑADIR ESTADO PARA LOS GPs
+  const [gps, setGps] = useState<any[]>([]); 
+
+  // 1. EXTRAER USUARIO
   useEffect(() => {
     if (token) {
         try {
             const decoded: any = jwtDecode(token);
-            // ✅ CORRECCIÓN CLAVE: Usamos 'username' que es lo que mandas en el token
             setUsername(decoded.username || ""); 
         } catch (e) {
             console.error("Error con el token");
@@ -49,6 +51,10 @@ const Dashboard: React.FC = () => {
       if (!active) return;
       setActiveSeason(active);
 
+      // ✅ 2. CARGAR LA LISTA DE GPs (Necesario para la gráfica)
+      const gpList = await API.getGPs(active.id);
+      setGps(gpList);
+
       const rankData = await API.getRanking(active.id, "users", mode, 100);
       setRanking(rankData.overall);
 
@@ -65,7 +71,7 @@ const Dashboard: React.FC = () => {
       setTeamsMap(map);
   };
 
-  // --- LÓGICA DE RANKING (Comparando strings de nombre) ---
+  // --- LÓGICA DE RANKING ---
   const userData = ranking.find(r => r.name === username);
   const myRank = ranking.findIndex(r => r.name === username) + 1;
   const myPoints = userData?.accumulated;
@@ -119,7 +125,7 @@ const Dashboard: React.FC = () => {
             </div>
         </header>
 
-        {/* STATS CARDS (Ahora sí con datos reales) */}
+        {/* STATS CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard 
                 icon={<Award className="text-yellow-500" />} 
@@ -230,7 +236,8 @@ const Dashboard: React.FC = () => {
         >
             <h3 className="text-xl font-black uppercase italic tracking-tighter mb-8">Evolución del Campeonato</h3>
             <div className="bg-gray-50 rounded-[2rem] p-6 border border-gray-100">
-                <ComparisonLineChart fullData={evolution} currentUser={username} />
+                {/* ✅ 3. PASAR GPS AL COMPONENTE */}
+                <ComparisonLineChart fullData={evolution} currentUser={username} gps={gps} />
             </div>
         </motion.section>
 

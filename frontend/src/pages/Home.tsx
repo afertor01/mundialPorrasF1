@@ -1,24 +1,19 @@
 import React, { useContext } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { motion } from "framer-motion"; // ✨ Animaciones
-import { Trophy, Calendar, Flag, BarChart3, LogIn, UserPlus } from "lucide-react"; // ✨ Iconos
+import { motion } from "framer-motion";
+// He añadido 'Target' para las predicciones
+import { Trophy, Calendar, Flag, BarChart3, LogIn, UserPlus, Target } from "lucide-react"; 
 
 const Home: React.FC = () => {
   const { token, logout } = useContext(AuthContext);
 
-  // Variantes para la animación de entrada
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { 
       opacity: 1,
-      transition: { staggerChildren: 0.1 } // Efecto cascada
+      transition: { staggerChildren: 0.1 } 
     }
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1 }
   };
 
   return (
@@ -26,7 +21,6 @@ const Home: React.FC = () => {
       
       {/* --- HERO SECTION --- */}
       <div className="relative bg-f1-dark text-white overflow-hidden">
-        {/* Fondo decorativo (círculos abstractos) */}
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-f1-red opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-72 h-72 rounded-full bg-blue-600 opacity-20 blur-3xl"></div>
 
@@ -73,7 +67,7 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-      {/* --- DASHBOARD PREVIEW CARDS --- */}
+      {/* --- MENU GRID --- */}
       {token && (
         <div className="max-w-6xl mx-auto px-6 -mt-10 relative z-10 pb-20">
           <motion.div 
@@ -82,27 +76,34 @@ const Home: React.FC = () => {
             animate="visible"
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
           >
+            {/* 1. Dashboard (Ranking y Stats) */}
             <MenuCard 
               to="/dashboard" 
-              title="Dashboard" 
-              desc="Panel principal y estadísticas"
-              icon={<BarChart3 size={32} className="text-blue-500" />}
-              color="border-l-4 border-blue-500"
-            />
-            <MenuCard 
-              to="/predict" 
-              title="Mis Predicciones" 
-              desc="Haz tu porra para la próxima carrera"
-              icon={<Flag size={32} className="text-f1-red" />}
-              color="border-l-4 border-f1-red"
-            />
-            <MenuCard 
-              to="/dashboard" // O /standings si creas esa página
               title="Clasificación" 
-              desc="Ranking global de jugadores"
+              desc="Ranking global y estadísticas"
               icon={<Trophy size={32} className="text-yellow-500" />}
               color="border-l-4 border-yellow-500"
             />
+            
+            {/* 2. Predicciones */}
+            <MenuCard 
+              to="/predict" 
+              title="Jugar Porra" 
+              desc="Haz tu predicción para el GP"
+              icon={<Target size={32} className="text-f1-red" />}
+              color="border-l-4 border-f1-red"
+            />
+
+            {/* 3. Race Control (Nuevo) */}
+            <MenuCard 
+              to="/race-control" 
+              title="Race Control" 
+              desc="Comparativa detallada carrera a carrera"
+              icon={<Flag size={32} className="text-blue-500" />}
+              color="border-l-4 border-blue-500"
+            />
+
+            {/* 4. Admin */}
             <MenuCard 
               to="/admin" 
               title="Zona Admin" 
@@ -117,7 +118,6 @@ const Home: React.FC = () => {
   );
 };
 
-// Componente reutilizable para las tarjetas
 const MenuCard = ({ to, title, desc, icon, color }: any) => (
   <Link to={to}>
     <motion.div 

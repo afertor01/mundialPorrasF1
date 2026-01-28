@@ -62,3 +62,31 @@ def upsert_race_result(
     db.close()
 
     return {"message": "Resultado guardado"}
+
+@router.get("/{gp_id}")
+def get_race_result(
+    gp_id: int,
+    current_user = Depends(get_current_user) # Requiere login, pero no ser admin
+):
+    db = SessionLocal()
+    result = (
+        db.query(RaceResult)
+        .filter(RaceResult.gp_id == gp_id)
+        .first()
+    )
+    
+    if not result:
+        db.close()
+        raise HTTPException(status_code=404, detail="Resultados no disponibles aún")
+
+    # Forzamos la carga de relaciones para que FastAPI las serialice
+    # (A veces SQLAlchemy es perezoso y devuelve vacio si no se accede explícitamente)
+    data = {
+        "id": result.id,
+        "gp_id": result.gp_id,
+        "positions": {p.position: p.driver_name for p in result.positions},
+        "events": {e.event_type: e.value for e in result.events}
+    }
+    
+    db.close()
+    return data
