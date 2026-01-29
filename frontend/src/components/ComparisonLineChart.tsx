@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Line } from "react-chartjs-2";
-import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from "chart.js";
-
-Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 interface Props {
   fullData: Record<string, { gp_id: number; value: number }[]>;
@@ -10,25 +16,20 @@ interface Props {
   gps: any[];
 }
 
-// 🎨 NUEVA FUNCIÓN DE COLOR ROBUSTA
+// 🎨 FUNCIÓN DE COLOR
 const stringToColor = (str: string) => {
     let hash = 0;
-    // Algoritmo DJB2 (muy común para hash de strings)
     for (let i = 0; i < str.length; i++) {
         hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-    
-    // Multiplicamos por un número primo (ej. 137) para dispersar usuarios con nombres similares
-    // y aseguramos que sea positivo.
     const hue = Math.abs((hash * 137) % 360);
-    
-    // Devolvemos un color con buena saturación (70%) y legibilidad (45%)
     return `hsl(${hue}, 70%, 45%)`;
 };
 
 const ComparisonLineChart: React.FC<Props> = ({ fullData, currentUser, gps }) => {
   const allUsers = Object.keys(fullData);
   
+  // --- 1. LÓGICA DE GESTIÓN DE USUARIOS ---
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -68,32 +69,6 @@ const ComparisonLineChart: React.FC<Props> = ({ fullData, currentUser, gps }) =>
     return rankedUsers.filter(u => visibleSet.has(u)); 
   }, [searchTerm, rankedUsers, selectedUsers, currentUser]);
 
-  const labels = playedGps.map(gp => gp.name); 
-
-  const datasets = selectedUsers.map((user) => {
-    const isMe = user === currentUser;
-    
-    // ✅ AQUÍ USAMOS LA NUEVA LÓGICA DE COLOR
-    const color = isMe ? "#e10600" : stringToColor(user);
-
-    const data = playedGps.map(gp => {
-        const point = fullData[user]?.find(d => d.gp_id === gp.id);
-        return point ? point.value : null; 
-    });
-
-    return {
-        label: user,
-        data: data,
-        borderColor: color,
-        backgroundColor: color,
-        borderWidth: isMe ? 4 : 2, // Hice tu línea un poco más gruesa (4px)
-        tension: 0.3,
-        pointRadius: isMe ? 5 : 3,
-        pointHoverRadius: 7,
-        order: isMe ? 0 : 1 
-    }
-  });
-
   const toggleUser = (user: string) => {
       if (selectedUsers.includes(user)) {
           setSelectedUsers(selectedUsers.filter(u => u !== user));
@@ -103,91 +78,164 @@ const ComparisonLineChart: React.FC<Props> = ({ fullData, currentUser, gps }) =>
       }
   }
 
+  // --- 2. DATOS PARA RECHARTS ---
+  const chartData = useMemo(() => {
+    return playedGps.map((gp) => {
+      const point: any = { 
+          name: gp.name, 
+      };
+      
+      selectedUsers.forEach((username) => {
+        const userPoints = fullData[username];
+        if (userPoints) {
+            const p = userPoints.find((item) => item.gp_id === gp.id);
+            point[username] = p ? p.value : null;
+        }
+      });
+      return point;
+    });
+  }, [fullData, playedGps, selectedUsers]);
+
+  // --- 3. CÁLCULO DE LÍMITES ---
+  const { maxVal } = useMemo(() => {
+      let max = 10; 
+      const allValues: number[] = [];
+      
+      selectedUsers.forEach(u => {
+          fullData[u]?.forEach(d => allValues.push(d.value));
+      });
+
+      if (allValues.length > 0) {
+          max = Math.max(...allValues);
+      }
+      return { maxVal: max };
+  }, [selectedUsers, fullData]);
+  
+  const topPadding = maxVal * 0.1;
+
   if (playedGps.length === 0) {
       return (
-        <div className="h-[400px] flex items-center justify-center bg-white rounded-xl border border-dashed border-gray-300 text-gray-400">
-            <p className="font-bold">Aún no se ha disputado ninguna carrera esta temporada.</p>
+        <div className="h-full flex items-center justify-center text-gray-400 font-bold italic">
+            Esperando resultados de la primera carrera...
         </div>
       );
   }
 
   return (
-    <div>
-        <input 
-            type="text" 
-            placeholder="🔍 Buscar piloto/usuario..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-                width: "100%", padding: "12px", marginBottom: "15px",
-                borderRadius: "8px", border: "1px solid #ddd", fontSize: "1rem"
-            }}
-        />
+    <div className="flex flex-col h-full w-full">
+        {/* PARTE SUPERIOR: CONTROLES */}
+        <div className="mb-4">
+            <input 
+                type="text" 
+                placeholder="🔍 Buscar..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 mb-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-f1-red transition-all shadow-sm"
+            />
 
-        <div style={{
-            marginBottom: 20, maxHeight: 150, overflowY: "auto", 
-            border: "1px solid #eee", borderRadius: "12px", padding: "15px", 
-            display: "flex", flexWrap: "wrap", gap: "10px", backgroundColor: "#f8f9fa"
-        }}>
-            {!searchTerm && <div style={{width: "100%", fontSize: "0.8rem", color: "#888", marginBottom: "5px"}}>Top 10 y Tú:</div>}
-            
-            {buttonsToShow.length > 0 ? (
-                buttonsToShow.map(u => {
+            <div className="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto custom-scrollbar p-1">
+                {!searchTerm && <span className="w-full text-[10px] font-black uppercase text-gray-300 tracking-widest mb-1">Top 10 & Tú</span>}
+                
+                {buttonsToShow.length > 0 ? buttonsToShow.map(u => {
                     const isActive = selectedUsers.includes(u);
                     const isMe = u === currentUser;
-                    // Calculamos el color también para el borde del botón
                     const btnColor = isMe ? "#e10600" : stringToColor(u);
                     
                     return (
                         <button 
                             key={u} 
                             onClick={() => toggleUser(u)}
+                            className={`
+                                flex items-center gap-2 px-3 py-1 rounded-full text-xs transition-all border
+                                ${isActive ? "shadow-sm scale-105" : "hover:bg-gray-50 opacity-70 hover:opacity-100"}
+                            `}
                             style={{
-                                padding: "6px 14px", fontSize: "0.9rem", borderRadius: "20px",
-                                border: isActive ? `2px solid ${btnColor}` : "1px solid #ddd", // Borde del color del usuario
-                                backgroundColor: isActive ? (isMe ? "#ffebeb" : "#fff") : "#fff",
-                                color: isActive ? "#333" : "#555",
-                                fontWeight: isActive ? "bold" : "normal", 
-                                cursor: "pointer",
-                                display: "flex", alignItems: "center", gap: "6px",
-                                boxShadow: isActive ? `0 2px 5px ${btnColor}40` : "none" // Sombra sutil con el color
+                                borderColor: isActive ? btnColor : "#eee",
+                                backgroundColor: isActive ? (isMe ? "#fff1f1" : "white") : "white",
+                                color: isActive ? "#222" : "#888",
+                                fontWeight: isActive ? 700 : 400
                             }}
                         >
-                            {/* Puntos de color indicativo */}
-                            <span style={{
-                                width: 10, height: 10, borderRadius: "50%", 
-                                backgroundColor: btnColor, display: "inline-block"
-                            }}></span>
-                            
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: btnColor }}></span>
                             {rankedUsers.indexOf(u) === 0 && "🥇"}
                             {rankedUsers.indexOf(u) === 1 && "🥈"}
                             {rankedUsers.indexOf(u) === 2 && "🥉"}
                             {u} {isMe && "(Tú)"}
                         </button>
                     )
-                })
-            ) : (
-                <span style={{color: "#999", width: "100%", textAlign: "center"}}>No se encontraron usuarios</span>
-            )}
+                }) : <span className="text-xs text-gray-400 italic pl-2">Sin resultados</span>}
+            </div>
         </div>
 
-        <div style={{height: 400, padding: "10px", backgroundColor: "white", borderRadius: "12px", border: "1px solid #eee"}}>
-            <Line 
-                data={{ labels, datasets }} 
-                options={{ 
-                    maintainAspectRatio: false, 
-                    responsive: true,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { position: 'bottom', labels: { usePointStyle: true } }, // Estilo de punto en leyenda
-                        title: { display: true, text: 'Evolución de Puntos' }
-                    },
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
-                        x: { grid: { display: false } }
-                    }
-                }} 
-            />
+        {/* PARTE INFERIOR: GRÁFICA */}
+        <div className="flex-1 w-full min-h-[350px]">
+            <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                    data={chartData}
+                    margin={{ top: 20, right: 30, left: 10, bottom: 5 }} // Bottom reducido pq el XAxis height ya da espacio
+                >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                    
+                    {/* EJE X: OBLICUO */}
+                    <XAxis 
+                        dataKey="name" 
+                        // ✅ SOLUCIÓN: Movemos 'angle' aquí como propiedad directa
+                        angle={-30} 
+                        // En 'tick' dejamos solo las propiedades estándar de SVG
+                        tick={{ 
+                            fontSize: 10, 
+                            fill: "#9ca3af", 
+                            fontWeight: "bold", 
+                            textAnchor: 'end' 
+                        }} 
+                        axisLine={false}
+                        tickLine={false}
+                        dy={5} 
+                        dx={-5} 
+                        height={60} 
+                        interval="preserveStartEnd" 
+                    />
+                    
+                    {/* EJE Y: Empezando en 0 */}
+                    <YAxis 
+                        domain={[0, maxVal + topPadding]} 
+                        tick={{ fontSize: 10, fill: "#9ca3af" }} 
+                        axisLine={false}
+                        tickLine={false}
+                        width={40} 
+                        allowDecimals={false} 
+                    />
+                    
+                    <Tooltip 
+                        itemSorter={(item) => (item.value as number) * -1}
+                        contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
+                        itemStyle={{ fontSize: "12px", fontWeight: "bold" }}
+                        labelStyle={{ color: "#9ca3af", fontSize: "10px", textTransform: "uppercase", marginBottom: "5px" }}
+                    />
+                    
+                    <Legend wrapperStyle={{ paddingTop: "10px", fontSize: "12px" }} iconType="circle"/>
+
+                    {selectedUsers.map((username) => {
+                        const isMe = username === currentUser;
+                        const color = isMe ? "#e10600" : stringToColor(username);
+                        
+                        return (
+                            <Line
+                                key={username}
+                                type="monotone"
+                                dataKey={username}
+                                stroke={color}
+                                strokeWidth={isMe ? 4 : 2}
+                                dot={isMe ? { r: 4, strokeWidth: 2, fill: "white" } : false}
+                                activeDot={{ r: 6 }}
+                                strokeOpacity={isMe ? 1 : 0.4}
+                                connectNulls={true}
+                                animationDuration={2000}
+                            />
+                        );
+                    })}
+                </LineChart>
+            </ResponsiveContainer>
         </div>
     </div>
   );
