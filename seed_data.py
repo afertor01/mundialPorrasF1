@@ -1,4 +1,5 @@
 import random
+import string # <--- NECESARIO PARA GENERAR CÓDIGOS
 from datetime import datetime, timedelta
 from app.db.session import SessionLocal, engine, Base
 from app.db.models import _all
@@ -14,7 +15,6 @@ from app.db.models.race_result import RaceResult
 from app.db.models.race_position import RacePosition
 from app.db.models.race_event import RaceEvent
 from app.db.models.multiplier_config import MultiplierConfig
-# 👇 NUEVOS IMPORTS NECESARIOS
 from app.db.models.constructor import Constructor
 from app.db.models.driver import Driver
 
@@ -47,7 +47,6 @@ def create_season(db):
 def create_f1_grid(db, season):
     print("🏎️ Creando Parrilla F1 Real (Constructores y Pilotos)...")
     
-    # Definición de la parrilla 2026 (Ficticia)
     grid_data = [
         ("Red Bull Racing", "#1e41ff", [("VER", "Max Verstappen"), ("LAW", "Liam Lawson")]),
         ("Ferrari", "#ff0000", [("HAM", "Lewis Hamilton"), ("LEC", "Charles Leclerc")]),
@@ -66,7 +65,7 @@ def create_f1_grid(db, season):
     for team_name, color, drivers in grid_data:
         const = Constructor(name=team_name, color=color, season_id=season.id)
         db.add(const)
-        db.commit() # Guardar para tener ID
+        db.commit() 
         
         for code, name in drivers:
             d = Driver(code=code, name=name, constructor_id=const.id)
@@ -78,7 +77,7 @@ def create_f1_grid(db, season):
 
 def create_users_and_teams(db, season):
     users = []
-    # Admin y Usuario principal (Con acrónimo)
+    # Admin y Usuario principal
     admin = User(email="admin@test.com", username="ADMIN", acronym="ADM", hashed_password=hash_password("123"), role="admin")
     yo = User(email="yo@test.com", username="afertor", acronym="AFE", hashed_password=hash_password("123"), role="user")
     users.extend([admin, yo])
@@ -87,7 +86,7 @@ def create_users_and_teams(db, season):
     # Bots
     for i in range(NUM_USERS - 2):
         name = f"Jugador_{i+1}"
-        acr = f"J{i+1}"[:3] # Generar acrónimo J1, J2, J10...
+        acr = f"J{i+1}"[:3].upper()
         u = User(email=f"bot{i}@test.com", username=name, acronym=acr, hashed_password=hash_password("123"), role="user")
         users.append(u)
         db.add(u)
@@ -95,16 +94,24 @@ def create_users_and_teams(db, season):
     
 
     print("👥 Creando escuderías de jugadores...")
-    # Aseguramos que TODOS tienen equipo
-    # Si somos 20 usuarios, creamos 10 equipos
     random.shuffle(users)
     
     team_count = 0
+    chars = string.ascii_uppercase + string.digits # Caracteres para el código
+
     for i in range(0, len(users), 2):
-        # Aseguramos que hay pareja
         if i+1 < len(users):
             team_count += 1
-            team = Team(name=f"Escudería {team_count}", season_id=season.id)
+            
+            # --- CORRECCIÓN: GENERAR CÓDIGO ÚNICO ---
+            code_str = ''.join(random.choices(chars, k=6))
+            formatted_code = f"{code_str[:3]}-{code_str[3:]}"
+            
+            team = Team(
+                name=f"Escudería {team_count}", 
+                season_id=season.id,
+                join_code=formatted_code # <--- AÑADIDO
+            )
             db.add(team)
             db.commit()
             
@@ -124,7 +131,7 @@ def simulate_race(db, season, users, gp_index, all_driver_codes):
     
     print(f"🏁 Simulando {gp.name}...")
 
-    # Resultado REAL (usando pilotos existentes en DB)
+    # Resultado REAL
     real_positions = random.sample(all_driver_codes, 10)
     real_events = {
         "FASTEST_LAP": random.choice(all_driver_codes),
@@ -198,16 +205,12 @@ def main():
     try:
         reset_db()
         season = create_season(db)
-        # 👇 Aquí creamos la parrilla F1 y obtenemos los códigos de pilotos válidos
         driver_codes = create_f1_grid(db, season)
-        
         users = create_users_and_teams(db, season)
         
-        # Simular 5 carreras pasadas
         for i in range(5):
             simulate_race(db, season, users, i, driver_codes)
             
-        # Crear carreras futuras
         future_date = datetime.now() + timedelta(days=7)
         db.add(GrandPrix(name="GP Futuro 1", race_datetime=future_date, season_id=season.id))
         db.add(GrandPrix(name="GP Futuro 2", race_datetime=future_date + timedelta(days=7), season_id=season.id))
@@ -216,6 +219,8 @@ def main():
         print("✅ ¡Simulación completada con éxito!")
     except Exception as e:
         print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         db.close()
 

@@ -282,3 +282,45 @@ export const getPublicRaceResult = async (gpId: number) => {
     return null;
   }
 };
+
+// ==========================================
+// 🤝 GESTIÓN DE EQUIPOS (JUGADORES)
+// ==========================================
+
+export const getMyTeam = async () => {
+    try {
+        const res = await client.get("/teams/my-team");
+        return res.data;
+    } catch (e) {
+        // Si devuelve null o 404, retornamos null
+        return null;
+    }
+};
+
+export const createTeamPlayer = async (name: string) => {
+    // El backend espera 'name' como query param
+    const res = await client.post("/teams/create", null, { params: { name } });
+    return res.data;
+};
+
+export const joinTeamPlayer = async (code: string) => {
+    // El backend espera 'code' como query param
+    const res = await client.post("/teams/join", null, { params: { code } });
+    return res.data;
+};
+
+export const leaveTeamPlayer = async () => {
+    const res = await client.delete("/teams/leave");
+    return res.data;
+};
+
+export const kickTeamMemberAdmin = async (teamId: number, userId: number) => {
+    // Usamos el endpoint genérico o creamos uno. 
+    // Como no tenemos endpoint específico de admin para kick en el backend que me pasaste,
+    // vamos a asumir que añadiste este endpoint en admin.py:
+    // @router.delete("/teams/{team_id}/members/{user_id}")
+    
+    // SI NO TIENES ESE ENDPOINT, avísame. 
+    // Por ahora, asumiré que usas esta ruta:
+    return client.delete(`/admin/teams/${teamId}/members/${userId}`);
+};

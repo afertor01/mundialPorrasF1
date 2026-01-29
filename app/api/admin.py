@@ -583,6 +583,39 @@ def add_team_member(team_id: int, user_id: int, current_user = Depends(require_a
     db.close()
     return {"message": "Usuario añadido al equipo"}
 
+@router.delete("/teams/{team_id}/members/{user_id}")
+def remove_team_member(team_id: int, user_id: int, current_user = Depends(require_admin)):
+    """
+    Expulsa a un usuario específico de un equipo.
+    """
+    db = SessionLocal()
+    
+    # Buscar la membresía específica
+    membership = db.query(TeamMember).filter(
+        TeamMember.team_id == team_id,
+        TeamMember.user_id == user_id
+    ).first()
+
+    if not membership:
+        db.close()
+        raise HTTPException(status_code=404, detail="El usuario no es miembro de este equipo")
+
+    # Borrar la relación
+    db.delete(membership)
+    db.commit()
+    
+    # Opcional: Verificar si el equipo se quedó vacío y borrarlo (limpieza)
+    # Aunque tu frontend ya maneja esto llamando a delete_team, no está de más tenerlo aquí por si acaso.
+    remaining = db.query(TeamMember).filter(TeamMember.team_id == team_id).count()
+    if remaining == 0:
+        team = db.query(Team).get(team_id)
+        if team:
+            db.delete(team)
+            db.commit()
+
+    db.close()
+    return {"message": "Usuario expulsado del equipo"}
+
 @router.delete("/teams/{team_id}")
 def delete_team(team_id: int, current_user = Depends(require_admin)):
     db = SessionLocal()
