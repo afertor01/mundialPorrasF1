@@ -1,11 +1,12 @@
 from sqlalchemy import String, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List
+from typing import List, TYPE_CHECKING
 from app.db.session import Base
 
-# Importamos TYPE_CHECKING para evitar importaciones circulares, 
-# aunque con Strings en relationship suele valer.
-from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.db.models.prediction import Prediction
+    from app.db.models.team_member import TeamMember
+    from app.db.models.bingo import BingoSelection # <--- Importar para tipado
 
 class User(Base):
     __tablename__ = "users"
@@ -17,6 +18,9 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, default="user")
 
-    # 👇 ESTO ES LO QUE FALTABA (Las relaciones)
+    # Relaciones existentes
     predictions: Mapped[List["Prediction"]] = relationship("Prediction", back_populates="user")
     team_memberships: Mapped[List["TeamMember"]] = relationship("TeamMember", back_populates="user")
+    
+    # 👇 NUEVA RELACIÓN BINGO
+    bingo_selections: Mapped[List["BingoSelection"]] = relationship("BingoSelection", back_populates="user")

@@ -324,3 +324,37 @@ export const kickTeamMemberAdmin = async (teamId: number, userId: number) => {
     // Por ahora, asumiré que usas esta ruta:
     return client.delete(`/admin/teams/${teamId}/members/${userId}`);
 };
+
+// ==========================================
+// 🎲 BINGO F1
+// ==========================================
+
+export const createBingoTile = async (description: string) => {
+  const res = await client.post("/bingo/tile", { description });
+  return res.data;
+};
+
+export const updateBingoTile = async (id: number, data: { description?: string; is_completed?: boolean }) => {
+  const res = await client.put(`/bingo/tile/${id}`, data);
+  return res.data;
+};
+
+export const deleteBingoTile = async (id: number) => {
+  const res = await client.delete(`/bingo/tile/${id}`);
+  return res.data;
+};
+
+export const getBingoBoard = async () => {
+  const res = await client.get("/bingo/board");
+  return res.data;
+};
+
+export const toggleBingoTile = async (id: number) => {
+  const res = await client.post(`/bingo/toggle/${id}`);
+  return res.data;
+};
+
+export const getBingoStandings = async () => {
+  const res = await client.get("/bingo/standings");
+  return res.data;
+};

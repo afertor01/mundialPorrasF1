@@ -9,7 +9,8 @@ import {
   Settings, 
   Home as HomeIcon,
   LogOut,
-  Shield // Nuevo icono para Escudería
+  Shield, 
+  LayoutGrid // <--- NUEVO ICONO PARA BINGO
 } from "lucide-react";
 
 // Importamos las páginas
@@ -20,7 +21,8 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Predictions from "./pages/Predictions";
 import RaceControl from "./pages/RaceControl";
-import TeamHQ from "./pages/TeamHQ"; // <--- NUEVA PÁGINA
+import TeamHQ from "./pages/TeamHQ"; 
+import Bingo from "./pages/Bingo"; // <--- IMPORTAR BINGO
 
 // --- PROTECTOR DE RUTAS PRIVADAS ---
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -41,8 +43,9 @@ const AppRoutes = () => {
       {/* RUTAS PROTEGIDAS */}
       <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
       <Route path="/predict" element={<PrivateRoute><Predictions /></PrivateRoute>} />
+      <Route path="/bingo" element={<PrivateRoute><Bingo /></PrivateRoute>} /> {/* <--- NUEVA RUTA */}
       <Route path="/race-control" element={<PrivateRoute><RaceControl /></PrivateRoute>} />
-      <Route path="/team-hq" element={<PrivateRoute><TeamHQ /></PrivateRoute>} /> {/* <--- NUEVA RUTA */}
+      <Route path="/team-hq" element={<PrivateRoute><TeamHQ /></PrivateRoute>} />
       
       {/* RUTA ADMIN */}
       <Route path="/admin" element={role === "admin" ? <Admin /> : <Navigate to="/login" />} />
@@ -52,20 +55,18 @@ const AppRoutes = () => {
   );
 };
 
-// --- COMPONENTE DE NAVEGACIÓN (CON ESTILOS MEJORADOS) ---
+// --- COMPONENTE DE NAVEGACIÓN ---
 const NavBar = () => {
   const location = useLocation();
   const { token, role, logout } = useContext(AuthContext) as AuthContextType;
 
-  // Función para determinar si el link está activo
   const isActive = (path: string) => location.pathname === path;
 
-  // Clase base para los links
   const linkClass = (path: string) => `
     flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all duration-200 whitespace-nowrap
     ${isActive(path) 
-      ? "bg-f1-red text-white shadow-md shadow-red-200" // Activo: Rojo F1 y sombra
-      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900" // Inactivo: Gris y hover suave
+      ? "bg-f1-red text-white shadow-md shadow-red-200" 
+      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900" 
     }
   `;
 
@@ -76,20 +77,18 @@ const NavBar = () => {
           
           {/* LOGO */}
           <Link to="/" className="flex items-center gap-2 group shrink-0">
-             {/* Icono animado al hacer hover */}
              <div className="bg-gray-900 text-white p-1.5 rounded-lg group-hover:bg-f1-red transition-colors">
                 <Flag size={20} className="italic" />
              </div>
              <span className="text-xl font-black italic tracking-tighter text-gray-900 group-hover:text-f1-red transition-colors hidden sm:inline">
                F1 <span className="text-f1-red group-hover:text-gray-900">PORRAS</span>
              </span>
-             {/* Logo móvil corto */}
              <span className="text-xl font-black italic tracking-tighter text-gray-900 sm:hidden">
                F1
              </span>
           </Link>
 
-          {/* MENÚ DE NAVEGACIÓN (Visible en Desktop si hay token) */}
+          {/* MENÚ DE NAVEGACIÓN DESKTOP */}
           {token && (
             <nav className="hidden lg:flex items-center gap-1">
               <Link to="/" className={linkClass("/")}>
@@ -98,11 +97,15 @@ const NavBar = () => {
               <Link to="/predict" className={linkClass("/predict")}>
                 <Target size={16} /> Jugar
               </Link>
+              {/* ENLACE BINGO */}
+              <Link to="/bingo" className={linkClass("/bingo")}>
+                <LayoutGrid size={16} /> Bingo
+              </Link>
               <Link to="/team-hq" className={linkClass("/team-hq")}>
                 <Shield size={16} /> Escudería
               </Link>
               <Link to="/race-control" className={linkClass("/race-control")}>
-                <Flag size={16} /> Race Control
+                <Flag size={16} /> Live
               </Link>
               <Link to="/dashboard" className={linkClass("/dashboard")}>
                 <Trophy size={16} /> Clasificación
@@ -126,7 +129,6 @@ const NavBar = () => {
                     <Settings size={14} /> <span className="hidden sm:inline">Admin</span>
                   </Link>
                 )}
-                {/* Botón Logout */}
                 <button 
                   onClick={logout} 
                   className="p-2 text-gray-400 hover:text-red-600 transition-colors"
@@ -136,7 +138,6 @@ const NavBar = () => {
                 </button>
               </>
             ) : (
-              // Si no hay token, mostrar Login
               <div className="flex gap-2">
                  <Link to="/login" className="text-sm font-bold text-gray-600 hover:text-f1-red px-3 py-2">Login</Link>
                  <Link to="/register" className="text-sm font-bold bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-f1-red transition-colors">Registro</Link>
@@ -146,7 +147,7 @@ const NavBar = () => {
         </div>
       </div>
 
-      {/* MENÚ MÓVIL (Barra inferior scrollable para pantallas pequeñas) */}
+      {/* MENÚ MÓVIL (Barra inferior scrollable) */}
       {token && (
         <div className="lg:hidden border-t border-gray-100 overflow-x-auto py-2 px-4 scrollbar-hide bg-white">
           <div className="flex gap-2 min-w-max">
@@ -155,6 +156,10 @@ const NavBar = () => {
               </Link>
               <Link to="/predict" className={linkClass("/predict")}>
                 <Target size={16} /> Jugar
+              </Link>
+              {/* ENLACE BINGO MÓVIL */}
+              <Link to="/bingo" className={linkClass("/bingo")}>
+                <LayoutGrid size={16} /> Bingo
               </Link>
               <Link to="/team-hq" className={linkClass("/team-hq")}>
                 <Shield size={16} /> Escudería
@@ -177,7 +182,7 @@ const App: React.FC = () => (
     <Router>
       <div className="min-h-screen bg-gray-50 font-sans">
         <NavBar />
-        <main className="pt-4 pb-20 lg:pb-10"> {/* Padding bottom extra en móvil para scroll */}
+        <main className="pt-4 pb-20 lg:pb-10">
           <AppRoutes />
         </main>
       </div>

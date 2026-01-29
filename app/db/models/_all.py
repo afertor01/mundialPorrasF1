@@ -12,3 +12,5 @@ from app.db.models.race_event import RaceEvent
 from app.db.models.multiplier_config import MultiplierConfig
 from app.db.models.constructor import Constructor
 from app.db.models.driver import Driver
+from app.db.models.bingo import BingoSelection
+from app.db.models.bingo import BingoTile
