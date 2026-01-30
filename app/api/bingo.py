@@ -14,6 +14,9 @@ from app.db.models.grand_prix import GrandPrix
 
 router = APIRouter(prefix="/bingo", tags=["Bingo"])
 
+# --- CONSTANTES ---
+MAX_SELECTIONS = 20  # Límite duro del backend para evitar trampas
+
 # --- ESQUEMAS PYDANTIC ---
 
 class BingoTileCreate(BaseModel):
@@ -37,19 +40,35 @@ class BingoTileResponse(BaseModel):
 class BingoStandingsItem(BaseModel):
     username: str
     acronym: str
+    selections_count: int # <--- NUEVO
     hits: int
+    missed: int           # <--- NUEVO
     total_points: int
 
 # --- UTILIDAD DE PUNTUACIÓN ---
 def calculate_tile_value(total_participants: int, selections_count: int) -> int:
     """
-    Calcula el valor basado en la rareza.
-    Fórmula: (Total Participantes / Selecciones de esta casilla) * 10
+    Calcula el valor basado en la rareza (Porcentaje).
+    Escala de 10 a 100 puntos independiente del número de usuarios.
+    
+    Fórmula: 
+    - Ratio = Selecciones / Total
+    - Puntos = 10 + (90 * (1 - Ratio))
     """
-    if selections_count == 0: 
-        return 100 # Valor base alto si nadie la tiene
-    return int((total_participants / selections_count) * 10)
+    if total_participants == 0: return 10
+    
+    # Si nadie la ha cogido aún, es una oportunidad de oro (Máximo valor)
+    if selections_count == 0: return 100 
 
+    ratio = selections_count / total_participants
+    
+    # Invertimos el ratio: cuanto MENOS gente (ratio bajo), MÁS puntos.
+    # (1 - ratio) va de 0.0 (todos la tienen) a 1.0 (nadie la tiene).
+    # Multiplicamos por 90 y sumamos 10 base.
+    # Rango final: [10 ... 100]
+    points = 10 + int(90 * (1 - ratio))
+    
+    return points
 # ------------------------------------------------------------------
 # ENDPOINTS ADMIN (Gestión del Bingo Base)
 # ------------------------------------------------------------------
@@ -61,13 +80,11 @@ def create_bingo_tile(
 ):
     db = SessionLocal()
     
-    # 1. Buscar temporada activa
     season = db.query(Season).filter(Season.is_active == True).first()
     if not season: 
         db.close()
         raise HTTPException(status_code=400, detail="No hay temporada activa")
 
-    # 2. Crear Casilla
     new_tile = BingoTile(description=tile.description, season_id=season.id)
     db.add(new_tile)
     db.commit()
@@ -125,8 +142,7 @@ def delete_bingo_tile(
 @router.get("/board", response_model=List[BingoTileResponse])
 def get_my_bingo_board(current_user = Depends(get_current_user)):
     """
-    Devuelve el tablero completo con el estado actual de cada casilla
-    (si la tengo seleccionada, cuánto vale, si ya ocurrió).
+    Devuelve el tablero completo con el estado actual de cada casilla.
     """
     db = SessionLocal()
     
@@ -145,15 +161,20 @@ def get_my_bingo_board(current_user = Depends(get_current_user)):
     my_selected_ids = {s.bingo_tile_id for s in my_selections}
 
     # 3. Calcular métricas globales para la rareza
+    # Contamos usuarios únicos que han jugado al bingo
     total_participants = db.query(BingoSelection.user_id).distinct().count()
     if total_participants == 0: total_participants = 1
 
+    # Optimizamos contando todas las selecciones de golpe
+    # Esto evita hacer N queries dentro del bucle
+    all_selections = db.query(BingoSelection).all()
+    tile_counts = {}
+    for sel in all_selections:
+        tile_counts[sel.bingo_tile_id] = tile_counts.get(sel.bingo_tile_id, 0) + 1
+
     response = []
     for t in tiles:
-        # Contar cuántos usuarios han elegido ESTA casilla específica
-        # (Esto podría optimizarse con una query GROUP BY si hay miles de usuarios, 
-        # pero para <100 usuarios esto es suficientemente rápido).
-        count = db.query(BingoSelection).filter(BingoSelection.bingo_tile_id == t.id).count()
+        count = tile_counts.get(t.id, 0)
         val = calculate_tile_value(total_participants, count)
         
         response.append({
@@ -175,7 +196,6 @@ def toggle_selection(
 ):
     """
     Marca o desmarca una casilla.
-    BLOQUEADO si la temporada ya ha empezado (primer GP).
     """
     db = SessionLocal()
     
@@ -192,8 +212,6 @@ def toggle_selection(
         .first()
     )
     
-    # Si existe un GP y ya pasó la fecha, bloqueamos.
-    # Usamos datetime.utcnow() para ser consistentes con predictions.py
     if first_gp and datetime.utcnow() > first_gp.race_datetime:
         db.close()
         raise HTTPException(status_code=403, detail="⛔ El Bingo está cerrado. La temporada ya ha comenzado.")
@@ -205,11 +223,21 @@ def toggle_selection(
     ).first()
 
     if existing:
+        # Si ya existe, borramos (siempre permitido)
         db.delete(existing)
         db.commit()
         db.close()
         return {"status": "removed", "msg": "Casilla desmarcada"}
     else:
+        # Si no existe, verificamos el LÍMITE antes de añadir
+        current_count = db.query(BingoSelection).filter(
+            BingoSelection.user_id == current_user.id
+        ).count()
+
+        if current_count >= MAX_SELECTIONS:
+            db.close()
+            raise HTTPException(status_code=400, detail=f"Has alcanzado el límite de {MAX_SELECTIONS} selecciones.")
+
         new_sel = BingoSelection(user_id=current_user.id, bingo_tile_id=tile_id)
         db.add(new_sel)
         db.commit()
@@ -223,7 +251,7 @@ def toggle_selection(
 @router.get("/standings", response_model=List[BingoStandingsItem])
 def get_bingo_standings():
     """
-    Calcula la clasificación del Bingo en tiempo real.
+    Calcula la clasificación del Bingo incluyendo aciertos, fallos y puntos.
     """
     db = SessionLocal()
     
@@ -232,62 +260,72 @@ def get_bingo_standings():
         db.close()
         return []
 
-    # 1. Obtener datos
+    # 1. Obtener Datos Base
     tiles = db.query(BingoTile).filter(BingoTile.season_id == season.id).all()
-    # Obtenemos todas las selecciones y cargamos el usuario asociado
     all_selections = db.query(BingoSelection).all()
-    
-    # Filtrar usuarios admin si se desea (opcional, aquí incluimos a todos los que jueguen)
-    # Si quieres excluir admins, habría que hacer un join con User y filtrar.
+    users = db.query(User).all()
 
-    # 2. Calcular valores de rareza actuales
+    # 2. Calcular cuántas tiles están completadas en total
+    # Esto sirve para calcular las "oportunidades perdidas"
+    completed_tiles_ids = {t.id for t in tiles if t.is_completed}
+    total_completed_count = len(completed_tiles_ids)
+
+    # 3. Calcular valores de rareza (Puntos)
     total_participants = db.query(BingoSelection.user_id).distinct().count()
     if total_participants == 0: total_participants = 1
     
+    tile_counts = {}
+    for sel in all_selections:
+        tile_counts[sel.bingo_tile_id] = tile_counts.get(sel.bingo_tile_id, 0) + 1
+        
     tile_values = {}
     for t in tiles:
-        count = db.query(BingoSelection).filter(BingoSelection.bingo_tile_id == t.id).count()
+        count = tile_counts.get(t.id, 0)
         tile_values[t.id] = calculate_tile_value(total_participants, count)
-        
-    # Mapa rápido de tiles para ver si están completados
-    tiles_map = {t.id: t for t in tiles}
 
-    # 3. Calcular puntuaciones por usuario
-    user_scores = {} # {user_id: {obj: User, points: 0, hits: 0}}
+    # 4. Construir Clasificación por Usuario
+    ranking = []
     
-    # Pre-cargamos usuarios para no hacer N queries
-    users_map = {u.id: u for u in db.query(User).all()}
-
+    # Mapear selecciones por usuario para acceso rápido
+    # user_selections_map = { user_id: [tile_id, tile_id...] }
+    user_selections_map = {}
     for sel in all_selections:
-        uid = sel.user_id
-        if uid not in user_scores:
-            if uid in users_map:
-                user_scores[uid] = {"user": users_map[uid], "points": 0, "hits": 0}
-            else:
-                continue # Usuario borrado?
+        if sel.user_id not in user_selections_map:
+            user_selections_map[sel.user_id] = []
+        user_selections_map[sel.user_id].append(sel.bingo_tile_id)
+
+    for user in users:
+        # Obtener IDs de casillas elegidas por este usuario
+        selected_ids = user_selections_map.get(user.id, [])
         
-        tile = tiles_map.get(sel.bingo_tile_id)
+        selections_count = len(selected_ids)
         
-        # SUMAR PUNTOS SI ESTÁ COMPLETADO
-        if tile and tile.is_completed:
-            points = tile_values[tile.id]
-            user_scores[uid]["points"] += points
-            user_scores[uid]["hits"] += 1
-            
-        # AQUÍ IRÍA LA LÓGICA DE PENALIZACIÓN SI QUISIERAS (Fallos)
-        # Por ahora solo sumamos aciertos.
+        # Si el usuario no ha jugado al bingo, podemos decidir si mostrarlo o no.
+        # Mostrémoslo con 0 puntos para que vea la tabla vacía.
+        
+        hits = 0
+        total_points = 0
+        
+        for tid in selected_ids:
+            # Si la casilla elegida está completada (está en el set completed_tiles_ids)
+            if tid in completed_tiles_ids:
+                hits += 1
+                total_points += tile_values.get(tid, 0)
+        
+        # Oportunidades perdidas: Total de eventos ocurridos - Los que yo acerté
+        # Ej: Han pasado 10 cosas. Yo acerté 3. Me perdí 7.
+        missed = total_completed_count - hits
+
+        ranking.append({
+            "username": user.username,
+            "acronym": user.acronym,
+            "selections_count": selections_count,
+            "hits": hits,
+            "missed": missed,
+            "total_points": total_points
+        })
 
     db.close()
-
-    # 4. Formatear respuesta
-    ranking = []
-    for uid, data in user_scores.items():
-        ranking.append({
-            "username": data["user"].username,
-            "acronym": data["user"].acronym,
-            "hits": data["hits"],
-            "total_points": data["points"]
-        })
 
     # Ordenar por puntos descendente
     return sorted(ranking, key=lambda x: x["total_points"], reverse=True)

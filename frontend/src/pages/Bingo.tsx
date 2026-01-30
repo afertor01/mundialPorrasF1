@@ -2,11 +2,12 @@ import React, { useEffect, useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import * as API from "../api/api";
 import { motion } from "framer-motion";
-import { Trophy, CheckCircle2, Hexagon, TrendingUp, Loader2 } from "lucide-react";
-// 👇 IMPORTANTE: Necesitamos esto para leer el token localmente
+import { Trophy, CheckCircle2, Hexagon, TrendingUp, Loader2, AlertTriangle, XCircle, MousePointerClick } from "lucide-react";
 import { jwtDecode } from "jwt-decode"; 
 
-// Definimos qué tiene tu token (ajusta si tienes más campos)
+// LÍMITE DE SELECCIONES PARA EVITAR EL "ALL-IN"
+const MAX_SELECTIONS = 20;
+
 interface TokenPayload {
     sub: string;
     username: string;
@@ -15,10 +16,7 @@ interface TokenPayload {
 }
 
 const Bingo: React.FC = () => {
-    // 👇 CAMBIO 1: Solo pedimos el 'token', ya que 'user' no existe en tu contexto
     const { token } = useContext(AuthContext);
-    
-    // 👇 CAMBIO 2: Estado local para guardar los datos del usuario decodificados
     const [currentUser, setCurrentUser] = useState<TokenPayload | null>(null);
 
     const [tiles, setTiles] = useState<any[]>([]);
@@ -26,7 +24,6 @@ const Bingo: React.FC = () => {
     const [activeTab, setActiveTab] = useState<"board" | "standings">("board");
     const [loading, setLoading] = useState(true);
 
-    // 👇 CAMBIO 3: Efecto para decodificar el usuario al cargar
     useEffect(() => {
         if (token) {
             try {
@@ -63,13 +60,21 @@ const Bingo: React.FC = () => {
         
         if (tileIndex === -1) return;
 
+        const isCurrentlySelected = tiles[tileIndex].is_selected_by_me;
+        const currentSelectionsCount = tiles.filter(t => t.is_selected_by_me).length;
+
+        // --- VALIDACIÓN DE LÍMITE ---
+        if (!isCurrentlySelected && currentSelectionsCount >= MAX_SELECTIONS) {
+            alert(`⚠️ ¡Límite alcanzado! Solo puedes elegir ${MAX_SELECTIONS} casillas. Desmarca alguna para elegir esta.`);
+            return;
+        }
+
+        // Optimistic Update
         const newTiles = [...tiles];
-        const wasSelected = newTiles[tileIndex].is_selected_by_me;
-        
         newTiles[tileIndex] = {
             ...newTiles[tileIndex],
-            is_selected_by_me: !wasSelected,
-            selection_count: wasSelected ? newTiles[tileIndex].selection_count - 1 : newTiles[tileIndex].selection_count + 1
+            is_selected_by_me: !isCurrentlySelected,
+            selection_count: isCurrentlySelected ? newTiles[tileIndex].selection_count - 1 : newTiles[tileIndex].selection_count + 1
         };
         setTiles(newTiles);
 
@@ -88,6 +93,12 @@ const Bingo: React.FC = () => {
     const potentialPoints = tiles
         .filter(t => t.is_selected_by_me)
         .reduce((acc, curr) => acc + curr.current_value, 0);
+
+    // --- LÓGICA DE CLASIFICACIÓN (Top 20 + Usuario) ---
+    const top20 = standings.slice(0, 20);
+    const myRankingIndex = standings.findIndex(s => s.username === currentUser?.username);
+    const amInTop20 = myRankingIndex !== -1 && myRankingIndex < 20;
+    const myStats = myRankingIndex !== -1 ? standings[myRankingIndex] : null;
 
     return (
         <div className="min-h-screen bg-[#fcfcfd] p-4 pb-24 md:p-8">
@@ -108,15 +119,17 @@ const Bingo: React.FC = () => {
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-f1-red to-orange-500">Bingo</span>
                             </h1>
                             <p className="text-gray-400 font-medium max-w-lg text-sm md:text-base border-l-2 border-f1-red pl-4">
-                                Elige sabiamente. Cuanto menos gente elija una casilla, más puntos valdrá si ocurre.
-                                <br/><span className="text-white font-bold">¡Arriésgate para ganar!</span>
+                                Tienes <strong>{MAX_SELECTIONS} fichas</strong>. Úsalas sabiamente. 
+                                Cuanto menos gente elija una casilla, más puntos valdrá si ocurre.
                             </p>
                         </div>
                         
                         <div className="flex gap-4 w-full md:w-auto">
-                            <div className="flex-1 md:flex-none bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-5 text-center min-w-[120px]">
-                                <div className="text-3xl font-black text-white">{mySelectionsCount}</div>
-                                <div className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mt-1">Selecciones</div>
+                            <div className={`flex-1 md:flex-none backdrop-blur-md border rounded-3xl p-5 text-center min-w-[120px] transition-colors ${mySelectionsCount >= MAX_SELECTIONS ? "bg-red-500/20 border-red-500/50" : "bg-white/5 border-white/10"}`}>
+                                <div className={`text-3xl font-black ${mySelectionsCount >= MAX_SELECTIONS ? "text-red-400" : "text-white"}`}>
+                                    {mySelectionsCount}<span className="text-sm text-gray-400">/{MAX_SELECTIONS}</span>
+                                </div>
+                                <div className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mt-1">Usadas</div>
                             </div>
                             <div className="flex-1 md:flex-none bg-gradient-to-br from-f1-red to-red-700 rounded-3xl p-5 text-center min-w-[120px] shadow-lg shadow-red-900/50">
                                 <div className="text-3xl font-black text-white">{potentialPoints}</div>
@@ -158,12 +171,47 @@ const Bingo: React.FC = () => {
                         {tiles.map((tile) => {
                             const isSelected = tile.is_selected_by_me;
                             const isCompleted = tile.is_completed;
+
+                            // --- LÓGICA DE ESTILOS ---
                             
-                            let rarityClass = "text-blue-600 bg-blue-50 border-blue-100";
-                            if (tile.current_value >= 50) rarityClass = "text-orange-600 bg-orange-50 border-orange-100";
-                            if (tile.current_value >= 100) rarityClass = "text-purple-600 bg-purple-50 border-purple-100";
+                            // 1. Estilos Base (Blanco / Gris)
+                            let cardStyle = "bg-white border-gray-100 hover:border-blue-300 hover:shadow-lg";
+                            let badgeStyle = "text-blue-600 bg-blue-50 border-blue-100"; 
+                            let textStyle = "text-gray-800";
+                            let checkColor = "text-white"; // Color del check dentro del círculo verde
+                            let completedBadgeStyle = "bg-white text-green-600"; // Estilo del sticker "Completado"
+
+                            // Rareza visual en los badges (solo afecta cuando no está completada/seleccionada)
+                            if (tile.current_value >= 50) badgeStyle = "text-orange-600 bg-orange-50 border-orange-100";
+                            if (tile.current_value >= 80) badgeStyle = "text-purple-600 bg-purple-50 border-purple-100";
+
+                            // 2. Sobrescritura por Estado
                             
-                            if (isCompleted) rarityClass = "text-green-600 bg-green-50 border-green-100";
+                            // A) JACKPOT (Dorado): Completado Y Seleccionado
+                            if (isCompleted && isSelected) {
+                                // Fondo degradado dorado intenso
+                                cardStyle = "bg-gradient-to-br from-yellow-300 via-yellow-400 to-yellow-500 border-yellow-400 shadow-xl shadow-yellow-500/40 ring-2 ring-yellow-200 ring-offset-2 transform scale-[1.02] z-10";
+                                // Texto oscuro para contraste (Marrón muy oscuro)
+                                textStyle = "text-yellow-950"; 
+                                // Badges en blanco puro con texto dorado oscuro
+                                badgeStyle = "bg-white border-transparent text-yellow-800 shadow-sm";
+                                completedBadgeStyle = "bg-white text-yellow-800 shadow-sm";
+                                checkColor = "text-white"; // Check blanco sobre círculo verde (o dorado)
+                            } 
+                            // B) Oportunidad Perdida (Verde): Completado pero NO seleccionado
+                            else if (isCompleted) {
+                                cardStyle = "bg-green-500 border-green-500 text-white shadow-lg shadow-green-200";
+                                textStyle = "text-white";
+                                badgeStyle = "bg-white/20 border-transparent text-white";
+                                completedBadgeStyle = "bg-white text-green-700 shadow-sm";
+                                checkColor = "text-green-500";
+                            } 
+                            // C) Mi Apuesta (Negro): Seleccionado pero pendiente
+                            else if (isSelected) {
+                                cardStyle = "bg-gray-900 border-gray-900 text-white shadow-xl translate-y-[-4px]";
+                                textStyle = "text-white";
+                                badgeStyle = "bg-white/20 border-transparent text-white";
+                            }
 
                             return (
                                 <div 
@@ -171,48 +219,65 @@ const Bingo: React.FC = () => {
                                     onClick={() => handleToggle(tile.id)}
                                     className={`
                                         relative group cursor-pointer rounded-3xl p-6 border-2 transition-all duration-300 flex flex-col justify-between min-h-[180px] select-none
-                                        ${isCompleted 
-                                            ? "bg-green-500 border-green-500 text-white shadow-lg shadow-green-200" 
-                                            : isSelected 
-                                                ? "bg-gray-900 border-gray-900 text-white shadow-xl translate-y-[-4px]" 
-                                                : "bg-white border-gray-100 hover:border-blue-300 hover:shadow-lg"
-                                        }
+                                        ${cardStyle}
+                                        ${!isSelected && !isCompleted && mySelectionsCount >= MAX_SELECTIONS ? "opacity-40 grayscale" : "opacity-100"}
                                     `}
                                 >
+                                    {/* Header: Puntos y Check */}
                                     <div className="flex justify-between items-start mb-3">
-                                        <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter flex items-center gap-1 border ${isCompleted || isSelected ? "bg-white/20 border-transparent text-white" : rarityClass}`}>
+                                        <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter flex items-center gap-1 border ${badgeStyle}`}>
                                             <TrendingUp size={12}/> {tile.current_value} pts
                                         </div>
+                                        
                                         <div className={`transition-all duration-300 ${isSelected ? "opacity-100 scale-100" : "opacity-20 scale-75 group-hover:opacity-50"}`}>
-                                            {isCompleted ? <CheckCircle2 className="text-white" size={24}/> : (
+                                            {isCompleted ? (
+                                                // Check completado
+                                                isCompleted && isSelected ? (
+                                                    // Versión Dorada: Check verde oscuro o blanco sobre fondo oscuro
+                                                    <div className="bg-yellow-950 rounded-full p-0.5">
+                                                        <CheckCircle2 className="text-yellow-400" size={20}/>
+                                                    </div>
+                                                ) : (
+                                                    // Versión Normal
+                                                    <CheckCircle2 className="text-white" size={24}/>
+                                                )
+                                            ) : (
+                                                // Círculo de selección vacío/lleno
                                                 <div className={`w-6 h-6 rounded-full border-4 ${isSelected ? "border-f1-red bg-f1-red" : "border-gray-300"}`}/>
                                             )}
                                         </div>
                                     </div>
                                     
-                                    <p className={`text-sm font-bold leading-snug ${isCompleted || isSelected ? "text-white" : "text-gray-800"}`}>
+                                    {/* Descripción */}
+                                    <p className={`text-sm font-bold leading-snug ${textStyle}`}>
                                         {tile.description}
                                     </p>
 
-                                    <div className="mt-4 pt-3 border-t border-white/10 flex justify-between items-center">
-                                        <div className={`text-[9px] font-bold uppercase tracking-widest ${isCompleted || isSelected ? "text-white/60" : "text-gray-400"}`}>
-                                            {tile.selection_count} {tile.selection_count === 1 ? "Pick" : "Picks"}
+                                    {/* Footer: Picks y Badge Completado */}
+                                    <div className={`mt-4 pt-3 border-t flex justify-between items-center ${isCompleted && isSelected ? "border-yellow-600/20" : "border-white/10"}`}>
+                                        <div className={`text-[9px] font-bold uppercase tracking-widest ${isSelected || isCompleted ? (isCompleted && isSelected ? "text-yellow-900/60" : "text-white/60") : "text-gray-400"}`}>
+                                            {tile.selection_count} picks
                                         </div>
-                                        {isCompleted && <span className="text-[9px] font-black bg-white text-green-600 px-2 py-0.5 rounded uppercase">Completado</span>}
+                                        
+                                        {isCompleted && (
+                                            <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${completedBadgeStyle}`}>
+                                                Completado
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             );
                         })}
                     </motion.div>
                 ) : (
-                    // STANDINGS TABLE
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-3xl mx-auto">
+                    // --- TABLA DE CLASIFICACIÓN (TOP 20) ---
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto">
                         <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden">
                             <div className="px-8 py-6 bg-gray-900 text-white flex items-center gap-4">
                                 <div className="bg-f1-red p-2 rounded-lg"><Trophy size={24}/></div>
                                 <div>
                                     <h3 className="font-black uppercase tracking-widest text-lg">Ranking Bingo</h3>
-                                    <p className="text-gray-400 text-xs font-medium">Clasificación basada en rareza de aciertos</p>
+                                    <p className="text-gray-400 text-xs font-medium">Top 20 • Basado en rareza de aciertos</p>
                                 </div>
                             </div>
                             <div className="overflow-x-auto">
@@ -221,34 +286,38 @@ const Bingo: React.FC = () => {
                                         <tr>
                                             <th className="px-6 py-4">Pos</th>
                                             <th className="px-6 py-4">Piloto</th>
-                                            <th className="px-6 py-4 text-center">Aciertos</th>
-                                            <th className="px-6 py-4 text-right">Puntos Totales</th>
+                                            <th className="px-6 py-4 text-center" title="Casillas elegidas">Picks</th>
+                                            <th className="px-6 py-4 text-center" title="Aciertos de tus picks">Hits</th>
+                                            <th className="px-6 py-4 text-center text-red-400" title="Casillas completadas que NO elegiste">Missed</th>
+                                            <th className="px-6 py-4 text-right">Puntos</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                        {standings.length > 0 ? standings.map((s, idx) => (
-                                            // 👇 CAMBIO 4: Usamos currentUser.username
+                                    <tbody className="divide-y divide-gray-50 text-sm">
+                                        {top20.length > 0 ? top20.map((s, idx) => (
                                             <tr key={idx} className={`hover:bg-gray-50 transition-colors ${s.username === currentUser?.username ? "bg-blue-50/50" : ""}`}>
-                                                <td className="px-6 py-4">
-                                                    <span className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-black ${
-                                                        idx === 0 ? "bg-yellow-100 text-yellow-700" : 
-                                                        idx === 1 ? "bg-gray-100 text-gray-600" :
-                                                        idx === 2 ? "bg-orange-100 text-orange-700" : "text-gray-400"
-                                                    }`}>
-                                                        {idx + 1}
-                                                    </span>
+                                                <td className="px-6 py-4 font-mono font-bold text-gray-400">
+                                                    #{idx + 1}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
                                                         <span className="w-8 h-6 bg-gray-900 text-white rounded flex items-center justify-center text-[9px] font-black italic">{s.acronym}</span>
-                                                        {/* 👇 CAMBIO 5: Usamos currentUser.username */}
-                                                        <span className={`font-bold text-sm ${s.username === currentUser?.username ? "text-blue-600" : "text-gray-800"}`}>
+                                                        <span className={`font-bold ${s.username === currentUser?.username ? "text-blue-600" : "text-gray-800"}`}>
                                                             {s.username} {s.username === currentUser?.username && "(Tú)"}
                                                         </span>
                                                     </div>
                                                 </td>
+                                                <td className="px-6 py-4 text-center font-bold text-gray-500">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <MousePointerClick size={14}/> {s.selections_count}
+                                                    </div>
+                                                </td>
                                                 <td className="px-6 py-4 text-center">
-                                                    <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-black">{s.hits}</span>
+                                                    <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black flex items-center justify-center gap-1 w-fit mx-auto">
+                                                        <CheckCircle2 size={12}/> {s.hits}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-center text-red-400 font-bold">
+                                                    {s.missed > 0 ? `-${s.missed}` : "-"}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <span className="text-xl font-black italic tracking-tighter text-gray-900">{s.total_points}</span>
@@ -256,10 +325,30 @@ const Bingo: React.FC = () => {
                                             </tr>
                                         )) : (
                                             <tr>
-                                                <td colSpan={4} className="px-6 py-10 text-center text-gray-400 italic font-medium">
-                                                    Aún no hay puntos registrados. ¡Esperad a que ocurran cosas!
+                                                <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic font-medium">
+                                                    Aún no hay datos.
                                                 </td>
                                             </tr>
+                                        )}
+                                        
+                                        {/* TU FILA (Si no estás en el Top 20) */}
+                                        {!amInTop20 && myStats && (
+                                            <>
+                                                <tr><td colSpan={6} className="bg-gray-50/50 p-2 text-center text-xs text-gray-400 uppercase tracking-widest font-black">... Tu Posición ...</td></tr>
+                                                <tr className="bg-blue-50 border-t-2 border-blue-100">
+                                                    <td className="px-6 py-4 font-mono font-bold text-blue-400">#{myRankingIndex + 1}</td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="w-8 h-6 bg-blue-600 text-white rounded flex items-center justify-center text-[9px] font-black italic">{myStats.acronym}</span>
+                                                            <span className="font-bold text-blue-800">{myStats.username} (Tú)</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center font-bold text-gray-500">{myStats.selections_count}</td>
+                                                    <td className="px-6 py-4 text-center"><span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black w-fit mx-auto">{myStats.hits}</span></td>
+                                                    <td className="px-6 py-4 text-center text-red-400 font-bold">-{myStats.missed}</td>
+                                                    <td className="px-6 py-4 text-right"><span className="text-xl font-black italic tracking-tighter text-blue-900">{myStats.total_points}</span></td>
+                                                </tr>
+                                            </>
                                         )}
                                     </tbody>
                                 </table>
