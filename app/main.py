@@ -17,6 +17,7 @@ from app.api.admin import router as admin_router
 from app.api import stats
 from app.api.seasons import router as seasons_router
 from app.api.teams import router as teams_router
+from app.api.bingo import router as bingo_router
 
 app = FastAPI(
     title="Mundial de Porras F1",
@@ -35,6 +36,7 @@ app.include_router(admin_router)
 app.include_router(stats.router)
 app.include_router(seasons_router)
 app.include_router(teams_router)
+app.include_router(bingo_router)
 
 # Configuramos el permiso para que React pueda hablar con Python
 app.add_middleware(

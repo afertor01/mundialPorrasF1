@@ -2,8 +2,7 @@ import React, { useContext } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { motion } from "framer-motion";
-// He añadido 'Target' para las predicciones
-import { Trophy, Calendar, Flag, BarChart3, LogIn, UserPlus, Target } from "lucide-react"; 
+import { Trophy, Calendar, Flag, LogIn, UserPlus, Target, LayoutGrid } from "lucide-react"; // <--- Importar LayoutGrid
 
 const Home: React.FC = () => {
   const { token, logout } = useContext(AuthContext);
@@ -74,9 +73,10 @@ const Home: React.FC = () => {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+            // Ajustamos el grid para que acomode mejor 5 elementos
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            {/* 1. Dashboard (Ranking y Stats) */}
+            {/* 1. Dashboard */}
             <MenuCard 
               to="/dashboard" 
               title="Clasificación" 
@@ -94,7 +94,16 @@ const Home: React.FC = () => {
               color="border-l-4 border-f1-red"
             />
 
-            {/* 3. Race Control (Nuevo) */}
+            {/* 3. BINGO (NUEVO) */}
+            <MenuCard 
+              to="/bingo" 
+              title="Season Bingo" 
+              desc="Juego de estrategia anual"
+              icon={<LayoutGrid size={32} className="text-orange-500" />}
+              color="border-l-4 border-orange-500"
+            />
+
+            {/* 4. Race Control */}
             <MenuCard 
               to="/race-control" 
               title="Race Control" 
@@ -103,7 +112,7 @@ const Home: React.FC = () => {
               color="border-l-4 border-blue-500"
             />
 
-            {/* 4. Admin */}
+            {/* 5. Admin */}
             <MenuCard 
               to="/admin" 
               title="Zona Admin" 

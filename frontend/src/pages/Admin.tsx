@@ -10,7 +10,7 @@ import {
 
 const Admin: React.FC = () => {
   const { token } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState<"seasons" | "users" | "teams" | "gps" | "grid">("seasons");
+  const [activeTab, setActiveTab] = useState<"seasons" | "users" | "teams" | "gps" | "grid" | "bingo">("seasons");
   const [seasons, setSeasons] = useState<any[]>([]);
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null);
 
@@ -691,6 +691,106 @@ const Admin: React.FC = () => {
     );
   };
 
+  // ------------------------------------------
+  // TAB: BINGO (GESTIÓN)
+  // ------------------------------------------
+  const BingoTab = () => {
+    const [tiles, setTiles] = useState<any[]>([]);
+    const [newDesc, setNewDesc] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => { loadTiles(); }, []);
+
+    const loadTiles = async () => {
+        try {
+            const data = await API.getBingoBoard();
+            setTiles(data);
+        } catch (e) { console.error(e); }
+    };
+
+    const handleCreate = async () => {
+        if (!newDesc.trim()) return;
+        setLoading(true);
+        try {
+            await API.createBingoTile(newDesc);
+            setNewDesc("");
+            loadTiles();
+        } catch (e) { alert("Error creando casilla"); }
+        setLoading(false);
+    };
+
+    const toggleComplete = async (tile: any) => {
+        try {
+            await API.updateBingoTile(tile.id, { is_completed: !tile.is_completed });
+            loadTiles();
+        } catch (e) { alert("Error actualizando estado"); }
+    };
+
+    const handleDelete = async (id: number) => {
+        if(!confirm("¿Borrar esta casilla del bingo?")) return;
+        try {
+            await API.deleteBingoTile(id);
+            loadTiles();
+        } catch (e) { alert("Error borrando"); }
+    };
+
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+        <Card title="Editor de Bingo" icon={<LayoutGrid size={18} className="text-purple-500"/>}>
+            <div className="flex gap-4 items-end mb-6">
+                <div className="flex-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">Descripción del Evento</label>
+                    <input 
+                        type="text" 
+                        value={newDesc} 
+                        onChange={e => setNewDesc(e.target.value)} 
+                        placeholder="Ej: Un Williams entra en Q3" 
+                        className="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-bold text-gray-700"
+                        onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                    />
+                </div>
+                <button 
+                    onClick={handleCreate} 
+                    disabled={loading}
+                    className="px-6 py-3 bg-purple-600 text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-200 disabled:opacity-50"
+                >
+                    {loading ? "..." : "Añadir"}
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {tiles.map(tile => (
+                    <div key={tile.id} className={`p-4 rounded-xl border-2 transition-all flex flex-col justify-between gap-3 ${tile.is_completed ? "bg-green-50 border-green-200" : "bg-white border-gray-100"}`}>
+                        <div className="flex justify-between items-start gap-2">
+                            <span className={`text-sm font-bold leading-tight ${tile.is_completed ? "text-green-800" : "text-gray-700"}`}>
+                                {tile.description}
+                            </span>
+                            <button onClick={() => handleDelete(tile.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
+                        </div>
+                        
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-100/50 mt-2">
+                            <div className="text-[10px] font-bold text-gray-400 uppercase">
+                                {tile.selection_count} Selecciones
+                            </div>
+                            <button 
+                                onClick={() => toggleComplete(tile)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                                    tile.is_completed 
+                                    ? "bg-green-500 text-white shadow-md shadow-green-200" 
+                                    : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                                }`}
+                            >
+                                {tile.is_completed ? <><CheckCircle size={12}/> Completado</> : "Pendiente"}
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </Card>
+      </motion.div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#fcfcfd] p-4 md:p-10">
       <div className="max-w-7xl mx-auto space-y-10">
@@ -699,7 +799,7 @@ const Admin: React.FC = () => {
             <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3"><span className="pl-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Temporada:</span><select value={selectedSeasonId || ""} onChange={e => setSelectedSeasonId(Number(e.target.value))} className="bg-gray-50 border-none rounded-xl text-sm font-bold p-2 pr-8 focus:ring-2 focus:ring-blue-500">{seasons.map(s => <option key={s.id} value={s.id}>{s.year} - {s.name}</option>)}</select></div>
         </header>
         <div className="flex flex-wrap gap-2 bg-gray-100/50 p-1.5 rounded-[2rem] border border-gray-200/50 backdrop-blur-sm sticky top-5 z-40">
-            {[{id: 'seasons', label: 'Calendario', icon: <Calendar size={16}/>}, {id: 'users', label: 'Usuarios', icon: <Users size={16}/>}, {id: 'teams', label: 'Escuderías', icon: <Shield size={16}/>}, {id: 'gps', label: 'GPs & Puntos', icon: <Flag size={16}/>}, {id: 'grid', label: 'Parrilla F1', icon: <LayoutGrid size={16}/>}].map(tab => (
+            {[{id: 'seasons', label: 'Calendario', icon: <Calendar size={16}/>}, {id: 'users', label: 'Usuarios', icon: <Users size={16}/>}, {id: 'teams', label: 'Escuderías', icon: <Shield size={16}/>}, {id: 'gps', label: 'GPs & Puntos', icon: <Flag size={16}/>}, {id: 'grid', label: 'Parrilla F1', icon: <LayoutGrid size={16}/>}, {id: 'bingo', label: 'Bingo', icon: <Trophy size={16}/>}].map(tab => (
                 <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-2 px-6 py-3 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? "bg-white text-gray-900 shadow-md scale-[1.02]" : "text-gray-400 hover:text-gray-600"}`}>{tab.icon} {tab.label}</button>
             ))}
         </div>
@@ -709,6 +809,7 @@ const Admin: React.FC = () => {
             {activeTab === 'teams' && <TeamsTab />}
             {activeTab === 'gps' && <GPsTab />}
             {activeTab === 'grid' && <F1GridTab />}
+            {activeTab === 'bingo' && <BingoTab />}
         </div>
       </div>
     </div>
