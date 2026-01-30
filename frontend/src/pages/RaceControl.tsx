@@ -7,6 +7,7 @@ import {
   Flag, MapPin, Calendar, Search, Plus, X, 
   CheckCircle2, AlertCircle, Trophy
 } from "lucide-react";
+import { getTrackImage } from "../utils/getTrackImage";
 
 // Interfaces para tipado rápido
 interface PredictionData {
@@ -120,18 +121,29 @@ const RaceControl: React.FC = () => {
         
         {/* HEADER & SELECTOR */}
         <header className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex items-center gap-4">
-                <div className="bg-gray-900 text-white p-3 rounded-2xl">
-                    <Flag size={24} />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-black uppercase italic tracking-tighter text-gray-900">Race Control</h1>
-                    <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
-                        <MapPin size={12} /> {selectedGpObj?.name || "Selecciona GP"}
-                        <span className="mx-1">•</span>
-                        <Calendar size={12} /> {selectedGpObj ? new Date(selectedGpObj.race_datetime).toLocaleDateString() : "--/--"}
+            <div className="flex items-center gap-6">
+                {/* Contenedor del icono/imagen */}
+                    <div className="bg-gray-900 text-white w-28 h-28 rounded-3xl flex items-center justify-center overflow-hidden border-2 border-gray-700 p-1 shadow-2xl shadow-gray-400/50">
+                        {selectedGpObj ? (
+                            <img 
+                                src={getTrackImage(selectedGpObj.name)} 
+                                className="w-full h-full object-contain filter invert" 
+                                alt="Track"
+                            />
+                        ) : (
+                            <Flag size={48} />
+                        )}
                     </div>
-                </div>
+                    <div>
+                        <h1 className="text-4xl font-black uppercase italic tracking-tighter text-gray-900">Race Control</h1>
+                        <div className="flex items-center gap-3 text-sm font-bold text-gray-400 uppercase tracking-widest mt-2">
+                            <MapPin size={16} /> 
+                            <span className="text-gray-600">{selectedGpObj?.name || "Selecciona GP"}</span>
+                            <span className="mx-1">•</span>
+                            <Calendar size={16} /> 
+                            <span>{selectedGpObj ? new Date(selectedGpObj.race_datetime).toLocaleDateString() : "--/--"}</span>
+                        </div>
+                    </div>
             </div>
 
             <div className="relative min-w-[300px]">

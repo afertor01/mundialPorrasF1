@@ -13,6 +13,7 @@ import {
   Timer,
   Zap
 } from "lucide-react";
+import { getTrackImage } from "../utils/getTrackImage";
 
 const Predictions: React.FC = () => {
   // --- ESTADOS DE DATOS (Mismos que tu original) ---
@@ -174,6 +175,17 @@ const Predictions: React.FC = () => {
                     isOpen ? 'border-transparent hover:border-f1-red/20 shadow-xl' : 'border-gray-100 shadow-md'
                   }`}
                 >
+                    {/* --- NUEVO BLOQUE DE IMAGEN --- */}
+                    <div className="h-42 w-full bg-gray-900 flex items-center justify-center p-4 relative overflow-hidden group hover:bg-gray-800 transition-colors">
+                        <div className="absolute inset-0 bg-f1-red opacity-10 blur-xl"></div>
+                        <img 
+                            src={getTrackImage(gp.name)} 
+                            alt={gp.name} 
+                            // NOTA: Si tus imagenes son negras, usa 'filter invert'. Si son blancas, borra 'filter invert'.
+                            className="w-full h-full object-contain filter invert opacity-80 group-hover:scale-110 transition-transform duration-500"
+                        />
+                    </div>
+                    {/* ----------------------------- */}
                   <div className="flex justify-between items-start mb-6">
                     <span className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${
                       !isOpen ? 'bg-gray-200 text-gray-600' : hasPred ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
@@ -223,6 +235,11 @@ const Predictions: React.FC = () => {
       >
         {/* Cabecera Formulario */}
         <div className="bg-f1-dark p-8 text-white relative">
+            {/* --- IMAGEN DE FONDO GIGANTE --- */}
+            <img 
+                src={getTrackImage(selectedGp.name)} 
+                className="absolute -right-10 -bottom-10 w-96 h-96 object-contain opacity-10 rotate-12 pointer-events-none filter invert"
+            />
             <button 
                 onClick={() => setSelectedGp(null)} 
                 className="absolute left-8 top-8 text-white/50 hover:text-white transition-colors flex items-center gap-1 text-sm font-bold"
