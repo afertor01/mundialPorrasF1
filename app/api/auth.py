@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
-from app.schemas.user import UserCreate, UserLogin
+from fastapi import APIRouter, HTTPException, Depends
+from app.schemas.user import UserCreate, UserLogin, UserOut
 from app.db.session import SessionLocal
 from app.db.models.user import User
 from app.core.security import hash_password, verify_password, create_access_token
+from app.core.deps import get_current_user
 from datetime import timedelta
 from sqlalchemy import or_
 
@@ -61,3 +62,8 @@ def login(user: UserLogin):
     db.close()
 
     return {"access_token": token, "token_type": "bearer"}
+
+@router.get("/me", response_model=UserOut)
+def get_current_user_data(current_user: User = Depends(get_current_user)):
+    """Devuelve los datos actualizados del usuario logueado (incluido avatar)"""
+    return current_user

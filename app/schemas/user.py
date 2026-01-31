@@ -15,6 +15,12 @@ class UserOut(BaseModel):
     email: EmailStr
     username: str
     role: str
+    avatar: str | None = "default.png"
+
+class AvatarSchema(BaseModel):
+    id: int
+    filename: str
+    url: str # Calcularemos la URL completa para facilitar al front
 
     class Config:
         from_attributes = True

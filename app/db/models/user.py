@@ -17,10 +17,9 @@ class User(Base):
     acronym: Mapped[str] = mapped_column(String(3), unique=True, index=True, nullable=True)    
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, default="user")
+    avatar: Mapped[str] = mapped_column(String, default="default.png", nullable=True)
 
     # Relaciones existentes
     predictions: Mapped[List["Prediction"]] = relationship("Prediction", back_populates="user")
     team_memberships: Mapped[List["TeamMember"]] = relationship("TeamMember", back_populates="user")
-    
-    # 👇 NUEVA RELACIÓN BINGO
     bingo_selections: Mapped[List["BingoSelection"]] = relationship("BingoSelection", back_populates="user")

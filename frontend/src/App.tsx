@@ -10,7 +10,8 @@ import {
   Home as HomeIcon,
   LogOut,
   Shield, 
-  LayoutGrid // <--- NUEVO ICONO PARA BINGO
+  LayoutGrid,
+  User // <--- Importamos User para el fallback del avatar
 } from "lucide-react";
 
 // Importamos las páginas
@@ -22,7 +23,8 @@ import Register from "./pages/Register";
 import Predictions from "./pages/Predictions";
 import RaceControl from "./pages/RaceControl";
 import TeamHQ from "./pages/TeamHQ"; 
-import Bingo from "./pages/Bingo"; // <--- IMPORTAR BINGO
+import Bingo from "./pages/Bingo";
+import Profile from "./pages/Profile"; // <--- Importamos Profile
 
 // --- PROTECTOR DE RUTAS PRIVADAS ---
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -43,9 +45,10 @@ const AppRoutes = () => {
       {/* RUTAS PROTEGIDAS */}
       <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
       <Route path="/predict" element={<PrivateRoute><Predictions /></PrivateRoute>} />
-      <Route path="/bingo" element={<PrivateRoute><Bingo /></PrivateRoute>} /> {/* <--- NUEVA RUTA */}
+      <Route path="/bingo" element={<PrivateRoute><Bingo /></PrivateRoute>} />
       <Route path="/race-control" element={<PrivateRoute><RaceControl /></PrivateRoute>} />
       <Route path="/team-hq" element={<PrivateRoute><TeamHQ /></PrivateRoute>} />
+      <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} /> {/* <--- NUEVA RUTA */}
       
       {/* RUTA ADMIN */}
       <Route path="/admin" element={role === "admin" ? <Admin /> : <Navigate to="/login" />} />
@@ -58,7 +61,8 @@ const AppRoutes = () => {
 // --- COMPONENTE DE NAVEGACIÓN ---
 const NavBar = () => {
   const location = useLocation();
-  const { token, role, logout } = useContext(AuthContext) as AuthContextType;
+  // Usamos 'any' en el context para acceder a 'avatar' si no está actualizado en el tipo AuthContextType aún
+  const { token, role, logout, avatar } = useContext(AuthContext) as any; 
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -69,6 +73,15 @@ const NavBar = () => {
       : "text-gray-600 hover:bg-gray-100 hover:text-gray-900" 
     }
   `;
+
+  // Helper para mostrar avatar en el Navbar
+  const getAvatarUrl = (filename: string | null) => {
+      if (!filename) return null;
+      if (filename.startsWith("http")) return filename;
+      return `http://127.0.0.1:8000/static/avatars/${filename}`;
+  };
+
+  const avatarUrl = getAvatarUrl(avatar);
 
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
@@ -97,7 +110,6 @@ const NavBar = () => {
               <Link to="/predict" className={linkClass("/predict")}>
                 <Target size={16} /> Jugar
               </Link>
-              {/* ENLACE BINGO */}
               <Link to="/bingo" className={linkClass("/bingo")}>
                 <LayoutGrid size={16} /> Bingo
               </Link>
@@ -108,19 +120,33 @@ const NavBar = () => {
                 <Flag size={16} /> Live
               </Link>
               <Link to="/dashboard" className={linkClass("/dashboard")}>
-                <Trophy size={16} /> Clasificación
+                <Trophy size={16} /> Ranking
               </Link>
             </nav>
           )}
 
-          {/* MENÚ DERECHO (Admin / Logout) */}
+          {/* MENÚ DERECHO (Perfil / Admin / Logout) */}
           <div className="flex items-center gap-3">
             {token ? (
               <>
+                {/* 1. Botón Perfil (Avatar o Icono) */}
+                <Link to="/profile" className="group relative">
+                   <div className={`w-9 h-9 rounded-full overflow-hidden border-2 transition-all ${isActive("/profile") ? "border-f1-red ring-2 ring-red-100" : "border-gray-200 group-hover:border-f1-red"}`}>
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="Perfil" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:text-f1-red">
+                           <User size={18} />
+                        </div>
+                      )}
+                   </div>
+                </Link>
+
+                {/* 2. Botón Admin */}
                 {role === "admin" && (
                   <Link 
                     to="/admin" 
-                    className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider border transition-all ${
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider border transition-all ${
                       isActive("/admin")
                       ? "bg-blue-600 text-white border-blue-600"
                       : "bg-white text-blue-600 border-blue-200 hover:bg-blue-50"
@@ -129,6 +155,8 @@ const NavBar = () => {
                     <Settings size={14} /> <span className="hidden sm:inline">Admin</span>
                   </Link>
                 )}
+
+                {/* 3. Logout */}
                 <button 
                   onClick={logout} 
                   className="p-2 text-gray-400 hover:text-red-600 transition-colors"
@@ -157,7 +185,6 @@ const NavBar = () => {
               <Link to="/predict" className={linkClass("/predict")}>
                 <Target size={16} /> Jugar
               </Link>
-              {/* ENLACE BINGO MÓVIL */}
               <Link to="/bingo" className={linkClass("/bingo")}>
                 <LayoutGrid size={16} /> Bingo
               </Link>

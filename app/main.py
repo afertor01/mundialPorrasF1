@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 
 # IMPORTANTE: Importar Base y Engine para que funcione la creación de tablas
 from app.db.session import engine, Base 
@@ -18,11 +20,20 @@ from app.api import stats
 from app.api.seasons import router as seasons_router
 from app.api.teams import router as teams_router
 from app.api.bingo import router as bingo_router
+from app.api.avatars import router as avatars_router
+
 
 app = FastAPI(
     title="Mundial de Porras F1",
     version="1.0.0"
 )
+
+# 👇 CREAR CARPETAS SI NO EXISTEN
+os.makedirs("app/static/avatars", exist_ok=True)
+
+# 👇 MONTAR LA CARPETA ESTÁTICA
+# Esto hace que http://localhost:8000/static/avatars/foto.png sea accesible
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Creamos las tablas en la base de datos
 Base.metadata.create_all(bind=engine)
@@ -37,6 +48,8 @@ app.include_router(stats.router)
 app.include_router(seasons_router)
 app.include_router(teams_router)
 app.include_router(bingo_router)
+app.include_router(avatars_router)
+
 
 # Configuramos el permiso para que React pueda hablar con Python
 app.add_middleware(

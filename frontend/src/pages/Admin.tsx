@@ -5,12 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Settings, Calendar, Users, Shield, Flag, LayoutGrid, 
   Plus, Trash2, Edit2, CheckCircle, XCircle, Save, AlertTriangle, Upload, Trophy,
-  Search, X // <--- Importamos Search y X
+  Search, X, Image// <--- Importamos Search y X
 } from "lucide-react";
 
 const Admin: React.FC = () => {
   const { token } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState<"seasons" | "users" | "teams" | "gps" | "grid" | "bingo">("seasons");
+  const [activeTab, setActiveTab] = useState<"seasons" | "users" | "teams" | "gps" | "grid" | "bingo" | "avatars">("seasons");
   const [seasons, setSeasons] = useState<any[]>([]);
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null);
 
@@ -791,6 +791,87 @@ const Admin: React.FC = () => {
     );
   };
 
+  // ------------------------------------------
+  // TAB: AVATARES (GESTIÓN DE GALERÍA)
+  // ------------------------------------------
+  const AvatarsTab = () => {
+    const [avatars, setAvatars] = useState<any[]>([]);
+    const [uploadFile, setUploadFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
+
+    useEffect(() => { loadAvatars(); }, []);
+
+    const loadAvatars = () => API.getAvatars().then(setAvatars);
+
+    const handleUpload = async () => {
+      if (!uploadFile) return;
+      setUploading(true);
+      try {
+        await API.uploadAvatar(uploadFile);
+        setUploadFile(null);
+        loadAvatars();
+      } catch (e) { alert("Error al subir imagen"); }
+      setUploading(false);
+    };
+
+    const handleDelete = async (id: number) => {
+      if (!confirm("¿Borrar este avatar de la galería?")) return;
+      try {
+        await API.deleteAvatar(id);
+        loadAvatars();
+      } catch (e) { alert("Error al borrar"); }
+    };
+
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+        <Card title="Subir Nuevo Avatar" icon={<Upload size={18} />}>
+          <div className="flex items-center gap-4">
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={e => setUploadFile(e.target.files ? e.target.files[0] : null)} 
+              className="text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+            />
+            <button 
+              onClick={handleUpload} 
+              disabled={!uploadFile || uploading} 
+              className="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold text-xs disabled:opacity-50 transition-all uppercase tracking-wider"
+            >
+              {uploading ? "Subiendo..." : "Subir a Galería"}
+            </button>
+          </div>
+          <p className="mt-3 text-[10px] text-gray-400 font-bold uppercase">
+            * Se recomienda formato PNG/JPG cuadrado (256x256 o 512x512).
+          </p>
+        </Card>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+          {avatars.map(av => (
+            <div key={av.id} className="group relative bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-lg transition-all flex flex-col items-center">
+               <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-gray-50 group-hover:border-purple-100 transition-colors mb-3">
+                  <img src={av.url} alt={av.filename} className="w-full h-full object-cover" />
+               </div>
+               <span className="text-[10px] font-bold text-gray-400 truncate w-full text-center">{av.filename}</span>
+               
+               {/* Botón Borrar Flotante */}
+               <button 
+                  onClick={() => handleDelete(av.id)}
+                  className="absolute top-2 right-2 p-1.5 bg-white text-red-400 rounded-full shadow-sm opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 transition-all"
+               >
+                  <X size={14} />
+               </button>
+            </div>
+          ))}
+          {avatars.length === 0 && (
+            <div className="col-span-full py-10 text-center text-gray-400 italic font-bold">
+               No hay avatares en la galería. Sube el primero.
+            </div>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#fcfcfd] p-4 md:p-10">
       <div className="max-w-7xl mx-auto space-y-10">
@@ -799,7 +880,7 @@ const Admin: React.FC = () => {
             <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3"><span className="pl-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Temporada:</span><select value={selectedSeasonId || ""} onChange={e => setSelectedSeasonId(Number(e.target.value))} className="bg-gray-50 border-none rounded-xl text-sm font-bold p-2 pr-8 focus:ring-2 focus:ring-blue-500">{seasons.map(s => <option key={s.id} value={s.id}>{s.year} - {s.name}</option>)}</select></div>
         </header>
         <div className="flex flex-wrap gap-2 bg-gray-100/50 p-1.5 rounded-[2rem] border border-gray-200/50 backdrop-blur-sm sticky top-5 z-40">
-            {[{id: 'seasons', label: 'Calendario', icon: <Calendar size={16}/>}, {id: 'users', label: 'Usuarios', icon: <Users size={16}/>}, {id: 'teams', label: 'Escuderías', icon: <Shield size={16}/>}, {id: 'gps', label: 'GPs & Puntos', icon: <Flag size={16}/>}, {id: 'grid', label: 'Parrilla F1', icon: <LayoutGrid size={16}/>}, {id: 'bingo', label: 'Bingo', icon: <Trophy size={16}/>}].map(tab => (
+            {[{id: 'seasons', label: 'Calendario', icon: <Calendar size={16}/>}, {id: 'users', label: 'Usuarios', icon: <Users size={16}/>}, {id: 'teams', label: 'Escuderías', icon: <Shield size={16}/>}, {id: 'gps', label: 'GPs & Puntos', icon: <Flag size={16}/>}, {id: 'grid', label: 'Parrilla F1', icon: <LayoutGrid size={16}/>}, {id: 'bingo', label: 'Bingo', icon: <Trophy size={16}/>},{id: 'avatars', label: 'Galería Avatares', icon: <Image size={16}/>}].map(tab => (
                 <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-2 px-6 py-3 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? "bg-white text-gray-900 shadow-md scale-[1.02]" : "text-gray-400 hover:text-gray-600"}`}>{tab.icon} {tab.label}</button>
             ))}
         </div>
@@ -810,6 +891,7 @@ const Admin: React.FC = () => {
             {activeTab === 'gps' && <GPsTab />}
             {activeTab === 'grid' && <F1GridTab />}
             {activeTab === 'bingo' && <BingoTab />}
+            {activeTab === 'avatars' && <AvatarsTab />}
         </div>
       </div>
     </div>

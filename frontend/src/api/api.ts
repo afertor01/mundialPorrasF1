@@ -358,3 +358,42 @@ export const getBingoStandings = async () => {
   const res = await client.get("/bingo/standings");
   return res.data;
 };
+
+// ==========================================
+// 🖼️ AVATARES Y PERFIL
+// ==========================================
+
+// Obtener mis datos actualizados (Auth)
+export const getMe = async () => {
+  const res = await client.get("/auth/me");
+  return res.data;
+};
+
+// Obtener galería de avatares
+export const getAvatars = async () => {
+  const res = await client.get("/avatars/");
+  return res.data;
+};
+
+// Cambiar mi avatar
+export const updateMyAvatar = async (filename: string) => {
+  const res = await client.put(`/avatars/me/${filename}`);
+  return res.data;
+};
+
+// (Admin) Subir avatar
+export const uploadAvatar = async (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  
+  const res = await client.post("/avatars/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" }
+  });
+  return res.data;
+};
+
+// (Admin) Borrar avatar
+export const deleteAvatar = async (avatarId: number) => {
+  const res = await client.delete(`/avatars/${avatarId}`);
+  return res.data;
+};

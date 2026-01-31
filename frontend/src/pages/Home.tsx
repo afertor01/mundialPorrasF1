@@ -2,7 +2,16 @@ import React, { useContext } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { motion } from "framer-motion";
-import { Trophy, Calendar, Flag, LogIn, UserPlus, Target, LayoutGrid } from "lucide-react"; // <--- Importar LayoutGrid
+import { 
+  Trophy, 
+  Calendar, 
+  Flag, 
+  LogIn, 
+  UserPlus, 
+  Target, 
+  LayoutGrid, 
+  UserCircle // <--- Icono para perfil
+} from "lucide-react";
 
 const Home: React.FC = () => {
   const { token, logout } = useContext(AuthContext);
@@ -73,7 +82,6 @@ const Home: React.FC = () => {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            // Ajustamos el grid para que acomode mejor 5 elementos
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             {/* 1. Dashboard */}
@@ -94,7 +102,7 @@ const Home: React.FC = () => {
               color="border-l-4 border-f1-red"
             />
 
-            {/* 3. BINGO (NUEVO) */}
+            {/* 3. BINGO */}
             <MenuCard 
               to="/bingo" 
               title="Season Bingo" 
@@ -112,7 +120,16 @@ const Home: React.FC = () => {
               color="border-l-4 border-blue-500"
             />
 
-            {/* 5. Admin */}
+            {/* 5. Mi Perfil (NUEVO) */}
+            <MenuCard 
+              to="/profile" 
+              title="Mi Perfil" 
+              desc="Personaliza tu casco y cuenta"
+              icon={<UserCircle size={32} className="text-teal-500" />}
+              color="border-l-4 border-teal-500"
+            />
+
+            {/* 6. Admin */}
             <MenuCard 
               to="/admin" 
               title="Zona Admin" 
