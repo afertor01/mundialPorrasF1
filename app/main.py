@@ -21,6 +21,7 @@ from app.api.seasons import router as seasons_router
 from app.api.teams import router as teams_router
 from app.api.bingo import router as bingo_router
 from app.api.avatars import router as avatars_router
+from app.api.achievements import router as achievements_router
 
 
 app = FastAPI(
@@ -49,6 +50,7 @@ app.include_router(seasons_router)
 app.include_router(teams_router)
 app.include_router(bingo_router)
 app.include_router(avatars_router)
+app.include_router(achievements_router)
 
 
 # Configuramos el permiso para que React pueda hablar con Python

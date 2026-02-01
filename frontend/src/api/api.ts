@@ -397,3 +397,37 @@ export const deleteAvatar = async (avatarId: number) => {
   const res = await client.delete(`/avatars/${avatarId}`);
   return res.data;
 };
+
+// ==========================================
+// 👤 PERFIL Y CONFIGURACIÓN
+// ==========================================
+
+// Actualizar perfil (Username, Email, Password, Acrónimo)
+export const updateProfile = async (data: { 
+    username?: string; 
+    email?: string; 
+    acronym?: string; 
+    current_password?: string; 
+    new_password?: string; 
+}) => {
+    const res = await client.patch("/auth/me", data);
+    return res.data;
+};
+
+// ==========================================
+// 📊 ESTADÍSTICAS PERSONALES
+// ==========================================
+
+export const getMyStats = async () => {
+    const res = await client.get("/stats/me");
+    return res.data;
+};
+
+// ==========================================
+// 🏆 LOGROS
+// ==========================================
+
+export const getMyAchievements = async () => {
+    const res = await client.get("/achievements/");
+    return res.data;
+};

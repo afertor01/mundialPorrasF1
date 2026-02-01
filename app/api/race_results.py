@@ -5,6 +5,7 @@ from app.db.models.race_position import RacePosition
 from app.db.models.race_event import RaceEvent
 from app.db.models.grand_prix import GrandPrix
 from app.core.deps import get_current_user
+from app.services.achievements_service import evaluate_race_achievements
 
 router = APIRouter(prefix="/results", tags=["Race Results"])
 
@@ -59,9 +60,13 @@ def upsert_race_result(
         ))
 
     db.commit()
+
+    # 🔥 VALIDAR LOGROS AUTOMÁTICAMENTE
+    evaluate_race_achievements(db, gp_id)
+
     db.close()
 
-    return {"message": "Resultado guardado"}
+    return {"message": "Resultado guardado y logros calculados"}
 
 @router.get("/{gp_id}")
 def get_race_result(

@@ -1,7 +1,9 @@
 # app/db/models/prediction.py
-from sqlalchemy import Integer, ForeignKey, Boolean, UniqueConstraint
+from sqlalchemy import Integer, ForeignKey, Boolean, UniqueConstraint, DateTime # <--- AÑADIR DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func # <--- AÑADIR func
 from app.db.session import Base
+from datetime import datetime # <--- AÑADIR datetime
 
 class Prediction(Base):
     __tablename__ = "predictions"
@@ -16,6 +18,8 @@ class Prediction(Base):
     points_base: Mapped[int] = mapped_column(Integer, default=0)
     multiplier: Mapped[float] = mapped_column(default=1.0)
     points: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     
     # Relaciones
     user: Mapped["User"] = relationship("User", back_populates="predictions")
