@@ -162,6 +162,9 @@ def ranking(
             # Si no hay GPs, devolvemos listas vacías pero estructura válida
             return {"by_gp": {}, "overall": []}
 
+        # FIX: Identificar GPs con resultados para no incluir los futuros en "by_gp"
+        completed_gp_ids = {res.gp_id for res in db.query(RaceResult.gp_id).filter(RaceResult.gp_id.in_([gp.id for gp in gps])).all()}
+
         gp_ids = [gp.id for gp in gps]
 
         if type == "users":
@@ -210,7 +213,10 @@ def ranking(
                 gp_ranking.sort(key=lambda x: x["accumulated"], reverse=True)
                 if limit:
                     gp_ranking = gp_ranking[:limit]
-                ranking_by_gp[gp_id] = gp_ranking
+                
+                # FIX: Solo añadir al desglose si el GP tiene resultados
+                if gp_id in completed_gp_ids:
+                    ranking_by_gp[gp_id] = gp_ranking
 
             result["by_gp"] = ranking_by_gp
             
@@ -273,7 +279,9 @@ def ranking(
                 if limit:
                     gp_ranking = gp_ranking[:limit]
 
-                ranking_by_gp[gp_id] = gp_ranking
+                # FIX: Solo añadir al desglose si el GP tiene resultados
+                if gp_id in completed_gp_ids:
+                    ranking_by_gp[gp_id] = gp_ranking
 
             result["by_gp"] = ranking_by_gp
             result["overall"] = [

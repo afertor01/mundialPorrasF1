@@ -5,117 +5,205 @@ import { jwtDecode } from "jwt-decode";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Trophy, TrendingUp, Users, Zap, BarChart3, Award, Target,
-  LayoutDashboard, Shield
+  LayoutDashboard, Shield, ArrowUp, ArrowDown, Minus, Sparkles
 } from "lucide-react";
 import BarChartTop20 from "../components/BarChartTop20";
 import ComparisonLineChart from "../components/ComparisonLineChart";
 
+// --- TYPE DEFINITIONS ---
+interface CustomJwtPayload {
+  username: string;
+  // añade otros campos si tu token los tiene
+}
+
+interface Gp {
+  id: number;
+  name: string;
+  race_datetime: string;
+}
+
+interface RankingRow {
+  name: string;
+  acronym: string;
+  gp_points: number;
+  accumulated: number;
+}
+
+interface RankingData {
+  // Las claves de objetos JSON suelen ser strings, aseguramos el acceso con String(id)
+  by_gp: Record<string, RankingRow[]>;
+  overall: RankingRow[];
+}
+
+interface Team {
+  id: number;
+  name: string;
+  members: (string | { username: string })[]; // Maneja ambos casos por seguridad
+}
+
+interface ActiveSeason {
+  id: number;
+  year: number;
+  name: string;
+  is_active: boolean;
+}
+
+interface EvolutionDataPoint {
+  gp_id: number;
+  value: number;
+}
+
+type EvolutionData = Record<string, EvolutionDataPoint[]>;
+
+interface StatCardProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  color: string;
+}
+
 const Dashboard: React.FC = () => {
   const { token } = useContext(AuthContext);
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState<string>("");
   
   // Estados de Configuración
   const [mode, setMode] = useState<"total" | "base" | "multiplier">("total");
   const [view, setView] = useState<"drivers" | "teams">("drivers");
-  const [activeSeason, setActiveSeason] = useState<any>(null);
+  const [activeSeason, setActiveSeason] = useState<ActiveSeason | null>(null);
   
   // Estados de Datos
-  const [rankingDrivers, setRankingDrivers] = useState<any[]>([]);
-  const [evolutionDrivers, setEvolutionDrivers] = useState<any>({});
+  const [rankingDataDrivers, setRankingDataDrivers] = useState<RankingData | null>(null);
+  const [evolutionDrivers, setEvolutionDrivers] = useState<EvolutionData>({}); // Tipo corregido
   
-  const [rankingTeams, setRankingTeams] = useState<any[]>([]);
-  const [evolutionTeams, setEvolutionTeams] = useState<any>({});
+  const [rankingDataTeams, setRankingDataTeams] = useState<RankingData | null>(null);
+  const [evolutionTeams, setEvolutionTeams] = useState<EvolutionData>({}); // Tipo corregido
   
   const [teamsMap, setTeamsMap] = useState<Record<string, string>>({}); 
-  const [myTeam, setMyTeam] = useState<any>(null);
-  const [gps, setGps] = useState<any[]>([]); 
+  const [myTeam, setMyTeam] = useState<Team | null>(null);
+  const [gps, setGps] = useState<Gp[]>([]); 
 
   // 1. EXTRAER USUARIO
   useEffect(() => {
     if (token) {
         try {
-            const decoded: any = jwtDecode(token);
+            // Tipado genérico para jwtDecode
+            const decoded = jwtDecode<CustomJwtPayload>(token);
             setUsername(decoded.username || ""); 
         } catch (e) {
-            console.error("Error con el token");
+            console.error("Error decodificando token", e);
         }
     }
   }, [token]);
 
+  // Carga de datos
   useEffect(() => {
-    loadData();
-  }, [mode, username]);
+    const fetchData = async () => {
+        try {
+            const seasons = await API.getSeasons();
+            const active = seasons.find((s: any) => s.is_active);
+            if (!active) return;
+            setActiveSeason(active);
 
-  const loadData = async () => {
-      const seasons = await API.getSeasons();
-      const active = seasons.find((s: any) => s.is_active);
-      if (!active) return;
-      setActiveSeason(active);
+            const gpList = await API.getGPs(active.id);
+            setGps(gpList);
 
-      const gpList = await API.getGPs(active.id);
-      setGps(gpList);
+            // --- CARGA DE PILOTOS ---
+            const rankData = await API.getRanking(active.id, "users", mode, 100);
+            setRankingDataDrivers(rankData);
 
-      // --- CARGA DE PILOTOS ---
-      const rankData = await API.getRanking(active.id, "users", mode, 100);
-      setRankingDrivers(rankData.overall);
+            const evoData = await API.getEvolution(active.id, "users", [], [], mode);
+            setEvolutionDrivers(evoData);
 
-      const evoData = await API.getEvolution(active.id, "users", [], [], mode);
-      setEvolutionDrivers(evoData);
+            // --- CARGA DE ESCUDERÍAS ---
+            const teamsData = await API.getTeams(active.id);
+            
+            // Lógica para encontrar mi equipo (soporta array de strings o de objetos)
+            if (username) {
+                const foundMyTeam = teamsData.find((t: Team) => 
+                    t.members.some((m) => {
+                        const mName = typeof m === 'object' ? m.username : m;
+                        return mName === username;
+                    })
+                );
+                setMyTeam(foundMyTeam || null);
+            }
 
-      // --- CARGA DE ESCUDERÍAS ---
-      const teamsData = await API.getTeams(active.id);
-      
-      if (username) {
-        const foundMyTeam = teamsData.find((t: any) => 
-            t.members.some((m:any) => (typeof m === 'object' ? m.username : m) === username)
-        );
-        setMyTeam(foundMyTeam);
-      }
+            const map: Record<string, string> = {};
+            teamsData.forEach((t: Team) => {
+                t.members.forEach((m) => {
+                    const mName = typeof m === 'object' ? m.username : m;
+                    map[mName] = t.name;
+                });
+            });
+            setTeamsMap(map);
 
-      const map: Record<string, string> = {};
-      teamsData.forEach((t: any) => {
-          t.members.forEach((m: any) => {
-             const mName = typeof m === 'object' ? m.username : m;
-             map[mName] = t.name;
-          });
-      });
-      setTeamsMap(map);
+            const rankTeamsData = await API.getRanking(active.id, "teams", mode, 100);
+            setRankingDataTeams(rankTeamsData);
 
-      const rankTeamsData = await API.getRanking(active.id, "teams", mode, 100);
-      setRankingTeams(rankTeamsData.overall);
+            const evoTeamsData = await API.getEvolution(active.id, "teams", [], [], mode);
+            setEvolutionTeams(evoTeamsData);
+        } catch (error) {
+            console.error("Error cargando dashboard:", error);
+        }
+    };
 
-      const evoTeamsData = await API.getEvolution(active.id, "teams", [], [], mode);
-      setEvolutionTeams(evoTeamsData);
-  };
+    fetchData();
+  }, [mode, username]); // Dependencias del efecto
 
   // --- LÓGICA DE VISUALIZACIÓN ---
-  const myDriverRank = rankingDrivers.findIndex(r => r.name === username) + 1;
-  const myDriverPoints = rankingDrivers.find(r => r.name === username)?.accumulated;
-
-  const myTeamName = myTeam ? myTeam.name : "";
-  const myTeamRank = rankingTeams.findIndex(r => r.name === myTeamName) + 1;
-  const myTeamPoints = rankingTeams.find(r => r.name === myTeamName)?.accumulated;
-
-  const currentRanking = view === 'drivers' ? rankingDrivers : rankingTeams;
+  const currentData = view === 'drivers' ? rankingDataDrivers : rankingDataTeams;
+  const currentOverallRanking = currentData ? currentData.overall : [];
   const currentEvolution = view === 'drivers' ? evolutionDrivers : evolutionTeams;
-  const currentTargetName = view === 'drivers' ? username : myTeamName;
-  const currentRankPos = view === 'drivers' ? myDriverRank : myTeamRank;
-  const currentPoints = view === 'drivers' ? myDriverPoints : myTeamPoints;
+  
+  // Determinar el objetivo a resaltar (usuario o escudería)
+  const currentTargetName = view === 'drivers' ? username : (myTeam ? myTeam.name : "");
 
-  const getTableData = (sourceRanking: any[], targetName: string) => {
-      const top20 = sourceRanking.slice(0, 20);
-      const me = sourceRanking.find(r => r.name === targetName);
+  // Stats cards
+  const myRankIndex = currentOverallRanking.findIndex(r => r.name === currentTargetName);
+  const myRankPos = myRankIndex !== -1 ? myRankIndex + 1 : 0;
+  const myPoints = currentOverallRanking.find(r => r.name === currentTargetName)?.accumulated;
+
+  // Lógica de datos para la tabla (Safeguards añadidos)
+  const completedGps = gps
+    .filter(gp => currentData?.by_gp && currentData.by_gp[String(gp.id)] && currentData.by_gp[String(gp.id)].length > 0)
+    .sort((a, b) => new Date(a.race_datetime).getTime() - new Date(b.race_datetime).getTime());
+
+  const lastGp = completedGps.length > 0 ? completedGps[completedGps.length - 1] : null;
+  const prevGp = completedGps.length > 1 ? completedGps[completedGps.length - 2] : null;
+
+  const showDiff = !!prevGp;
+
+  // Datos de la tabla actual (fallback a array vacío)
+  const tableData = (lastGp && currentData?.by_gp) ? currentData.by_gp[String(lastGp.id)] : currentOverallRanking;
+  
+  // Mapa del GP anterior para calcular diferencias
+  const prevRankMap = new Map<string, number>();
+  if (prevGp && currentData?.by_gp) {
+      const prevList = currentData.by_gp[String(prevGp.id)] || [];
+      prevList.forEach((p, i) => prevRankMap.set(p.name, i + 1));
+  }
+
+  // Función tipada para cortar la tabla
+  const getTableDataForDisplay = (fullTableData: RankingRow[], targetName: string): RankingRow[] => {
+      if (!fullTableData) return [];
+      const top20 = fullTableData.slice(0, 20);
       
-      const data = [...top20];
-      if (me && !top20.find(r => r.name === targetName)) {
-          data.push(me);
-      }
-      return data;
-  };
+      if (!targetName) return top20;
+
+      const isTargetInTop20 = top20.some(r => r.name === targetName);
+      if (isTargetInTop20) return top20;
+
+      const targetData = fullTableData.find(r => r.name === targetName);
+      if (targetData) return [...top20, targetData];
+
+      return top20;
+  }
+  
+  const finalTableData = getTableDataForDisplay(tableData, currentTargetName);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8"> {/* Aumentado espaciado vertical global */}
+      <div className="max-w-7xl mx-auto space-y-8">
         
         {/* HEADER & CONTROLS */}
         <header className="flex flex-col xl:flex-row justify-between items-center gap-6 bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
@@ -168,25 +256,25 @@ const Dashboard: React.FC = () => {
             <StatCard 
                 icon={<Award className="text-yellow-500" />} 
                 label={view === 'drivers' ? "Tu Posición" : "Pos. Escudería"}
-                value={currentRankPos > 0 ? `#${currentRankPos}` : "---"} 
+                value={myRankPos > 0 ? `#${myRankPos}` : "---"} 
                 color="border-yellow-500"
             />
             <StatCard 
                 icon={<TrendingUp className="text-f1-red" />} 
                 label="Puntos" 
-                value={currentPoints !== undefined ? (mode === 'multiplier' ? `${currentPoints.toFixed(2)}x` : currentPoints) : "---"} 
+                value={myPoints !== undefined ? (mode === 'multiplier' ? `${myPoints.toFixed(2)}x` : myPoints) : "---"} 
                 color="border-f1-red"
             />
             <StatCard 
                 icon={view === 'drivers' ? <Users className="text-blue-500" /> : <Shield className="text-blue-500"/>} 
                 label={view === 'drivers' ? "Pilotos" : "Escuderías"}
-                value={currentRanking.length} 
+                value={currentOverallRanking.length} 
                 color="border-blue-500"
             />
             <StatCard 
                 icon={<BarChart3 className="text-green-500" />} 
                 label="Líder Mundial" 
-                value={currentRanking[0]?.name || "---"} 
+                value={currentOverallRanking[0]?.name || "---"} 
                 color="border-green-500"
             />
         </div>
@@ -198,41 +286,53 @@ const Dashboard: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                className="space-y-8" // Espaciado vertical entre bloques
+                className="space-y-8"
             >
-                {/* 1. SECCIÓN TABLA CLASIFICACIÓN (FULL WIDTH) */}
+                {/* 1. SECCIÓN TABLA CLASIFICACIÓN */}
                 <section className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col">
                     <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
                         <h3 className="text-lg font-black uppercase italic tracking-tighter">
                             {view === 'drivers' ? "Clasificación de Pilotos" : "Clasificación de Constructores"}
                         </h3>
-                        <span className="text-[10px] font-black bg-f1-red text-white px-3 py-1 rounded-full uppercase italic">Live Data</span>
+                        <span className="text-[10px] font-black bg-f1-red text-white px-3 py-1 rounded-full uppercase italic">
+                            {lastGp ? `Tras ${lastGp.name}`: "Live Data"}
+                        </span>
                     </div>
                     
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="text-[10px] uppercase tracking-widest text-gray-400 border-b border-gray-50">
-                                    <th className="px-6 md:px-8 py-5">Pos</th>
+                                    <th className="px-6 py-5">Pos</th>
                                     <th className="px-4 py-5">{view === 'drivers' ? "Piloto" : "Escudería"}</th>
+                                    {showDiff && <th className="px-4 py-5 text-center">Cambio</th>}
                                     <th className="px-4 py-5">{view === 'drivers' ? "Escudería" : ""}</th>
-                                    <th className="px-6 md:px-8 py-5 text-right">Puntos</th>
+                                    {showDiff && <th className="px-4 py-5 text-right">Puntos GP</th>}
+                                    <th className="px-6 py-5 text-right">Total Puntos</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
-                                {getTableData(currentRanking, currentTargetName).map((row) => {
-                                    const realPos = currentRanking.findIndex(r => r.name === row.name) + 1;
+                                {finalTableData.map((row) => {
+                                    // Búsqueda segura en tableData (evitar -1 visual)
+                                    const index = tableData.findIndex(r => r.name === row.name);
+                                    const realPos = index !== -1 ? index + 1 : 0;
                                     const isMe = row.name === currentTargetName;
                                     
+                                    let posChange: number | 'new' | null = null;
+                                    if (showDiff && realPos > 0) {
+                                        const prevRank = prevRankMap.get(row.name);
+                                        posChange = prevRank ? prevRank - realPos : 'new';
+                                    }
+
                                     return (
                                         <tr key={row.name} className={`transition-colors ${isMe ? 'bg-blue-50/60' : 'hover:bg-gray-50/50'}`}>
-                                            <td className="px-6 md:px-8 py-4">
+                                            <td className="px-6 py-4">
                                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${
                                                     realPos === 1 ? 'bg-yellow-400 text-white shadow-lg shadow-yellow-100' :
                                                     realPos === 2 ? 'bg-gray-300 text-white' :
                                                     realPos === 3 ? 'bg-amber-600 text-white' : 'text-gray-400 bg-gray-100'
                                                 }`}>
-                                                    {realPos}
+                                                    {realPos > 0 ? realPos : '-'}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-4">
@@ -243,19 +343,28 @@ const Dashboard: React.FC = () => {
                                                         </span>
                                                     )}
                                                     <span className={`text-sm font-bold truncate ${isMe ? 'text-blue-700' : 'text-gray-700'}`}>
-                                                        {row.name} {isMe && view === 'drivers' && " (TÚ)"}
-                                                        {isMe && view === 'teams' && " (TU EQUIPO)"}
+                                                        {row.name}
                                                     </span>
                                                 </div>
                                             </td>
+                                            {showDiff && (
+                                                <td className="px-4 py-4 text-xs font-bold text-center">
+                                                    {posChange === 'new' ? <span className="flex justify-center text-blue-400"><Sparkles size={16}/></span> :
+                                                     posChange === 0 || posChange === null ? <span className="flex justify-center text-gray-400"><Minus size={16}/></span> :
+                                                     posChange > 0 ? <span className="flex justify-center items-center gap-1 text-green-500"><ArrowUp size={14}/> {posChange}</span> :
+                                                     posChange < 0 ? <span className="flex justify-center items-center gap-1 text-red-500"><ArrowDown size={14}/> {Math.abs(posChange)}</span> : 
+                                                     '-'}
+                                                </td>
+                                            )}
                                             <td className="px-4 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-tight">
-                                                {view === 'drivers' ? (
-                                                    teamsMap[row.name] || <span className="text-gray-200">---</span>
-                                                ) : (
-                                                    <span className="text-gray-300">-</span>
-                                                )}
+                                                {view === 'drivers' && (teamsMap[row.name] || <span className="text-gray-200">---</span>)}
                                             </td>
-                                            <td className="px-6 md:px-8 py-4 text-right font-black text-gray-900 tabular-nums">
+                                            {showDiff && (
+                                                <td className="px-4 py-4 text-right font-mono text-sm">
+                                                    +{mode === 'multiplier' ? row.gp_points.toFixed(2) : row.gp_points}
+                                                </td>
+                                            )}
+                                            <td className="px-6 py-4 text-right font-black text-gray-900 tabular-nums">
                                                 {mode === "multiplier" ? row.accumulated.toFixed(2) + "x" : row.accumulated}
                                             </td>
                                         </tr>
@@ -266,13 +375,13 @@ const Dashboard: React.FC = () => {
                     </div>
                 </section>
 
-                {/* 2. SECCIÓN GRÁFICA BARRAS (FULL WIDTH) */}
+                {/* 2. SECCIÓN GRÁFICA BARRAS */}
                 <section className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-100">
                     <h3 className="text-lg font-black uppercase italic tracking-tighter mb-6">
                         {view === 'drivers' ? "Diferencia de Puntos (Top 20)" : "Diferencia de Puntos (Constructores)"}
                     </h3>
-                    <div className="h-[400px]"> {/* Altura fija considerable para que se vea bien */}
-                        <BarChartTop20 data={currentRanking} currentUser={currentTargetName} />
+                    <div className="h-[400px]">
+                        <BarChartTop20 data={currentOverallRanking} currentUser={currentTargetName} />
                     </div>
                 </section>
 
@@ -281,9 +390,11 @@ const Dashboard: React.FC = () => {
                     <h3 className="text-xl font-black uppercase italic tracking-tighter mb-8">
                         Evolución Histórica
                     </h3>
-                    {/* Contenedor con altura fija y sin overflow oculto para tooltips */}
                     <div className="bg-gray-50 rounded-[2rem] p-2 md:p-6 border border-gray-100 h-[500px] w-full relative">
-                        <ComparisonLineChart fullData={currentEvolution} currentUser={currentTargetName} gps={gps} />
+                        {/* Validación añadida para evitar renderizar el gráfico sin datos */}
+                        {currentEvolution && (
+                            <ComparisonLineChart fullData={currentEvolution} currentUser={currentTargetName} gps={gps} />
+                        )}
                     </div>
                 </section>
             </motion.div>
@@ -293,7 +404,7 @@ const Dashboard: React.FC = () => {
   );
 };
 
-const StatCard = ({ icon, label, value, color }: any) => (
+const StatCard = ({ icon, label, value, color }: StatCardProps) => (
     <div className={`bg-white p-6 rounded-[2rem] shadow-sm border-l-4 ${color} flex items-center gap-5 hover:shadow-md transition-shadow`}>
         <div className="p-3.5 bg-gray-50 rounded-2xl shadow-inner">{icon}</div>
         <div>
