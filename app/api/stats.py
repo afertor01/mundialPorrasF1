@@ -12,6 +12,7 @@ from app.db.models.race_position import RacePosition
 from app.db.models.race_event import RaceEvent
 from app.db.models.prediction_position import PredictionPosition
 from app.db.models.prediction_event import PredictionEvent
+from app.db.models.achievement import Achievement, UserAchievement
 
 import statistics
 from datetime import datetime, timezone
@@ -285,261 +286,212 @@ def ranking(
     finally:
         db.close()
 
-# --- FUNCIÓN AUXILIAR DE NORMALIZACIÓN ---
+# --- UTILIDADES ---
 def normalize_score(value, min_val, max_val, reverse=False):
-    """Escala un valor entre 0 y 100."""
     if max_val == min_val: return 100
-    
-    # Protección contra división por cero
     denom = max_val - min_val
     if denom == 0: return 100
-
     if reverse:
-        # Para métricas donde "menos es mejor" (Varianza, Tiempo de anticipación invertido?)
-        # En anticipación: Más tiempo = Mejor (No reverse)
-        # En regularidad (varianza): Menos varianza = Mejor (Reverse = True)
         ratio = (value - min_val) / denom
         score = int((1 - ratio) * 100)
     else:
-        # Más es mejor
         score = int(((value - min_val) / denom) * 100)
+    return max(0, min(100, score))
+
+# --- LÓGICA CORE (REUTILIZABLE) ---
+def _calculate_stats(db: Session, target_user_id: int):
+    """Calcula las estadísticas completas para un usuario específico comparado con el global."""
     
-    return max(0, min(100, score)) # Asegurar límites 0-100
+    # ... (Parte 1 y 2 idénticas: Datos globales y Bucle Araña) ...
+    # Para ahorrar espacio, asumo que las líneas 1 a 95 del bloque anterior están bien.
+    # El error estaba en la PARTE 3. Aquí tienes la función CORREGIDA desde la parte 3:
 
-@router.get("/me")
-def get_my_stats(current_user: User = Depends(get_current_user)):
-    db = SessionLocal()
-    try:
-        # --- 1. DATOS PRELIMINARES ---
-        all_users = db.query(User).all()
-        total_gps_in_db = db.query(GrandPrix).count()
-        
-        # Maps auxiliares
-        # Usamos UTC para estandarizar
-        gps_data = {gp.id: gp for gp in db.query(GrandPrix).all()}
-        gps_dates = {gp.id: gp.race_datetime.replace(tzinfo=timezone.utc) if gp.race_datetime.tzinfo is None else gp.race_datetime for gp in gps_data.values()}
+    # (Asegúrate de mantener la parte 1 y 2 que te di antes, si las has borrado dímelo)
+    # Aquí retomo desde el cálculo del usuario target:
 
-        # Participación por GP
-        part_counts = db.query(Prediction.gp_id, func.count(Prediction.user_id)).group_by(Prediction.gp_id).all()
-        gp_participation_map = {gp_id: count for gp_id, count in part_counts}
+    # 1. DATOS PRELIMINARES GLOBALES (Re-incluido para contexto, asegura tener los imports)
+    all_users = db.query(User).all()
+    gps_data = {gp.id: gp for gp in db.query(GrandPrix).all()}
+    gps_dates = {gp.id: gp.race_datetime.replace(tzinfo=timezone.utc) if gp.race_datetime.tzinfo is None else gp.race_datetime for gp in gps_data.values()}
+    
+    part_counts = db.query(Prediction.gp_id, func.count(Prediction.user_id)).group_by(Prediction.gp_id).all()
+    gp_participation_map = {gp_id: count for gp_id, count in part_counts}
 
-        # Resultados oficiales para Vidente
-        official_results = {}
-        race_results_db = db.query(RaceResult).all()
-        for rr in race_results_db:
-            official_results[rr.gp_id] = {
-                "positions": {p.position: p.driver_name for p in rr.positions},
-                "events": {e.event_type: e.value for e in rr.events}
-            }
-
-        # --- 2. CÁLCULO DE MÉTRICAS RAW (EL BUCLE QUE FALTABA) ---
-        metrics_raw = []
-
-        for u in all_users:
-            u_preds = db.query(Prediction).filter(Prediction.user_id == u.id).all()
-            
-            if not u_preds:
-                continue
-
-            # A. REGULARIDAD (Varianza)
-            points_list = [p.points for p in u_preds]
-            if len(points_list) < 3:
-                regularity_raw = 999999 # Penalización
-            else:
-                regularity_raw = statistics.variance(points_list)
-
-            # B. COMPROMISO (% Participación desde creación)
-            user_created_at = u.created_at.replace(tzinfo=timezone.utc) if u.created_at else datetime.min.replace(tzinfo=timezone.utc)
-            relevant_gps_count = 0
-            for gp_date in gps_dates.values():
-                gp_dt = gp_date if gp_date.tzinfo else gp_date.replace(tzinfo=timezone.utc)
-                u_dt = user_created_at if user_created_at.tzinfo else user_created_at.replace(tzinfo=timezone.utc)
-                if gp_dt > u_dt:
-                    relevant_gps_count += 1
-            
-            if relevant_gps_count == 0:
-                commitment_raw = 1.0 
-            else:
-                commitment_raw = len(u_preds) / relevant_gps_count
-
-            # C. ANTICIPACIÓN (Tiempo medio)
-            deltas = []
-            for p in u_preds:
-                gp_date = gps_dates.get(p.gp_id)
-                if gp_date:
-                    p_date = p.updated_at if p.updated_at.tzinfo else p.updated_at.replace(tzinfo=timezone.utc)
-                    gp_date = gp_date if gp_date.tzinfo else gp_date.replace(tzinfo=timezone.utc)
-                    diff = (gp_date - p_date).total_seconds()
-                    deltas.append(max(0, diff))
-            anticipation_raw = statistics.mean(deltas) if deltas else 0
-
-            # D. PODIOS PONDERADOS (Calidad)
-            weighted_score_sum = 0
-            for p in u_preds:
-                n_participants = gp_participation_map.get(p.gp_id, 1)
-                weighted_score_sum += (p.points * n_participants)
-            podium_raw = weighted_score_sum / len(u_preds) if u_preds else 0
-
-            # E. VIDENTE (Aciertos exactos)
-            total_hits = 0
-            total_possible_hits = 0
-            for p in u_preds:
-                official = official_results.get(p.gp_id)
-                if not official: continue
-                
-                # Posiciones
-                for pp in p.positions:
-                    total_possible_hits += 1
-                    driver_real = official["positions"].get(pp.position)
-                    if driver_real and driver_real == pp.driver_name:
-                        total_hits += 1
-                # Eventos
-                for pe in p.events:
-                    total_possible_hits += 1
-                    val_real = official["events"].get(pe.event_type)
-                    if val_real and val_real.lower() == pe.value.lower():
-                        total_hits += 1
-            
-            vidente_raw = total_hits / total_possible_hits if total_possible_hits > 0 else 0
-
-            metrics_raw.append({
-                "id": u.id,
-                "reg": regularity_raw,
-                "com": commitment_raw,
-                "ant": anticipation_raw,
-                "pod": podium_raw,
-                "vid": vidente_raw
-            })
-
-        # --- 3. DATOS PROPIOS BÁSICOS ---
-        my_preds = db.query(Prediction).filter(Prediction.user_id == current_user.id).all()
-        # Ordenar para Momentum
-        my_preds_sorted = sorted(my_preds, key=lambda p: gps_dates.get(p.gp_id, datetime.min))
-        
-        total_points = sum(p.points for p in my_preds)
-        races_played = len(my_preds)
-        avg_points = round(total_points / races_played, 2) if races_played > 0 else 0
-
-        # --- 4. VITRINA DE TROFEOS ---
-        trophies = {"gold": 0, "silver": 0, "bronze": 0}
-        for p in my_preds:
-            better_than_me = db.query(func.count(Prediction.id)).filter(
-                Prediction.gp_id == p.gp_id,
-                Prediction.points > p.points
-            ).scalar()
-            rank = better_than_me + 1
-            if rank == 1: trophies["gold"] += 1
-            elif rank == 2: trophies["silver"] += 1
-            elif rank == 3: trophies["bronze"] += 1
-
-        podium_count = trophies["gold"] + trophies["silver"] + trophies["bronze"]
-        podium_ratio_percent = int((podium_count / races_played * 100)) if races_played > 0 else 0
-
-
-        # --- 5. INSIGHTS (CURIOSIDADES REALES) ---
-        insights = {
-            "hero": None,
-            "villain": None,
-            "best_race": None,
-            "momentum": 0
+    race_results_db = db.query(RaceResult).all()
+    official_results = {}
+    for rr in race_results_db:
+        official_results[rr.gp_id] = {
+            "positions": {p.position: p.driver_name for p in rr.positions},
+            "events": {e.event_type: e.value for e in rr.events}
         }
 
-        if races_played > 0:
-            # A) HÉROE: Piloto más puesto en Top 3 (Podio)
-            hero_query = (db.query(PredictionPosition.driver_name, func.count(PredictionPosition.driver_name).label('count'))
-                          .join(Prediction)
-                          .filter(Prediction.user_id == current_user.id)
-                          .filter(PredictionPosition.position <= 3)
-                          .group_by(PredictionPosition.driver_name)
-                          .order_by(desc('count'))
-                          .first())
-            if hero_query:
-                insights["hero"] = {"code": hero_query[0], "count": hero_query[1]}
+    # 2. BUCLE GLOBAL (ARAÑA)
+    metrics_raw = []
+    for u in all_users:
+        u_preds = db.query(Prediction).filter(Prediction.user_id == u.id).all()
+        if not u_preds: continue
 
-            # B) VILLANO: Piloto más puesto en DNF_DRIVER
-            villain_query = (db.query(PredictionEvent.value, func.count(PredictionEvent.value).label('count'))
-                             .join(Prediction)
-                             .filter(Prediction.user_id == current_user.id)
-                             .filter(PredictionEvent.event_type == "DNF_DRIVER")
-                             .group_by(PredictionEvent.value)
-                             .order_by(desc('count'))
-                             .first())
-            if villain_query:
-                insights["villain"] = {"code": villain_query[0], "count": villain_query[1]}
+        points_list = [p.points for p in u_preds]
+        regularity_raw = statistics.variance(points_list) if len(points_list) >= 3 else 999999
 
-            # C) MEJOR CARRERA (Prime)
-            best_pred = max(my_preds, key=lambda p: p.points)
-            best_gp = gps_data.get(best_pred.gp_id)
-            if best_gp:
-                total_in_that_race = gp_participation_map.get(best_pred.gp_id, 1)
-                worse_than_me = db.query(func.count(Prediction.id)).filter(
-                    Prediction.gp_id == best_pred.gp_id, 
-                    Prediction.points < best_pred.points
-                ).scalar()
-                
-                percentile = 100
-                if total_in_that_race > 1:
-                    percentile_val = (worse_than_me / (total_in_that_race - 1)) * 100
-                    percentile = 100 - int(percentile_val)
-                    if percentile < 1: percentile = 1 
+        user_created_at = u.created_at.replace(tzinfo=timezone.utc) if u.created_at else datetime.min.replace(tzinfo=timezone.utc)
+        relevant_gps = sum(1 for d in gps_dates.values() if (d if d.tzinfo else d.replace(tzinfo=timezone.utc)) > (user_created_at if user_created_at.tzinfo else user_created_at.replace(tzinfo=timezone.utc)))
+        commitment_raw = 1.0 if relevant_gps == 0 else len(u_preds) / relevant_gps
 
-                insights["best_race"] = {
-                    "gp_name": best_gp.name,
-                    "year": best_gp.season.year if best_gp.season else 2026,
-                    "points": best_pred.points,
-                    "percentile": f"Top {percentile}%"
-                }
+        deltas = []
+        for p in u_preds:
+            gp_date = gps_dates.get(p.gp_id)
+            if gp_date:
+                p_date = p.updated_at.replace(tzinfo=timezone.utc) if p.updated_at.tzinfo is None else p.updated_at
+                gp_dt = gp_date.replace(tzinfo=timezone.utc) if gp_date.tzinfo is None else gp_date
+                deltas.append(max(0, (gp_dt - p_date).total_seconds()))
+        anticipation_raw = statistics.mean(deltas) if deltas else 0
 
-            # D) MOMENTUM (Racha)
-            current_streak = 0
-            for p in reversed(my_preds_sorted):
-                if p.points >= avg_points:
-                    current_streak += 1
-                else:
-                    break 
-            insights["momentum"] = current_streak
+        weighted_sum = sum((p.points * gp_participation_map.get(p.gp_id, 1)) for p in u_preds)
+        podium_raw = weighted_sum / len(u_preds) if u_preds else 0
 
-        # --- 6. CONSTRUCCIÓN DE LA ARAÑA (CON LOS DATOS CALCULADOS) ---
-        radar_data = []
-        if metrics_raw:
-            # Extraer listas para min/max
-            regs = [m["reg"] for m in metrics_raw]
-            coms = [m["com"] for m in metrics_raw]
-            ants = [m["ant"] for m in metrics_raw]
-            pods = [m["pod"] for m in metrics_raw]
-            vids = [m["vid"] for m in metrics_raw]
+        hits, possible = 0, 0
+        for p in u_preds:
+            official = official_results.get(p.gp_id)
+            if not official: continue
+            for pp in p.positions:
+                possible += 1
+                if official["positions"].get(pp.position) == pp.driver_name: hits += 1
+            for pe in p.events:
+                possible += 1
+                if official["events"].get(pe.event_type, "").lower() == pe.value.lower(): hits += 1
+        vidente_raw = hits / possible if possible > 0 else 0
 
-            # Buscar mis métricas
-            my_m = next((m for m in metrics_raw if m["id"] == current_user.id), None)
-            
-            if my_m:
-                radar_data = [
+        metrics_raw.append({
+            "id": u.id, "reg": regularity_raw, "com": commitment_raw, 
+            "ant": anticipation_raw, "pod": podium_raw, "vid": vidente_raw
+        })
+
+    # 3. DATOS DEL USUARIO TARGET (AQUÍ ESTABA EL ERROR)
+    target_preds = db.query(Prediction).filter(Prediction.user_id == target_user_id).all()
+    # Ordenar
+    target_preds_sorted = sorted(target_preds, key=lambda p: gps_dates.get(p.gp_id, datetime.min))
+    
+    total_points = sum(p.points for p in target_preds)
+    races_played = len(target_preds)
+    avg_points = round(total_points / races_played, 2) if races_played > 0 else 0
+
+    trophies = {"gold": 0, "silver": 0, "bronze": 0}
+    for p in target_preds:
+        better = db.query(func.count(Prediction.id)).filter(Prediction.gp_id == p.gp_id, Prediction.points > p.points).scalar()
+        if better == 0: trophies["gold"] += 1
+        elif better == 1: trophies["silver"] += 1
+        elif better == 2: trophies["bronze"] += 1
+    
+    # CORRECCIÓN AQUÍ: Definimos la variable correctamente
+    podium_ratio_percent = int(((trophies["gold"]+trophies["silver"]+trophies["bronze"]) / races_played * 100)) if races_played > 0 else 0
+
+    # 4. INSIGHTS
+    insights = {"hero": None, "villain": None, "best_race": None, "momentum": 0}
+    if races_played > 0:
+        # Hero
+        hero = (db.query(PredictionPosition.driver_name, func.count(PredictionPosition.driver_name).label('c'))
+                .join(Prediction).filter(Prediction.user_id == target_user_id, PredictionPosition.position <= 3)
+                .group_by(PredictionPosition.driver_name).order_by(desc('c')).first())
+        if hero: insights["hero"] = {"code": hero[0], "count": hero[1]}
+        
+        # Villain
+        villain = (db.query(PredictionEvent.value, func.count(PredictionEvent.value).label('c'))
+                   .join(Prediction).filter(Prediction.user_id == target_user_id, PredictionEvent.event_type == "DNF_DRIVER")
+                   .group_by(PredictionEvent.value).order_by(desc('c')).first())
+        if villain: insights["villain"] = {"code": villain[0], "count": villain[1]}
+
+        # Best Race
+        best_p = max(target_preds, key=lambda p: p.points)
+        bgp = gps_data.get(best_p.gp_id)
+        if bgp:
+            total_in_race = gp_participation_map.get(best_p.gp_id, 1)
+            worse = db.query(func.count(Prediction.id)).filter(Prediction.gp_id == best_p.gp_id, Prediction.points < best_p.points).scalar()
+            perc = 100
+            if total_in_race > 1:
+                perc = 100 - int((worse / (total_in_race - 1)) * 100)
+            insights["best_race"] = {"gp_name": bgp.name, "year": bgp.season.year if bgp.season else 2026, "points": best_p.points, "percentile": f"Top {max(1, perc)}%"}
+
+        # Momentum
+        streak = 0
+        for p in reversed(target_preds_sorted):
+            if p.points >= avg_points: streak += 1
+            else: break
+        insights["momentum"] = streak
+
+    # 5. RADAR FINAL
+    radar_data = []
+    if metrics_raw:
+        regs = [m["reg"] for m in metrics_raw]; coms = [m["com"] for m in metrics_raw]
+        ants = [m["ant"] for m in metrics_raw]; pods = [m["pod"] for m in metrics_raw]
+        vids = [m["vid"] for m in metrics_raw]
+        my_m = next((m for m in metrics_raw if m["id"] == target_user_id), None)
+        
+        if my_m:
+            radar_data = [
                 {"subject": "Regularidad", "A": normalize_score(my_m["reg"], min(regs), max(regs), reverse=True), "fullMark": 100},
                 {"subject": "Compromiso", "A": normalize_score(my_m["com"], min(coms), max(coms)), "fullMark": 100},
                 {"subject": "Anticipación", "A": normalize_score(my_m["ant"], min(ants), max(ants)), "fullMark": 100},
                 {"subject": "Calidad/Podios", "A": normalize_score(my_m["pod"], min(pods), max(pods)), "fullMark": 100},
                 {"subject": "Vidente", "A": normalize_score(my_m["vid"], min(vids), max(vids)), "fullMark": 100}
-                ]
-        
-        # Fallback si no hay datos de nadie
-        if not radar_data:
-             radar_data = [
-                 {"subject": "Regularidad", "A": 0, "fullMark": 100},
-                 {"subject": "Compromiso", "A": 0, "fullMark": 100},
-                 {"subject": "Anticipación", "A": 0, "fullMark": 100},
-                 {"subject": "Calidad/Podios", "A": 0, "fullMark": 100},
-                 {"subject": "Vidente", "A": 0, "fullMark": 100}
-             ]
+            ]
+            
+    if not radar_data:
+        radar_data = [{"subject": "N/A", "A": 0, "fullMark": 100}]
 
-        return {
-            "total_points": total_points,
-            "avg_points": avg_points,
-            "races_played": races_played,
-            "podium_ratio_percent": podium_ratio_percent,
-            "trophies": trophies,
-            "radar": radar_data,
-            "insights": insights
-        }
+    return {
+        "total_points": total_points, "avg_points": avg_points, "races_played": races_played,
+        "podium_ratio_percent": podium_ratio_percent, # Ahora sí existe la variable
+        "trophies": trophies,
+        "radar": radar_data, "insights": insights
+    }
 
-    finally:
+# --- ENDPOINTS ---
+
+@router.get("/users")
+def get_all_users_light(current_user: User = Depends(get_current_user)):
+    """Lista ligera para el buscador."""
+    db = SessionLocal()
+    users = db.query(User.id, User.username, User.acronym, User.avatar, User.created_at).all() # Optimizado
+    db.close()
+    return [{"id": u.id, "username": u.username, "acronym": u.acronym, "avatar": u.avatar, "created_at": u.created_at} for u in users]
+
+@router.get("/me")
+def get_my_stats(current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    res = _calculate_stats(db, current_user.id)
+    db.close()
+    return res
+
+@router.get("/user/{user_id}")
+def get_user_stats(user_id: int, current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    # Verificar si usuario existe
+    u = db.query(User).get(user_id)
+    if not u:
         db.close()
+        raise HTTPException(404, "Usuario no encontrado")
+    res = _calculate_stats(db, user_id)
+    db.close()
+    return res
+
+# --- ENDPOINTS DE LOGROS (Necesarios para ver los de otros) ---
+# Añade esto a tu archivo stats.py o si tienes los logros en otro router, muévelo allí.
+# Aquí asumo que lo ponemos en stats para simplificar la importación.
+
+@router.get("/achievements/user/{user_id}")
+def get_user_achievements(user_id: int, current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    all_achievements = db.query(Achievement).all()
+    user_unlocked = db.query(UserAchievement).filter(UserAchievement.user_id == user_id).all()
+    unlocked_ids = {ua.achievement_id: ua.earned_at for ua in user_unlocked}
+    
+    result = []
+    for ach in all_achievements:
+        is_unlocked = ach.id in unlocked_ids
+        result.append({
+            "id": ach.id, "slug": ach.slug, "name": ach.name, "description": ach.description,
+            "icon": ach.icon, "unlocked": is_unlocked, "date": unlocked_ids.get(ach.id)
+        })
+    db.close()
+    return result

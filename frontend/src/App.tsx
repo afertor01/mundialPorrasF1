@@ -61,20 +61,13 @@ const AppRoutes = () => {
 // --- COMPONENTE DE NAVEGACIÓN ---
 const NavBar = () => {
   const location = useLocation();
-  // Usamos 'any' en el context para acceder a 'avatar' si no está actualizado en el tipo AuthContextType aún
-  const { token, role, logout, avatar } = useContext(AuthContext) as any; 
+  // Ahora extraemos 'acronym' del contexto
+  const { token, role, logout, avatar, acronym } = useContext(AuthContext) as any; 
 
   const isActive = (path: string) => location.pathname === path;
 
-  const linkClass = (path: string) => `
-    flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all duration-200 whitespace-nowrap
-    ${isActive(path) 
-      ? "bg-f1-red text-white shadow-md shadow-red-200" 
-      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900" 
-    }
-  `;
-
-  // Helper para mostrar avatar en el Navbar
+  // ... (función linkClass y getAvatarUrl se mantienen igual) ...
+  const linkClass = (path: string) => `flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all duration-200 whitespace-nowrap ${isActive(path) ? "bg-f1-red text-white shadow-md shadow-red-200" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`;
   const getAvatarUrl = (filename: string | null) => {
       if (!filename) return null;
       if (filename.startsWith("http")) return filename;
@@ -88,7 +81,7 @@ const NavBar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           
-          {/* LOGO */}
+          {/* LOGO (Igual que antes) */}
           <Link to="/" className="flex items-center gap-2 group shrink-0">
              <div className="bg-gray-900 text-white p-1.5 rounded-lg group-hover:bg-f1-red transition-colors">
                 <Flag size={20} className="italic" />
@@ -96,39 +89,33 @@ const NavBar = () => {
              <span className="text-xl font-black italic tracking-tighter text-gray-900 group-hover:text-f1-red transition-colors hidden sm:inline">
                F1 <span className="text-f1-red group-hover:text-gray-900">PORRAS</span>
              </span>
-             <span className="text-xl font-black italic tracking-tighter text-gray-900 sm:hidden">
-               F1
-             </span>
+             <span className="text-xl font-black italic tracking-tighter text-gray-900 sm:hidden">F1</span>
           </Link>
 
-          {/* MENÚ DE NAVEGACIÓN DESKTOP */}
+          {/* MENÚ DE NAVEGACIÓN DESKTOP (Igual que antes) */}
           {token && (
             <nav className="hidden lg:flex items-center gap-1">
-              <Link to="/" className={linkClass("/")}>
-                <HomeIcon size={16} /> Inicio
-              </Link>
-              <Link to="/predict" className={linkClass("/predict")}>
-                <Target size={16} /> Jugar
-              </Link>
-              <Link to="/bingo" className={linkClass("/bingo")}>
-                <LayoutGrid size={16} /> Bingo
-              </Link>
-              <Link to="/team-hq" className={linkClass("/team-hq")}>
-                <Shield size={16} /> Escudería
-              </Link>
-              <Link to="/race-control" className={linkClass("/race-control")}>
-                <Flag size={16} /> Live
-              </Link>
-              <Link to="/dashboard" className={linkClass("/dashboard")}>
-                <Trophy size={16} /> Ranking
-              </Link>
+              <Link to="/" className={linkClass("/")}><HomeIcon size={16} /> Inicio</Link>
+              <Link to="/predict" className={linkClass("/predict")}><Target size={16} /> Jugar</Link>
+              <Link to="/bingo" className={linkClass("/bingo")}><LayoutGrid size={16} /> Bingo</Link>
+              <Link to="/team-hq" className={linkClass("/team-hq")}><Shield size={16} /> Escudería</Link>
+              <Link to="/race-control" className={linkClass("/race-control")}><Flag size={16} /> Live</Link>
+              <Link to="/dashboard" className={linkClass("/dashboard")}><Trophy size={16} /> Ranking</Link>
             </nav>
           )}
 
-          {/* MENÚ DERECHO (Perfil / Admin / Logout) */}
+          {/* MENÚ DERECHO */}
           <div className="flex items-center gap-3">
             {token ? (
               <>
+                {/* --- NUEVO: MENSAJE DE BIENVENIDA --- */}
+                {acronym && (
+                    <div className="hidden md:flex flex-col items-end leading-none mr-1">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bienvenido</span>
+                        <span className="text-sm font-black text-gray-900">{acronym}</span>
+                    </div>
+                )}
+
                 {/* 1. Botón Perfil (Avatar o Icono) */}
                 <Link to="/profile" className="group relative">
                    <div className={`w-9 h-9 rounded-full overflow-hidden border-2 transition-all ${isActive("/profile") ? "border-f1-red ring-2 ring-red-100" : "border-gray-200 group-hover:border-f1-red"}`}>
@@ -142,26 +129,13 @@ const NavBar = () => {
                    </div>
                 </Link>
 
-                {/* 2. Botón Admin */}
+                {/* 2. Botón Admin y 3. Logout (Se mantienen igual) */}
                 {role === "admin" && (
-                  <Link 
-                    to="/admin" 
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider border transition-all ${
-                      isActive("/admin")
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white text-blue-600 border-blue-200 hover:bg-blue-50"
-                    }`}
-                  >
+                  <Link to="/admin" className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider border transition-all ${isActive("/admin") ? "bg-blue-600 text-white border-blue-600" : "bg-white text-blue-600 border-blue-200 hover:bg-blue-50"}`}>
                     <Settings size={14} /> <span className="hidden sm:inline">Admin</span>
                   </Link>
                 )}
-
-                {/* 3. Logout */}
-                <button 
-                  onClick={logout} 
-                  className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                  title="Cerrar Sesión"
-                >
+                <button onClick={logout} className="p-2 text-gray-400 hover:text-red-600 transition-colors" title="Cerrar Sesión">
                   <LogOut size={20} />
                 </button>
               </>
@@ -174,29 +148,16 @@ const NavBar = () => {
           </div>
         </div>
       </div>
-
-      {/* MENÚ MÓVIL (Barra inferior scrollable) */}
+      {/* MENÚ MÓVIL (Se mantiene igual) */}
       {token && (
         <div className="lg:hidden border-t border-gray-100 overflow-x-auto py-2 px-4 scrollbar-hide bg-white">
           <div className="flex gap-2 min-w-max">
-              <Link to="/" className={linkClass("/")}>
-                <HomeIcon size={16} /> Inicio
-              </Link>
-              <Link to="/predict" className={linkClass("/predict")}>
-                <Target size={16} /> Jugar
-              </Link>
-              <Link to="/bingo" className={linkClass("/bingo")}>
-                <LayoutGrid size={16} /> Bingo
-              </Link>
-              <Link to="/team-hq" className={linkClass("/team-hq")}>
-                <Shield size={16} /> Escudería
-              </Link>
-              <Link to="/race-control" className={linkClass("/race-control")}>
-                <Flag size={16} /> Live
-              </Link>
-              <Link to="/dashboard" className={linkClass("/dashboard")}>
-                <Trophy size={16} /> Ranking
-              </Link>
+              <Link to="/" className={linkClass("/")}><HomeIcon size={16} /> Inicio</Link>
+              <Link to="/predict" className={linkClass("/predict")}><Target size={16} /> Jugar</Link>
+              <Link to="/bingo" className={linkClass("/bingo")}><LayoutGrid size={16} /> Bingo</Link>
+              <Link to="/team-hq" className={linkClass("/team-hq")}><Shield size={16} /> Escudería</Link>
+              <Link to="/race-control" className={linkClass("/race-control")}><Flag size={16} /> Live</Link>
+              <Link to="/dashboard" className={linkClass("/dashboard")}><Trophy size={16} /> Ranking</Link>
           </div>
         </div>
       )}

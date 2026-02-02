@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr
+from datetime import datetime
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -15,6 +16,8 @@ class UserOut(BaseModel):
     email: EmailStr
     username: str
     role: str
+    acronym: str | None = None
+    created_at: datetime | None = None
     avatar: str | None = "default.png"
 
 class UserUpdate(BaseModel):

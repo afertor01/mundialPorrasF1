@@ -415,7 +415,7 @@ export const updateProfile = async (data: {
 };
 
 // ==========================================
-// 📊 ESTADÍSTICAS PERSONALES
+// 📊 ESTADÍSTICAS
 // ==========================================
 
 export const getMyStats = async () => {
@@ -423,11 +423,26 @@ export const getMyStats = async () => {
     return res.data;
 };
 
+// Obtener lista ligera de usuarios para el buscador
+export const getUsersList = async () => {
+    const res = await client.get("/stats/users");
+    return res.data;
+};
+
+// Obtener stats de OTRO usuario
+export const getUserStats = async (userId: number) => {
+    const res = await client.get(`/stats/user/${userId}`);
+    return res.data;
+};
+
 // ==========================================
 // 🏆 LOGROS
 // ==========================================
 
-export const getMyAchievements = async () => {
-    const res = await client.get("/achievements/");
+export const getAchievements = async (userId?: number) => {
+    const url = userId ? `/stats/achievements/user/${userId}` : `/achievements/`; // Ajusta la ruta base según dónde pusiste el endpoint
+    // Nota: Si pusiste el endpoint en stats.py como hice arriba, la ruta es /stats/achievements/user/{id}
+    // Si usas el router 'achievements', ajusta la URL.
+    const res = await client.get(url);
     return res.data;
 };
