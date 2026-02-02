@@ -17,6 +17,7 @@ from app.core.security import hash_password
 from app.schemas.season import SeasonCreate
 from typing import Optional
 from pydantic import BaseModel
+from app.services.f1_sync import sync_race_data_manual
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -517,6 +518,20 @@ def upsert_prediction_admin(
     db.commit()
     db.close()
     return {"message": "Predicción guardada"}
+
+@router.post("/gps/{gp_id}/sync")
+def sync_gp_data(gp_id: int, current_user = Depends(require_admin)):
+    """
+    Dispara la sincronización manual con FastF1 y devuelve los logs.
+    """
+    db = SessionLocal()
+    success, logs = sync_race_data_manual(db, gp_id)
+    db.close()
+    
+    return {
+        "success": success,
+        "logs": logs
+    }
 
 # -----------------------
 # Gestión de Escuderías (Teams)
