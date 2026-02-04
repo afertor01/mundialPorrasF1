@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Settings, Calendar, Users, Shield, Flag, LayoutGrid, 
   Plus, Trash2, Edit2, CheckCircle, XCircle, Save, AlertTriangle, Upload, Trophy,
-  Search, X, Image// <--- Importamos Search y X
+  Search, X, Image, RefreshCw, Terminal
 } from "lucide-react";
 
 const Admin: React.FC = () => {
@@ -54,7 +54,7 @@ const Admin: React.FC = () => {
         await API.createSeason({ year, name, is_active: isActive });
         setName("");
         loadSeasons();
-      } catch (err: any) { alert("Error"); }
+      } catch (err: any) { alert("Error creando temporada"); }
     };
 
     return (
@@ -123,15 +123,16 @@ const Admin: React.FC = () => {
   // ------------------------------------------
   const UsersTab = () => {
     const [users, setUsers] = useState<any[]>([]);
-    const [searchTerm, setSearchTerm] = useState(""); // Estado buscador
-    // Estados creación
+    const [searchTerm, setSearchTerm] = useState("");
+    
+    // Create State
     const [email, setEmail] = useState("");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [role, setRole] = useState("user");
     const [acronym, setAcronym] = useState("");
 
-    // Estados edición
+    // Edit State
     const [editingUser, setEditingUser] = useState<any | null>(null);
     const [editRole, setEditRole] = useState("user");
     const [editPassword, setEditPassword] = useState("");
@@ -139,7 +140,6 @@ const Admin: React.FC = () => {
     useEffect(() => { loadUsers(); }, []);
     const loadUsers = () => { API.getUsers().then(setUsers); };
 
-    // Lógica de filtrado
     const filteredUsers = users.filter(u => 
         u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -164,9 +164,7 @@ const Admin: React.FC = () => {
             setEditingUser(null);
             setEditPassword("");
             loadUsers();
-        } catch (err) {
-            alert("Error actualizando usuario");
-        }
+        } catch (err) { alert("Error actualizando usuario"); }
     };
 
     const openEditModal = (user: any) => {
@@ -179,43 +177,18 @@ const Admin: React.FC = () => {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
         <Card title="Añadir Nuevo Usuario" icon={<Plus size={18} className="text-green-500"/>}>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
-            <div>
-               <label className="text-[10px] font-bold text-gray-400 uppercase">Email</label>
-               <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"/>
-            </div>
-            <div>
-               <label className="text-[10px] font-bold text-gray-400 uppercase">Usuario</label>
-               <input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"/>
-            </div>
-            <div>
-               <label className="text-[10px] font-bold text-gray-400 uppercase">Acrónimo</label>
-               <input type="text" maxLength={3} value={acronym} onChange={e => setAcronym(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} className="w-full mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"/>
-            </div>
-            <div>
-               <label className="text-[10px] font-bold text-gray-400 uppercase">Rol</label>
-               <select value={role} onChange={e => setRole(e.target.value)} className="w-full mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-bold">
-                 <option value="user">Jugador</option>
-                 <option value="admin">Administrador</option>
-               </select>
-            </div>
-            <div>
-               <label className="text-[10px] font-bold text-gray-400 uppercase">Password</label>
-               <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"/>
-            </div>
+            <div><label className="text-[10px] font-bold text-gray-400 uppercase">Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"/></div>
+            <div><label className="text-[10px] font-bold text-gray-400 uppercase">Usuario</label><input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"/></div>
+            <div><label className="text-[10px] font-bold text-gray-400 uppercase">Acrónimo</label><input type="text" maxLength={3} value={acronym} onChange={e => setAcronym(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} className="w-full mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"/></div>
+            <div><label className="text-[10px] font-bold text-gray-400 uppercase">Rol</label><select value={role} onChange={e => setRole(e.target.value)} className="w-full mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-bold"><option value="user">Jugador</option><option value="admin">Administrador</option></select></div>
+            <div><label className="text-[10px] font-bold text-gray-400 uppercase">Password</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"/></div>
             <button onClick={handleCreateUser} className="px-6 py-2 bg-green-600 text-white font-black uppercase text-[10px] tracking-widest rounded-lg hover:bg-green-700 transition-all">Crear</button>
           </div>
         </Card>
 
-        {/* BARRA DE BÚSQUEDA */}
         <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
-            <input 
-                type="text" 
-                placeholder="Buscar por usuario, email o acrónimo..." 
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <input type="text" placeholder="Buscar por usuario, email o acrónimo..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-blue-500"/>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -233,31 +206,19 @@ const Admin: React.FC = () => {
                     <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 flex items-center gap-3">
                         <span className="w-10 h-6 bg-gray-900 text-white text-[10px] font-black rounded italic flex items-center justify-center">{u.acronym}</span>
-                        <div>
-                            <div className="font-bold text-gray-800">{u.username}</div>
-                            <div className="text-xs text-gray-400">{u.email}</div>
-                        </div>
+                        <div><div className="font-bold text-gray-800">{u.username}</div><div className="text-xs text-gray-400">{u.email}</div></div>
                       </td>
                       <td className="px-6 py-4">
-                        {u.role === "admin" ? 
-                          <span className="px-3 py-1 bg-purple-100 text-purple-700 text-[9px] font-black rounded-full uppercase border border-purple-200">Admin</span> : 
-                          <span className="px-3 py-1 bg-blue-100 text-blue-700 text-[9px] font-black rounded-full uppercase border border-blue-200">Piloto</span>
-                        }
+                        {u.role === "admin" ? <span className="px-3 py-1 bg-purple-100 text-purple-700 text-[9px] font-black rounded-full uppercase border border-purple-200">Admin</span> : <span className="px-3 py-1 bg-blue-100 text-blue-700 text-[9px] font-black rounded-full uppercase border border-blue-200">Piloto</span>}
                       </td>
                       <td className="px-6 py-4 text-right space-x-2">
-                        <button onClick={() => openEditModal(u)} className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
-                            <Edit2 size={18}/>
-                        </button>
-                        <button onClick={() => { if(confirm("¿Borrar usuario?")) API.deleteUser(u.id).then(loadUsers) }} className="p-2 text-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all">
-                            <Trash2 size={18}/>
-                        </button>
+                        <button onClick={() => openEditModal(u)} className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Edit2 size={18}/></button>
+                        <button onClick={() => { if(confirm("¿Borrar usuario?")) API.deleteUser(u.id).then(loadUsers) }} className="p-2 text-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18}/></button>
                       </td>
                     </tr>
                   ))
               ) : (
-                  <tr>
-                      <td colSpan={3} className="px-6 py-8 text-center text-gray-400 italic">No se encontraron usuarios</td>
-                  </tr>
+                  <tr><td colSpan={3} className="px-6 py-8 text-center text-gray-400 italic">No se encontraron usuarios</td></tr>
               )}
             </tbody>
           </table>
@@ -267,27 +228,11 @@ const Admin: React.FC = () => {
             {editingUser && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
                     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-                        <div className="bg-gray-50 p-6 border-b border-gray-100">
-                            <h3 className="font-black uppercase text-gray-800">Editar Usuario: {editingUser.username}</h3>
-                        </div>
+                        <div className="bg-gray-50 p-6 border-b border-gray-100"><h3 className="font-black uppercase text-gray-800">Editar Usuario: {editingUser.username}</h3></div>
                         <div className="p-6 space-y-4">
-                            <div>
-                                <label className="text-[10px] font-bold text-gray-400 uppercase">Rol</label>
-                                <select value={editRole} onChange={e => setEditRole(e.target.value)} className="w-full mt-1 p-3 bg-gray-50 border rounded-xl font-bold">
-                                    <option value="user">Piloto (User)</option>
-                                    <option value="admin">Administrador</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-2">
-                                    Nueva Contraseña <AlertTriangle size={12} className="text-yellow-500"/>
-                                </label>
-                                <input type="password" placeholder="Dejar vacío para no cambiar" value={editPassword} onChange={e => setEditPassword(e.target.value)} className="w-full mt-1 p-3 bg-gray-50 border rounded-xl"/>
-                            </div>
-                            <div className="flex gap-3 mt-6">
-                                <button onClick={() => setEditingUser(null)} className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200">Cancelar</button>
-                                <button onClick={handleUpdateUser} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200">Guardar</button>
-                            </div>
+                            <div><label className="text-[10px] font-bold text-gray-400 uppercase">Rol</label><select value={editRole} onChange={e => setEditRole(e.target.value)} className="w-full mt-1 p-3 bg-gray-50 border rounded-xl font-bold"><option value="user">Piloto (User)</option><option value="admin">Administrador</option></select></div>
+                            <div><label className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-2">Nueva Contraseña <AlertTriangle size={12} className="text-yellow-500"/></label><input type="password" placeholder="Dejar vacío para no cambiar" value={editPassword} onChange={e => setEditPassword(e.target.value)} className="w-full mt-1 p-3 bg-gray-50 border rounded-xl"/></div>
+                            <div className="flex gap-3 mt-6"><button onClick={() => setEditingUser(null)} className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200">Cancelar</button><button onClick={handleUpdateUser} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200">Guardar</button></div>
                         </div>
                     </motion.div>
                 </div>
@@ -297,14 +242,12 @@ const Admin: React.FC = () => {
     );
   };
 
-// ------------------------------------------
+  // ------------------------------------------
   // TAB: ESCUDERÍAS (LIMPIEZA AUTOMÁTICA)
   // ------------------------------------------
   const TeamsTab = () => {
     const [teams, setTeams] = useState<any[]>([]);
     const [users, setUsers] = useState<any[]>([]);
-    
-    // Buscador SOLO para la tabla de la derecha (para ver datos)
     const [searchTerm, setSearchTerm] = useState(""); 
     
     const [newTeamName, setNewTeamName] = useState("");
@@ -321,195 +264,80 @@ const Admin: React.FC = () => {
       API.getTeams(selectedSeasonId).then(setTeams);
     }
 
-    // --- LÓGICA DE FILTRADO AUTOMÁTICO ("SMART LISTS") ---
-    
-    // 1. Detectar quién tiene ya contrato (Lista Negra)
     const takenUsernames = new Set<string>();
-    teams.forEach(t => {
-        if (t.members) {
-            t.members.forEach((m: any) => {
-                const name = typeof m === 'object' ? m.username : m;
-                takenUsernames.add(name);
-            });
-        }
-    });
+    teams.forEach(t => { if (t.members) t.members.forEach((m: any) => takenUsernames.add(typeof m === 'object' ? m.username : m)); });
 
-    // 2. Equipos con huecos (Solo mostramos si tienen < 2 miembros)
-    const availableTeams = teams
-        .filter(t => (t.members?.length || 0) < 2)
-        .sort((a, b) => a.name.localeCompare(b.name)); // Orden alfabético
+    const availableTeams = teams.filter(t => (t.members?.length || 0) < 2).sort((a, b) => a.name.localeCompare(b.name));
+    const freeAgents = users.filter(u => !takenUsernames.has(u.username)).sort((a, b) => a.username.localeCompare(b.username));
 
-    // 3. Pilotos sin equipo (Solo mostramos si NO están en la lista negra)
-    const freeAgents = users
-        .filter(u => !takenUsernames.has(u.username))
-        .sort((a, b) => a.username.localeCompare(b.username)); // Orden alfabético
-
-    // --- LÓGICA VISUAL TABLA DERECHA ---
     const filteredTeamsTable = teams.filter(t => {
         const term = searchTerm.toLowerCase();
-        const nameMatch = t.name.toLowerCase().includes(term);
-        const memberMatch = t.members && t.members.some((m: any) => {
-            const mName = typeof m === 'object' ? m.username : m;
-            return mName.toLowerCase().includes(term);
-        });
-        return nameMatch || memberMatch;
+        return t.name.toLowerCase().includes(term) || (t.members && t.members.some((m: any) => (typeof m === 'object' ? m.username : m).toLowerCase().includes(term)));
     });
 
-    // --- ACCIÓN DE EXPULSAR ---
     const handleRemoveMember = async (team: any, memberName: string) => {
         if (!confirm(`¿Expulsar a ${memberName} de ${team.name}?`)) return;
         try {
             const user = users.find(u => u.username === memberName);
-            if (!user) { alert("Usuario no encontrado."); return; }
-
-            // Si es el último, borramos equipo
+            if (!user) return;
             if (team.members.length <= 1) {
                 if (confirm(`${memberName} es el último. Se eliminará la escudería. ¿OK?`)) {
                     await API.deleteTeam(team.id);
                     loadTeams();
                 }
             } else {
-                // Si hay más, solo expulsamos (Requiere endpoint backend)
                 if ((API as any).kickTeamMemberAdmin) {
                      await (API as any).kickTeamMemberAdmin(team.id, user.id);
                      loadTeams();
-                } else {
-                     alert("Falta endpoint kickTeamMemberAdmin");
-                }
+                } else { alert("Falta endpoint kickTeamMemberAdmin"); }
             }
         } catch (e) { alert("Error al procesar"); }
     };
 
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* COLUMNA IZQUIERDA: GESTIÓN */}
         <div className="lg:col-span-1 space-y-6">
-          
-          {/* 1. CREAR */}
           <Card title="1. Crear Escudería" icon={<Plus size={18}/>}>
             <div className="space-y-4">
               <input value={newTeamName} onChange={e=>setNewTeamName(e.target.value)} placeholder="Nombre (ej: Aston Martin)" className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none"/>
               <button onClick={() => API.createTeam(selectedSeasonId!, newTeamName).then(() => {setNewTeamName(""); loadTeams();})} className="w-full py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors">Crear</button>
             </div>
           </Card>
-
-          {/* 2. ASIGNAR (Simplificado) */}
           <Card title="2. Fichar Piloto" icon={<Users size={18}/>}>
             <div className="space-y-4">
-              
-              {/* Select EQUIPOS */}
               <div>
-                  <div className="flex justify-between mb-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase">Escudería con hueco</label>
-                      <span className="text-[10px] font-bold text-blue-600">{availableTeams.length} disponibles</span>
-                  </div>
+                  <div className="flex justify-between mb-1"><label className="text-[10px] font-bold text-gray-400 uppercase">Escudería con hueco</label><span className="text-[10px] font-bold text-blue-600">{availableTeams.length} disponibles</span></div>
                   <select onChange={e => setSelectedTeam(Number(e.target.value))} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 font-bold text-gray-700">
                       <option value="">Seleccionar equipo...</option>
-                      {availableTeams.map(t => (
-                          <option key={t.id} value={t.id}>
-                              {t.name} • (Falta {2 - t.members.length})
-                          </option>
-                      ))}
-                      {availableTeams.length === 0 && <option disabled>¡Todos los equipos están llenos!</option>}
+                      {availableTeams.map(t => <option key={t.id} value={t.id}>{t.name} • (Falta {2 - t.members.length})</option>)}
                   </select>
               </div>
-
-              {/* Select PILOTOS */}
               <div>
-                  <div className="flex justify-between mb-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase">Agente Libre</label>
-                      <span className="text-[10px] font-bold text-green-600">{freeAgents.length} disponibles</span>
-                  </div>
+                  <div className="flex justify-between mb-1"><label className="text-[10px] font-bold text-gray-400 uppercase">Agente Libre</label><span className="text-[10px] font-bold text-green-600">{freeAgents.length} disponibles</span></div>
                   <select onChange={e => setSelectedUser(Number(e.target.value))} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 font-bold text-gray-700">
                       <option value="">Seleccionar piloto...</option>
-                      {freeAgents.map(u => (
-                          <option key={u.id} value={u.id}>
-                              {u.username} ({u.acronym})
-                          </option>
-                      ))}
-                      {freeAgents.length === 0 && <option disabled>¡No quedan pilotos libres!</option>}
+                      {freeAgents.map(u => <option key={u.id} value={u.id}>{u.username} ({u.acronym})</option>)}
                   </select>
               </div>
-
-              <button 
-                onClick={() => API.addTeamMember(selectedTeam!, selectedUser!).then(() => {
-                    loadTeams(); 
-                    // Resetear selects visualmente podría requerir más estado, 
-                    // pero al recargar se actualizan las listas disponibles
-                })} 
-                disabled={!selectedTeam || !selectedUser}
-                className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl italic disabled:opacity-50 disabled:cursor-not-allowed hover:bg-f1-red transition-colors shadow-lg shadow-gray-200"
-              >
-                CONFIRMAR FICHAJE
-              </button>
+              <button onClick={() => API.addTeamMember(selectedTeam!, selectedUser!).then(loadTeams)} disabled={!selectedTeam || !selectedUser} className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl italic disabled:opacity-50 disabled:cursor-not-allowed hover:bg-f1-red transition-colors shadow-lg shadow-gray-200">CONFIRMAR FICHAJE</button>
             </div>
           </Card>
         </div>
 
-        {/* COLUMNA DERECHA: VISUALIZADOR */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
-              <input 
-                  type="text" 
-                  placeholder="Buscar en la parrilla..." 
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
-              />
-          </div>
-
+          <div className="relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18}/><input type="text" placeholder="Buscar en la parrilla..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-blue-500"/></div>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <table className="w-full text-left">
-              <thead className="bg-gray-50 text-[10px] uppercase font-black text-gray-400 tracking-widest">
-                <tr><th className="px-6 py-4">Escudería</th><th className="px-6 py-4">Alineación</th><th className="px-6 py-4 text-right">Gestión</th></tr>
-              </thead>
+              <thead className="bg-gray-50 text-[10px] uppercase font-black text-gray-400 tracking-widest"><tr><th className="px-6 py-4">Escudería</th><th className="px-6 py-4">Alineación</th><th className="px-6 py-4 text-right">Gestión</th></tr></thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredTeamsTable.length > 0 ? (
                     filteredTeamsTable.map(t => (
                     <tr key={t.id} className="hover:bg-gray-50 transition-all">
-                        <td className="px-6 py-4">
-                            <div className="font-black text-gray-800 italic uppercase tracking-tighter text-lg">{t.name}</div>
-                            <div className="mt-1">
-                                {t.members.length === 2 ? 
-                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[9px] font-bold rounded uppercase">Completo</span> :
-                                    <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] font-bold rounded uppercase animate-pulse">Busca Piloto</span>
-                                }
-                            </div>
-                        </td>
-                        <td className="px-6 py-4">
-                        <div className="flex gap-2 flex-wrap">
-                            {t.members && t.members.map((m: any, idx: number) => {
-                                const displayName = typeof m === 'object' ? (m.username || "Usuario") : m;
-                                return (
-                                    <div key={idx} className="group flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 shadow-sm">
-                                        {displayName}
-                                        <button 
-                                            onClick={() => handleRemoveMember(t, displayName)}
-                                            className="p-0.5 rounded-full hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors"
-                                            title="Expulsar"
-                                        >
-                                            <X size={14}/>
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                            {(!t.members || t.members.length === 0) && <span className="text-gray-300 italic text-xs">Sin pilotos asignados</span>}
-                        </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                        <button onClick={() => API.deleteTeam(t.id).then(loadTeams)} className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={20}/></button>
-                        </td>
-                    </tr>
-                    ))
-                ) : (
-                    <tr>
-                        <td colSpan={3} className="px-6 py-12 text-center text-gray-400 italic">
-                            No hay escuderías que coincidan con la búsqueda
-                        </td>
-                    </tr>
-                )}
+                        <td className="px-6 py-4"><div className="font-black text-gray-800 italic uppercase tracking-tighter text-lg">{t.name}</div><div className="mt-1">{t.members.length === 2 ? <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[9px] font-bold rounded uppercase">Completo</span> : <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] font-bold rounded uppercase animate-pulse">Busca Piloto</span>}</div></td>
+                        <td className="px-6 py-4"><div className="flex gap-2 flex-wrap">{t.members && t.members.map((m: any, idx: number) => { const displayName = typeof m === 'object' ? (m.username || "Usuario") : m; return (<div key={idx} className="group flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 shadow-sm">{displayName}<button onClick={() => handleRemoveMember(t, displayName)} className="p-0.5 rounded-full hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors"><X size={14}/></button></div>);})}{(!t.members || t.members.length === 0) && <span className="text-gray-300 italic text-xs">Sin pilotos asignados</span>}</div></td>
+                        <td className="px-6 py-4 text-right"><button onClick={() => API.deleteTeam(t.id).then(loadTeams)} className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={20}/></button></td>
+                    </tr>))
+                ) : (<tr><td colSpan={3} className="px-6 py-12 text-center text-gray-400 italic">No hay escuderías que coincidan</td></tr>)}
               </tbody>
             </table>
           </div>
@@ -519,18 +347,25 @@ const Admin: React.FC = () => {
   };
     
   // ------------------------------------------
-  // TAB: GRANDES PREMIOS (MANTENIDO)
+  // TAB: GRANDES PREMIOS (CON AUTO-SYNC)
   // ------------------------------------------
   const GPsTab = () => {
     const [gps, setGps] = useState<any[]>([]);
     const [file, setFile] = useState<File | null>(null);
     const [driversList, setDriversList] = useState<any[]>([]);
+    
+    // Manual Edit States
     const [showResultsModal, setShowResultsModal] = useState(false);
     const [resultGp, setResultGp] = useState<any | null>(null);
     const [positions, setPositions] = useState<Record<number, string>>({});
     const [events, setEvents] = useState({ FASTEST_LAP: "", SAFETY_CAR: "No", DNFS: "0", DNF_DRIVER: "" });
     const [editingGp, setEditingGp] = useState<any | null>(null);
     const [newDate, setNewDate] = useState("");
+
+    // Auto-Sync States
+    const [syncingId, setSyncingId] = useState<number | null>(null);
+    const [syncResult, setSyncResult] = useState<{success: boolean, logs: string[]} | null>(null);
+    const [showSyncModal, setShowSyncModal] = useState(false);
 
     useEffect(() => { if(selectedSeasonId) loadGps(); }, [selectedSeasonId]);
     
@@ -572,6 +407,28 @@ const Admin: React.FC = () => {
         } catch(e) { alert("Error actualizando GP"); }
     };
 
+    // --- LOGICA DE SINCRONIZACIÓN AUTOMÁTICA ---
+    const handleSync = async (gp: any) => {
+        if(!confirm(`¿Conectar con la FIA para descargar resultados de ${gp.name}?`)) return;
+        
+        setSyncingId(gp.id);
+        setSyncResult(null);
+        setShowSyncModal(true);
+
+        try {
+            const data = await API.syncRaceData(gp.id);
+            setSyncResult(data);
+            loadGps(); 
+        } catch (e) {
+            setSyncResult({
+                success: false,
+                logs: ["❌ Error de conexión con el servidor.", "Por favor revisa la consola del navegador."]
+            });
+        } finally {
+            setSyncingId(null);
+        }
+    };
+
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
         <div className="flex flex-col md:flex-row gap-6">
@@ -591,10 +448,24 @@ const Admin: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-start mb-4"><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest border border-gray-100 px-2 py-1 rounded">{new Date(gp.race_datetime).toLocaleString()}</span></div>
                     <h4 className="text-xl font-black italic uppercase tracking-tighter text-gray-800 mb-6 truncate">{gp.name}</h4>
-                    <button onClick={() => handleOpenResults(gp)} className="w-full py-3 bg-gray-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-gray-200 hover:bg-f1-red transition-all flex items-center justify-center gap-2"><Trophy size={14}/> Gestionar Resultados</button>
+                    
+                    <div className="flex flex-col gap-2">
+                        <button onClick={() => handleOpenResults(gp)} className="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all flex items-center justify-center gap-2"><Trophy size={14}/> Editar Manual</button>
+                        
+                        {/* BOTÓN AUTO-SYNC */}
+                        <button 
+                            onClick={() => handleSync(gp)} 
+                            disabled={syncingId !== null}
+                            className={`w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg transition-all flex items-center justify-center gap-2 ${syncingId === gp.id ? "bg-f1-red/80 cursor-wait" : "bg-f1-red hover:bg-red-700 shadow-red-200"}`}
+                        >
+                            {syncingId === gp.id ? <><RefreshCw size={14} className="animate-spin"/> Conectando FIA...</> : <><RefreshCw size={14}/> Auto-Sincronizar</>}
+                        </button>
+                    </div>
                 </div>
             ))}
         </div>
+
+        {/* MODAL EDITAR GP */}
         <AnimatePresence>
             {editingGp && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
@@ -608,6 +479,8 @@ const Admin: React.FC = () => {
                 </div>
             )}
         </AnimatePresence>
+
+        {/* MODAL RESULTADOS MANUALES */}
         <AnimatePresence>
             {showResultsModal && (
                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
@@ -639,6 +512,32 @@ const Admin: React.FC = () => {
                </div>
             )}
        </AnimatePresence>
+
+        {/* MODAL TERMINAL SYNC */}
+        <AnimatePresence>
+            {showSyncModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#1e1e1e] rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl border border-gray-700 flex flex-col max-h-[80vh]">
+                        <div className="bg-[#2d2d2d] px-4 py-3 flex justify-between items-center border-b border-gray-700">
+                            <div className="flex items-center gap-2 text-gray-400 text-xs font-mono"><Terminal size={14} /><span>f1_sync_service.exe</span></div>
+                            {!syncingId && (<button onClick={() => setShowSyncModal(false)} className="text-gray-400 hover:text-white transition-colors"><XCircle size={18}/></button>)}
+                        </div>
+                        <div className="p-6 overflow-y-auto font-mono text-xs md:text-sm space-y-2 flex-1">
+                            {syncingId && !syncResult && (<div className="flex items-center gap-3 text-yellow-400 animate-pulse"><RefreshCw size={16} className="animate-spin"/><span>Estableciendo conexión satelital con API FastF1...</span></div>)}
+                            {syncResult?.logs.map((log, idx) => {
+                                let colorClass = "text-gray-300";
+                                if (log.includes("✅")) colorClass = "text-green-400";
+                                if (log.includes("⚠️")) colorClass = "text-yellow-400";
+                                if (log.includes("❌") || log.includes("Error")) colorClass = "text-red-400 font-bold";
+                                if (log.includes("🚀") || log.includes("🎉")) colorClass = "text-blue-400 font-bold";
+                                return (<div key={idx} className={`${colorClass} border-b border-white/5 pb-1 mb-1 last:border-0`}><span className="opacity-50 mr-2">[{new Date().toLocaleTimeString()}]</span>{log}</div>);
+                            })}
+                        </div>
+                        {!syncingId && (<div className="bg-[#2d2d2d] p-4 flex justify-end border-t border-gray-700"><button onClick={() => setShowSyncModal(false)} className="px-6 py-2 bg-white text-black font-bold text-xs uppercase tracking-wider rounded hover:bg-gray-200 transition-colors">Cerrar Consola</button></div>)}
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>
       </motion.div>
     );
   };
@@ -740,48 +639,20 @@ const Admin: React.FC = () => {
             <div className="flex gap-4 items-end mb-6">
                 <div className="flex-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase">Descripción del Evento</label>
-                    <input 
-                        type="text" 
-                        value={newDesc} 
-                        onChange={e => setNewDesc(e.target.value)} 
-                        placeholder="Ej: Un Williams entra en Q3" 
-                        className="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-bold text-gray-700"
-                        onKeyDown={e => e.key === 'Enter' && handleCreate()}
-                    />
+                    <input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Ej: Un Williams entra en Q3" className="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-bold text-gray-700" onKeyDown={e => e.key === 'Enter' && handleCreate()}/>
                 </div>
-                <button 
-                    onClick={handleCreate} 
-                    disabled={loading}
-                    className="px-6 py-3 bg-purple-600 text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-200 disabled:opacity-50"
-                >
-                    {loading ? "..." : "Añadir"}
-                </button>
+                <button onClick={handleCreate} disabled={loading} className="px-6 py-3 bg-purple-600 text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-200 disabled:opacity-50">{loading ? "..." : "Añadir"}</button>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {tiles.map(tile => (
                     <div key={tile.id} className={`p-4 rounded-xl border-2 transition-all flex flex-col justify-between gap-3 ${tile.is_completed ? "bg-green-50 border-green-200" : "bg-white border-gray-100"}`}>
                         <div className="flex justify-between items-start gap-2">
-                            <span className={`text-sm font-bold leading-tight ${tile.is_completed ? "text-green-800" : "text-gray-700"}`}>
-                                {tile.description}
-                            </span>
+                            <span className={`text-sm font-bold leading-tight ${tile.is_completed ? "text-green-800" : "text-gray-700"}`}>{tile.description}</span>
                             <button onClick={() => handleDelete(tile.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
                         </div>
-                        
                         <div className="flex items-center justify-between pt-2 border-t border-gray-100/50 mt-2">
-                            <div className="text-[10px] font-bold text-gray-400 uppercase">
-                                {tile.selection_count} Selecciones
-                            </div>
-                            <button 
-                                onClick={() => toggleComplete(tile)}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-                                    tile.is_completed 
-                                    ? "bg-green-500 text-white shadow-md shadow-green-200" 
-                                    : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                                }`}
-                            >
-                                {tile.is_completed ? <><CheckCircle size={12}/> Completado</> : "Pendiente"}
-                            </button>
+                            <div className="text-[10px] font-bold text-gray-400 uppercase">{tile.selection_count} Selecciones</div>
+                            <button onClick={() => toggleComplete(tile)} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${tile.is_completed ? "bg-green-500 text-white shadow-md shadow-green-200" : "bg-gray-100 text-gray-400 hover:bg-gray-200"}`}>{tile.is_completed ? <><CheckCircle size={12}/> Completado</> : "Pendiente"}</button>
                         </div>
                     </div>
                 ))}
@@ -800,7 +671,6 @@ const Admin: React.FC = () => {
     const [uploading, setUploading] = useState(false);
 
     useEffect(() => { loadAvatars(); }, []);
-
     const loadAvatars = () => API.getAvatars().then(setAvatars);
 
     const handleUpload = async () => {
@@ -826,47 +696,20 @@ const Admin: React.FC = () => {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
         <Card title="Subir Nuevo Avatar" icon={<Upload size={18} />}>
           <div className="flex items-center gap-4">
-            <input 
-              type="file" 
-              accept="image/*" 
-              onChange={e => setUploadFile(e.target.files ? e.target.files[0] : null)} 
-              className="text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
-            />
-            <button 
-              onClick={handleUpload} 
-              disabled={!uploadFile || uploading} 
-              className="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold text-xs disabled:opacity-50 transition-all uppercase tracking-wider"
-            >
-              {uploading ? "Subiendo..." : "Subir a Galería"}
-            </button>
+            <input type="file" accept="image/*" onChange={e => setUploadFile(e.target.files ? e.target.files[0] : null)} className="text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
+            <button onClick={handleUpload} disabled={!uploadFile || uploading} className="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold text-xs disabled:opacity-50 transition-all uppercase tracking-wider">{uploading ? "Subiendo..." : "Subir a Galería"}</button>
           </div>
-          <p className="mt-3 text-[10px] text-gray-400 font-bold uppercase">
-            * Se recomienda formato PNG/JPG cuadrado (256x256 o 512x512).
-          </p>
+          <p className="mt-3 text-[10px] text-gray-400 font-bold uppercase">* Se recomienda formato PNG/JPG cuadrado (256x256 o 512x512).</p>
         </Card>
-
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
           {avatars.map(av => (
             <div key={av.id} className="group relative bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-lg transition-all flex flex-col items-center">
-               <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-gray-50 group-hover:border-purple-100 transition-colors mb-3">
-                  <img src={av.url} alt={av.filename} className="w-full h-full object-cover" />
-               </div>
+               <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-gray-50 group-hover:border-purple-100 transition-colors mb-3"><img src={av.url} alt={av.filename} className="w-full h-full object-cover" /></div>
                <span className="text-[10px] font-bold text-gray-400 truncate w-full text-center">{av.filename}</span>
-               
-               {/* Botón Borrar Flotante */}
-               <button 
-                  onClick={() => handleDelete(av.id)}
-                  className="absolute top-2 right-2 p-1.5 bg-white text-red-400 rounded-full shadow-sm opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 transition-all"
-               >
-                  <X size={14} />
-               </button>
+               <button onClick={() => handleDelete(av.id)} className="absolute top-2 right-2 p-1.5 bg-white text-red-400 rounded-full shadow-sm opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 transition-all"><X size={14} /></button>
             </div>
           ))}
-          {avatars.length === 0 && (
-            <div className="col-span-full py-10 text-center text-gray-400 italic font-bold">
-               No hay avatares en la galería. Sube el primero.
-            </div>
-          )}
+          {avatars.length === 0 && (<div className="col-span-full py-10 text-center text-gray-400 italic font-bold">No hay avatares en la galería. Sube el primero.</div>)}
         </div>
       </motion.div>
     );

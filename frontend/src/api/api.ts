@@ -237,6 +237,11 @@ export const getRaceResult = async (gpId: number) => {
   return res.data;
 };
 
+export const syncRaceData = async (gpId: number) => {
+    const res = await client.post(`/admin/gps/${gpId}/sync`);
+    return res.data; // Devolverá { success: true, logs: [...] }
+};
+
 // ==========================================
 // 🔮 PREDICCIONES
 // ==========================================

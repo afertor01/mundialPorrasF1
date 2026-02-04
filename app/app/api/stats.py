@@ -492,7 +492,7 @@ def get_user_achievements(user_id: int, current_user: User = Depends(get_current
     db = SessionLocal()
     all_achievements = db.query(Achievement).all()
     user_unlocked = db.query(UserAchievement).filter(UserAchievement.user_id == user_id).all()
-    unlocked_ids = {ua.achievement_id: ua.earned_at for ua in user_unlocked}
+    unlocked_ids = {ua.achievement_id: ua.unlocked_at for ua in user_unlocked}
     
     result = []
     for ach in all_achievements:
