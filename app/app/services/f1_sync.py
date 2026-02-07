@@ -10,7 +10,7 @@ from app.db.models.race_result import RaceResult
 from app.db.models.race_position import RacePosition
 from app.db.models.race_event import RaceEvent
 from app.db.models.driver import Driver
-from app.services.achievements_service import evaluate_race_achievements 
+from app.services.achievements_service import evaluate_race_achievements
 
 # Configuración caché
 CACHE_DIR = 'cache'

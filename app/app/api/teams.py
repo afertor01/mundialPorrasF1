@@ -7,6 +7,7 @@ from app.db.models.team import Team
 from app.db.models.team_member import TeamMember
 from app.db.models.season import Season
 from app.core.deps import get_current_user
+from app.services.achievements_service import grant_achievements
 
 router = APIRouter(prefix="/teams", tags=["Player Teams"])
 
@@ -109,6 +110,7 @@ def create_team_player(name: str, current_user = Depends(get_current_user)):
     
     db.commit()
     db.refresh(new_team)
+    grant_achievements(db, current_user.id, ["event_founder","event_join_team"])
     db.close()
     
     return {"message": "Escudería creada con éxito", "code": code}
@@ -166,6 +168,7 @@ def join_team_player(code: str, current_user = Depends(get_current_user)):
     team_name = team.name 
     
     db.commit()
+    grant_achievements(db, current_user.id, ["event_join_team"])
     db.close()
 
     # Usamos la variable team_name, no team.name (que podría dar error de 'DetachedInstance')
