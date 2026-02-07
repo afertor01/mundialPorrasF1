@@ -15,13 +15,15 @@ from app.db.models.bingo import BingoTile, BingoSelection
 from app.db.models.multiplier_config import MultiplierConfig
 from app.db.models.constructor import Constructor
 from app.db.models.driver import Driver
+from app.db.models.user_stats import UserStats
 from app.core.security import hash_password
 
 # --- IMPORTANTE: Nuevos modelos para evitar que falten tablas ---
-from app.db.models.achievement import Achievement, UserAchievement
+from app.db.models.achievement import Achievement, UserAchievement, AchievementRarity, AchievementType
+from app.api.achievements import ACHIEVEMENT_DEFINITIONS
 from app.db.models.avatar import Avatar
 
-# Modelos necesarios para las relaciones de SQLAlchemy (aunque no se instancien directamente aquí)
+# Modelos necesarios para las relaciones de SQLAlchemy
 from app.db.models.prediction import Prediction
 from app.db.models.prediction_position import PredictionPosition
 from app.db.models.prediction_event import PredictionEvent
@@ -30,6 +32,9 @@ from app.db.models.race_position import RacePosition
 from app.db.models.race_event import RaceEvent
 
 from app.services.scoring import calculate_prediction_score
+
+# 👇👇👇 IMPORT CRÍTICO AÑADIDO 👇👇👇
+from app.services.achievements_service import evaluate_race_achievements
 
 # --- CONFIGURACIÓN ---
 NUM_USERS = 100       
@@ -58,23 +63,32 @@ def create_season(db):
     return season
 
 # ---------------------------------------------------------
-# 🏆 LOGROS (NUEVO: Para evitar error 500 en /achievements)
+# 🏆 LOGROS
 # ---------------------------------------------------------
 def create_default_achievements(db):
-    print("🏆 Creando logros por defecto...")
-    defaults = [
-        {"slug": "first_race", "name": "Debutante", "desc": "Participa en tu primer GP", "icon": "Flag"},
-        {"slug": "first_win", "name": "Pole Position", "desc": "Queda 1º en el ranking de un GP", "icon": "Trophy"},
-        {"slug": "oracle", "name": "El Oráculo", "desc": "Acierta el podio exacto en orden", "icon": "Eye"},
-        {"slug": "veteran", "name": "Veterano", "desc": "Participa en 10 carreras", "icon": "Star"},
-        {"slug": "mechanic", "name": "Ingeniero", "desc": "Crea tu propia escudería", "icon": "Wrench"},
-    ]
-    for d in defaults:
+    print("🏆 Sembrando TODOS los logros desde las definiciones...")
+    for d in ACHIEVEMENT_DEFINITIONS:
         # Verificar si existe para evitar duplicados si se corre varias veces
         exists = db.query(Achievement).filter(Achievement.slug == d["slug"]).first()
         if not exists:
-            db.add(Achievement(slug=d["slug"], name=d["name"], description=d["desc"], icon=d["icon"]))
+            new_ach = Achievement(
+                slug=d["slug"],
+                name=d["name"],
+                description=d["desc"],
+                icon=d["icon"],
+                rarity=AchievementRarity(d["rare"]),
+                type=AchievementType(d["type"])
+            )
+            db.add(new_ach)
+        else:
+            exists.name = d["name"]
+            exists.description = d["desc"]
+            exists.icon = d["icon"]
+            exists.rarity = AchievementRarity(d["rare"])
+            exists.type = AchievementType(d["type"])
     db.commit()
+    print(f"✅ {len(ACHIEVEMENT_DEFINITIONS)} logros creados.")
+
 
 # ---------------------------------------------------------
 # 🎲 LÓGICA DE BINGO
@@ -362,7 +376,7 @@ def simulate_race(db, season, users, gp_index, all_driver_codes, user_skills):
         for k, v in pred_evs.items():
             db.add(PredictionEvent(prediction_id=prediction.id, event_type=k, value=v))
             
-        # Mock objects
+        # Mock objects para el servicio de scoring
         class Mock: pass
         m_pred = Mock(); m_pred.positions = []; m_pred.events = []
         for i, c in enumerate(pred_pos): m_pred.positions.append(Mock()); m_pred.positions[i].driver_name=c; m_pred.positions[i].position=i+1
@@ -379,7 +393,13 @@ def simulate_race(db, season, users, gp_index, all_driver_codes, user_skills):
         prediction.points = score["final_points"]
         
     db.commit() 
-    sys.stdout.write(" OK\n")
+    sys.stdout.write(" OK") # Quitamos salto de línea
+
+    # 👇👇👇 LLAMADA CRÍTICA AÑADIDA 👇👇👇
+    sys.stdout.write(" [Evaluando Logros...]")
+    sys.stdout.flush()
+    evaluate_race_achievements(db, gp.id)
+    sys.stdout.write(" ✅\n")
 
 def main():
     db = SessionLocal()
@@ -387,7 +407,7 @@ def main():
         reset_db()
         season = create_season(db)
         
-        # Crear Logros por defecto (NUEVO PASO CRÍTICO)
+        # Crear Logros por defecto
         create_default_achievements(db)
 
         driver_codes = create_f1_grid(db, season)

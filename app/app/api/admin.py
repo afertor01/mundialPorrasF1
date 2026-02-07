@@ -4,20 +4,32 @@ from fastapi import UploadFile, File # <--- Importante para subir archivos
 import json
 from datetime import datetime
 from app.db.session import SessionLocal
-from app.db.models.season import Season
 from app.db.models.user import User
-from app.db.models.grand_prix import GrandPrix
 from app.db.models.team import Team
 from app.db.models.team_member import TeamMember
+from app.db.models.season import Season
+from app.db.models.grand_prix import GrandPrix
+from app.db.models.prediction import Prediction
+from app.db.models.prediction_position import PredictionPosition
+from app.db.models.prediction_event import PredictionEvent
+from app.db.models.race_result import RaceResult
+from app.db.models.race_position import RacePosition
+from app.db.models.race_event import RaceEvent
+from app.db.models.multiplier_config import MultiplierConfig
 from app.db.models.constructor import Constructor
 from app.db.models.driver import Driver
-from app.db.models.race_result import RaceResult
-from app.core.deps import require_admin
-from app.core.security import hash_password
+from app.db.models.bingo import BingoSelection
+from app.db.models.bingo import BingoTile
+from app.db.models.avatar import Avatar
+from app.db.models.achievement import Achievement, UserAchievement
+from app.db.models.user_stats import UserStats
 from app.schemas.season import SeasonCreate
 from typing import Optional
 from pydantic import BaseModel
+from app.services.scoring import calculate_prediction_score
 from app.services.f1_sync import sync_race_data_manual
+from app.core.deps import require_admin
+from app.core.security import hash_password
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 

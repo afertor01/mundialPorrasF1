@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query, HTTPException, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, func, desc
 from app.db.session import SessionLocal
 from app.core.deps import get_current_user
@@ -487,19 +487,58 @@ def get_user_stats(user_id: int, current_user: User = Depends(get_current_user))
 # Añade esto a tu archivo stats.py o si tienes los logros en otro router, muévelo allí.
 # Aquí asumo que lo ponemos en stats para simplificar la importación.
 
-@router.get("/achievements/user/{user_id}")
+@router.get("/achievements/{user_id}")
 def get_user_achievements(user_id: int, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
-    all_achievements = db.query(Achievement).all()
-    user_unlocked = db.query(UserAchievement).filter(UserAchievement.user_id == user_id).all()
-    unlocked_ids = {ua.achievement_id: ua.unlocked_at for ua in user_unlocked}
-    
-    result = []
-    for ach in all_achievements:
-        is_unlocked = ach.id in unlocked_ids
-        result.append({
-            "id": ach.id, "slug": ach.slug, "name": ach.name, "description": ach.description,
-            "icon": ach.icon, "unlocked": is_unlocked, "date": unlocked_ids.get(ach.id)
-        })
-    db.close()
-    return result
+    try:
+        # Verificar que el usuario existe
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        all_achievements = db.query(Achievement).all()
+        
+        # Carga optimizada de los logros del usuario con sus relaciones
+        unlocked_rows = db.query(UserAchievement).options(
+            joinedload(UserAchievement.gp).joinedload(GrandPrix.season),
+            joinedload(UserAchievement.season)
+        ).filter(UserAchievement.user_id == user_id).all()
+        
+        unlocked_map = {}
+        for u in unlocked_rows:
+            season_name = None
+            if u.season:
+                season_name = u.season.name
+            elif u.gp and u.gp.season:
+                season_name = u.gp.season.name
+                
+            unlocked_map[u.achievement_id] = {
+                "unlocked_at": u.unlocked_at,
+                "gp_name": u.gp.name if u.gp else None,
+                "season_name": season_name
+            }
+        
+        result = []
+        for ach in all_achievements:
+            is_unlocked = ach.id in unlocked_map
+            unlocked_data = unlocked_map.get(ach.id)
+
+            is_hidden = ach.rarity == "HIDDEN" and not is_unlocked
+            
+            result.append({
+                "id": ach.id,
+                "slug": ach.slug,
+                "name": "???" if is_hidden else ach.name,
+                "description": "Logro Secreto: Sigue jugando para descubrirlo." if is_hidden else ach.description,
+                "icon": "Lock" if is_hidden else ach.icon,
+                "rarity": ach.rarity.value,
+                "type": ach.type.value,
+                "unlocked": is_unlocked,
+                "unlocked_at": unlocked_data["unlocked_at"] if unlocked_data else None,
+                "gp_name": unlocked_data["gp_name"] if unlocked_data else None,
+                "season_name": unlocked_data["season_name"] if unlocked_data else None,
+            })
+            
+        return result
+    finally:
+        db.close()

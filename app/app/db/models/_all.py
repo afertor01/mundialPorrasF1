@@ -16,3 +16,4 @@ from app.db.models.bingo import BingoSelection
 from app.db.models.bingo import BingoTile
 from app.db.models.avatar import Avatar
 from app.db.models.achievement import Achievement, UserAchievement
+from app.db.models.user_stats import UserStats
