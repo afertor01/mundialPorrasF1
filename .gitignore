@@ -7,5 +7,11 @@
 *.log
 .DS_Store
 
+# --- Entorno virtual
+venv/
+
+# --- Cache ---
+cache/
+
 # --- Scripts Bash y demás pruebas ---
 ignore/
