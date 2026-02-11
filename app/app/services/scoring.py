@@ -50,10 +50,28 @@ def get_correct_events(prediction_events, race_events):
     correct = []
 
     for pe in prediction_events:
-        if pe.event_type in real_events:
-            if str(pe.value) == str(real_events[pe.event_type]):
+        # Obtenemos el valor real, si no existe asumimos cadena vacía ""
+        real_val = str(real_events.get(pe.event_type, ""))
+        pred_val = str(pe.value) if pe.value is not None else ""
+
+        if pe.event_type == "DNF_DRIVER":
+            # Si real_val es "", la lista será ['']. Si pred_val es "", coincide.
+            real_dnf_list = [x.strip() for x in real_val.split(",")]
+            # Limpiamos cadenas vacías de la lista real por si acaso
+            real_dnf_list = [x for x in real_dnf_list if x] 
+            
+            if not real_dnf_list and not pred_val:
+                 # Caso especial: Realidad vacía y predicción vacía -> Acierto
+                 correct.append(pe.event_type)
+            elif pred_val in real_dnf_list:
                 correct.append(pe.event_type)
 
+        # Lógica estándar para el resto (Safety Car, etc)
+        # Nota: Asegúrate de que real_events tenga las claves para SC, etc.
+        elif pe.event_type in real_events: 
+             if pred_val == real_val:
+                correct.append(pe.event_type)
+                
     return correct
 
 def calculate_multiplier(correct_events, multiplier_configs):

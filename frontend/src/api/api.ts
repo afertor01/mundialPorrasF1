@@ -242,6 +242,11 @@ export const syncRaceData = async (gpId: number) => {
     return res.data; // Devolverá { success: true, logs: [...] }
 };
 
+export const syncQualyData = async (gpId: number) => {
+    const res = await client.post(`/admin/gps/${gpId}/sync-qualy`);
+    return res.data; // Devolverá { success: true, logs: [...] }
+};
+
 // ==========================================
 // 🔮 PREDICCIONES
 // ==========================================
@@ -445,7 +450,7 @@ export const getUserStats = async (userId: number) => {
 // ==========================================
 
 export const getAchievements = async (userId?: number) => {
-    const url = userId ? `/stats/achievements/user/${userId}` : `/achievements/`; // Ajusta la ruta base según dónde pusiste el endpoint
+    const url = userId ? `/stats/achievements/${userId}` : `/achievements/`; // Ajusta la ruta base según dónde pusiste el endpoint
     // Nota: Si pusiste el endpoint en stats.py como hice arriba, la ruta es /stats/achievements/user/{id}
     // Si usas el router 'achievements', ajusta la URL.
     const res = await client.get(url);
