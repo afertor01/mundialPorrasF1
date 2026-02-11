@@ -144,8 +144,8 @@ def setup_season_infrastructure(db, year, active=False):
     db.add(s)
     
     # Multiplicadores
-    configs = [("FASTEST_LAP", 1.0), ("SAFETY_CAR", 2.0), ("DNFS", 2.0), 
-               ("DNF_DRIVER", 3.0), ("PODIUM_PARTIAL", 1.0), ("PODIUM_TOTAL", 2.0)]
+    configs = [("FASTEST_LAP", 1.5), ("SAFETY_CAR", 1.5), ("DNFS", 1.5), 
+               ("DNF_DRIVER", 1.5), ("PODIUM_PARTIAL", 1.25), ("PODIUM_TOTAL", 1.5)]
     for evt, val in configs:
         db.add(MultiplierConfig(season=s, event_type=evt, multiplier=val))
     db.commit()
@@ -221,6 +221,14 @@ def generate_prediction(real_pos, real_evts, skill):
     
     if random.random() < (0.4 + skill/2): pred_evts["FASTEST_LAP"] = real_evts["FASTEST_LAP"]
     else: pred_evts["FASTEST_LAP"] = random.choice(real_pos[:5])
+
+    if random.random() < (0.2 + skill/2): 
+        # Acierta uno de los que abandonaron (si hubo)
+        real_dnfs = real_evts.get("DNF_DRIVER", "").split(", ")
+        pred_evts["DNF_DRIVER"] = real_dnfs[0] if real_dnfs[0] else ""
+    else:
+        # Pone uno cualquiera
+        pred_evts["DNF_DRIVER"] = random.choice(real_pos)
     
     return pred_pos, pred_evts
 
@@ -245,11 +253,16 @@ def simulate_gp(db, season, gp_name, race_date, users, skill_map, drivers, multi
     remaining = [d for d in drivers if d not in real_pos]
     real_pos.extend(remaining)
     
+    num_dnfs = random.randint(0, 4)
+    # Escogemos pilotos aleatorios del fondo de la tabla para que sean los DNF
+    dnf_drivers_list = random.sample(real_pos[-8:], num_dnfs) if num_dnfs > 0 else []
+    dnf_str = ", ".join(dnf_drivers_list)
+
     real_evts = {
         "FASTEST_LAP": random.choice(real_pos[:3]), 
         "SAFETY_CAR": "Yes" if random.random() > 0.4 else "No",
-        "DNFS": str(random.randint(0, 4)),
-        "POLE_POSITION": random.choice(real_pos[:2])
+        "DNFS": str(num_dnfs),
+        "DNF_DRIVER": dnf_str,
     }
     
     # Guardar Resultado
@@ -271,7 +284,7 @@ def simulate_gp(db, season, gp_name, race_date, users, skill_map, drivers, multi
         
         # Scoring Mock
         class M: pass
-        m_p = M(); m_p.positions = [M() for _ in p_pos]; m_p.events = []
+        m_p = M(); m_p.positions = [M() for _ in p_pos[:10]]; m_p.events = []
         for i, x in enumerate(m_p.positions): x.driver_name=p_pos[i]; x.position=i+1
         for k,v in p_evts.items(): e=M(); e.event_type=k; e.value=str(v); m_p.events.append(e)
         m_r = M(); m_r.positions = [M() for _ in real_pos]; m_r.events = []
