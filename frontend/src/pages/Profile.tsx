@@ -2,13 +2,23 @@ import React, { useEffect, useState, useContext, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import * as API from "../api/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  User, Settings, Image as ImageIcon, Save, Lock, Unlock, 
-  Trophy, Activity, Zap, Star, Shield, CheckCircle, Flag, Info,
-  Flame, Heart, Skull, TrendingUp, Calendar, MapPin, Search, ChevronDown,
-  Award, Crown, Watch, Crosshair, Smile, Frown, DollarSign, Package, 
-  Umbrella, RefreshCw, PenTool, LayoutGrid, AlertTriangle
+import {
+  // Career / Achievement icons
+  Flag, TrendingUp, Award, Star, Calendar, Crosshair, Trophy, Crown, Medal, Target,
+  Gauge, Zap, AlertTriangle, Shield, Activity, Skull, Ghost, UserX,
+
+  // Season icons
+  Battery, BatteryCharging, UserCheck, ShoppingBag,
+
+  // Event icons
+  Play, Users, DollarSign, Package, Hand, Eye, Mic, Sun, Maximize, Swords,
+
+  // Extra icons from your second import
+  User, Settings, Image as ImageIcon, Save, Lock, Unlock, CheckCircle, Info,
+  Flame, Heart, MapPin, Search, ChevronDown, Watch, Smile, Frown, Umbrella,
+  RefreshCw, PenTool, LayoutGrid
 } from "lucide-react";
+
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip 
 } from 'recharts';
@@ -28,35 +38,68 @@ const formatDate = (dateString: string | null | undefined) => {
 // --- MAPEO SEGURO DE ICONOS ---
 // Usamos iconos genéricos para evitar crashes si faltan específicos en tu versión de librerías
 const ICON_MAP: any = {
-    // Básicos
-    "Trophy": <Trophy size={20}/>,
-    "Star": <Star size={20}/>,
-    "Award": <Award size={20}/>,
-    "Crown": <Crown size={20}/>,
-    "Flag": <Flag size={20}/>,
-    "Shield": <Shield size={20}/>,
-    "Zap": <Zap size={20}/>,
-    "Flame": <Flame size={20}/>,
-    "Heart": <Heart size={20}/>,
-    "Skull": <Skull size={20}/>,
-    "TrendingUp": <TrendingUp size={20}/>,
-    "Calendar": <Calendar size={20}/>,
-    "Watch": <Watch size={20}/>,
-    "Crosshair": <Crosshair size={20}/>,
-    "Target": <Crosshair size={20}/>, // Mapeamos Target a Crosshair por seguridad
-    "Smile": <Smile size={20}/>,
-    "Frown": <Frown size={20}/>,
-    "DollarSign": <DollarSign size={20}/>,
-    "Package": <Package size={20}/>,
-    "Umbrella": <Umbrella size={20}/>,
-    "RefreshCw": <RefreshCw size={20}/>,
-    "PenTool": <PenTool size={20}/>,
-    "Grid": <LayoutGrid size={20}/>,
-    "AlertTriangle": <AlertTriangle size={20}/>,
-    "Lock": <Lock size={20}/>,
-    "Info": <Info size={20}/>
-    // Si un icono no existe, se usará <Star /> por defecto en el render
+  // Básicos / Career / Achievement
+  Trophy: <Trophy size={20} />,
+  Star: <Star size={20} />,
+  Award: <Award size={20} />,
+  Crown: <Crown size={20} />,
+  Flag: <Flag size={20} />,
+  Shield: <Shield size={20} />,
+  Zap: <Zap size={20} />,
+  Flame: <Flame size={20} />,
+  Heart: <Heart size={20} />,
+  Skull: <Skull size={20} />,
+  Ghost: <Ghost size={20} />,
+  UserX: <UserX size={20} />,
+  TrendingUp: <TrendingUp size={20} />,
+  Calendar: <Calendar size={20} />,
+  Watch: <Watch size={20} />,
+  Crosshair: <Crosshair size={20} />,
+  Target: <Crosshair size={20} />, // Mapeamos Target a Crosshair por seguridad
+  Gauge: <Gauge size={20} />,
+  AlertTriangle: <AlertTriangle size={20} />,
+
+  // Season
+  Battery: <Battery size={20} />,
+  BatteryCharging: <BatteryCharging size={20} />,
+  UserCheck: <UserCheck size={20} />,
+  ShoppingBag: <ShoppingBag size={20} />,
+
+  // Event
+  Play: <Play size={20} />,
+  Users: <Users size={20} />,
+  DollarSign: <DollarSign size={20} />,
+  Package: <Package size={20} />,
+  Hand: <Hand size={20} />,
+  Eye: <Eye size={20} />,
+  Mic: <Mic size={20} />,
+  Sun: <Sun size={20} />,
+  Maximize: <Maximize size={20} />,
+  Swords: <Swords size={20} />,
+
+  // Extras del segundo import
+  User: <User size={20} />,
+  Settings: <Settings size={20} />,
+  ImageIcon: <ImageIcon size={20} />,
+  Save: <Save size={20} />,
+  Lock: <Lock size={20} />,
+  Unlock: <Unlock size={20} />,
+  CheckCircle: <CheckCircle size={20} />,
+  Info: <Info size={20} />,
+  MapPin: <MapPin size={20} />,
+  Search: <Search size={20} />,
+  ChevronDown: <ChevronDown size={20} />,
+  Smile: <Smile size={20} />,
+  Frown: <Frown size={20} />,
+  Umbrella: <Umbrella size={20} />,
+  RefreshCw: <RefreshCw size={20} />,
+  PenTool: <PenTool size={20} />,
+  Grid: <LayoutGrid size={20} />,
+
+  // Por defecto, si un icono no existe
+  DEFAULT: <Star size={20} />
 };
+
 
 const RARITY_STYLES: any = {
     COMMON: { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-500", badge: "bg-gray-200 text-gray-600", label: "Común" },
