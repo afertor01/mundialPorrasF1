@@ -55,16 +55,34 @@ ACHIEVEMENT_DEFINITIONS = [
     {"slug": "event_25pts", "name": "+25", "desc": "+25 pts.", "icon": "DollarSign", "rare": "COMMON", "type": "EVENT"},
     {"slug": "event_50pts", "name": "+50", "desc": "+50 pts.", "icon": "Package", "rare": "RARE", "type": "EVENT"},
     {"slug": "event_nostradamus", "name": "Nostradamus", "desc": "Podio Exacto.", "icon": "CrystalBall", "rare": "EPIC", "type": "EVENT"},
+    {"slug": "event_el_profesor", "name": "El Profesor", "desc": "Top 5 Exacto.", "icon": "GraduationCap", "rare": "LEGENDARY", "type": "EVENT"},
     {"slug": "event_high_five", "name": "High 5", "desc": "5 Exactos.", "icon": "Hand", "rare": "RARE", "type": "EVENT"},
+    {"slug": "event_sexto_sentido", "name": "Sexto Sentido", "desc": "6 Exactos.", "icon": "Eye", "rare": "EPIC", "type": "EVENT"},
+    {"slug": "event_7_maravillas", "name": "7 Maravillas", "desc": "7 Exactos.", "icon": "Globe", "rare": "EPIC", "type": "EVENT"},
+    {"slug": "event_bola_8", "name": "Bola 8", "desc": "8 Exactos.", "icon": "Disc", "rare": "LEGENDARY", "type": "EVENT"},
+    {"slug": "event_nube_9", "name": "Nube 9", "desc": "9 Exactos.", "icon": "Cloud", "rare": "LEGENDARY", "type": "EVENT"},
     {"slug": "event_la_decima", "name": "La Décima", "desc": "10 Exactos.", "icon": "Award", "rare": "LEGENDARY", "type": "EVENT"},
     {"slug": "event_oracle", "name": "Oráculo", "desc": "Top 10 presencia.", "icon": "Eye", "rare": "EPIC", "type": "EVENT"},
+    {"slug": "event_el_narrador", "name": "El Narrador", "desc": "Todos Eventos OK.", "icon": "BookOpen", "rare": "EPIC", "type": "EVENT"},
+    {"slug": "event_god", "name": "Omnisciente", "desc": "Todo (10pos + 4ev).", "icon": "Sun", "rare": "LEGENDARY", "type": "EVENT"},
+    {"slug": "event_casi_dios", "name": "Casi Dios", "desc": "Todo menos 1 fallo.", "icon": "ZapOff", "rare": "EPIC", "type": "EVENT"},
     {"slug": "event_mc", "name": "MC", "desc": "Eventos extra.", "icon": "Mic", "rare": "EPIC", "type": "EVENT"},
-    {"slug": "event_god", "name": "DIOS", "desc": "Todo perfecto.", "icon": "Sun", "rare": "LEGENDARY", "type": "EVENT"},
     {"slug": "event_grand_chelem", "name": "Chelem", "desc": "Pole+VR+Win.", "icon": "Maximize", "rare": "EPIC", "type": "EVENT"},
     {"slug": "event_civil_war", "name": "Civil War", "desc": "1-2 Compañeros.", "icon": "Swords", "rare": "RARE", "type": "EVENT"},
+    {"slug": "event_el_muro", "name": "El Muro", "desc": "Compañeros consecutivos.", "icon": "BrickWall", "rare": "RARE", "type": "EVENT"},
     {"slug": "event_tifosi", "name": "Tifosi", "desc": "Ferrari gana Monza.", "icon": "Italic", "rare": "RARE", "type": "EVENT"},
-    {"slug": "event_chaos", "name": "Caos", "desc": "Muchos DNFs.", "icon": "AlertTriangle", "rare": "RARE", "type": "EVENT"},
-    {"slug": "event_maldonado", "name": "Maldonado", "desc": "0 Puntos.", "icon": "Skull", "rare": "HIDDEN", "type": "EVENT"},
+    {"slug": "event_chaos", "name": "Profeta del Caos", "desc": ">4 DNFs y acertar #.", "icon": "AlertTriangle", "rare": "RARE", "type": "EVENT"},
+    {"slug": "event_francotirador_p10", "name": "Francotirador P10", "desc": "Acertar P10 Exacto.", "icon": "Target", "rare": "RARE", "type": "EVENT"},
+    {"slug": "event_la_maldicion", "name": "La Maldición", "desc": "Tu P1 fue DNF.", "icon": "Skull", "rare": "COMMON", "type": "EVENT"},
+    {"slug": "event_podio_invertido", "name": "Podio Invertido", "desc": "Podio al revés.", "icon": "RefreshCcw", "rare": "EPIC", "type": "EVENT"},
+    {"slug": "event_el_elegido", "name": "El Elegido", "desc": "Solo P1 (0 pts resto).", "icon": "Fingerprint", "rare": "LEGENDARY", "type": "EVENT"},
+    {"slug": "event_el_sandwich", "name": "El Sandwich", "desc": "P1 y P3 (P2 mal).", "icon": "Layers", "rare": "RARE", "type": "EVENT"},
+    {"slug": "event_lobo_solitario", "name": "Lobo Solitario", "desc": "MVP sin equipo.", "icon": "Moon", "rare": "LEGENDARY", "type": "EVENT"},
+    {"slug": "event_david_goliath", "name": "David vs Goliath", "desc": "x2 pts del Líder.", "icon": "TrendingUp", "rare": "LEGENDARY", "type": "EVENT"},
+    {"slug": "event_diamante", "name": "Diamante", "desc": "+75 pts.", "icon": "Diamond", "rare": "LEGENDARY", "type": "EVENT"},
+    {"slug": "event_el_optimista", "name": "El Optimista", "desc": "0 DNF y acierto.", "icon": "Smile", "rare": "RARE", "type": "EVENT"},
+    {"slug": "event_la_escoba", "name": "La Escoba", "desc": "VR fuera del podio.", "icon": "Brush", "rare": "RARE", "type": "EVENT"},
+    {"slug": "event_maldonado", "name": "Maldonado", "desc": "0 Puntos.", "icon": "Ghost", "rare": "HIDDEN", "type": "EVENT"},
 ]
 
 # Configuración de Simulación
@@ -294,6 +312,7 @@ def simulate_gp(db, season, gp_name, race_date, users, skill_map, drivers, multi
         score = calculate_prediction_score(m_p, m_r, multipliers)
         pred.points = score["final_points"]
         pred.points_base = score["base_points"]
+        pred.multiplier = score["multiplier"]  # ← FIX: Guardar el multiplicador
     
     db.commit()
     
