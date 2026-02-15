@@ -369,6 +369,12 @@ export const getBingoStandings = async () => {
   return res.data;
 };
 
+export const getUserBingoBoard = async (userId: number) => {
+    // Asumiendo que usas axios configurado
+    const res = await client.get(`/bingo/board/${userId}`);
+    return res.data;
+};
+
 // ==========================================
 // 🖼️ AVATARES Y PERFIL
 // ==========================================
