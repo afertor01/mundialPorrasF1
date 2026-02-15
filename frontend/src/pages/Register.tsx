@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { register as apiRegister } from "../api/api"; // Importación correcta
-import { motion } from "framer-motion";
-import { UserPlus, Mail, Lock, User, Hash, ChevronLeft } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { UserPlus, Mail, Lock, User, Hash, ChevronLeft, Check, X } from "lucide-react";
 
 const Register: React.FC = () => {
   // --- LÓGICA (Mantenemos la tuya intacta) ---
@@ -10,7 +10,17 @@ const Register: React.FC = () => {
   const [username, setUsername] = useState("");
   const [acronym, setAcronym] = useState(""); 
   const [password, setPassword] = useState("");
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const navigate = useNavigate();
+
+  const passwordValid =
+    password.length >= 8 &&
+    /[A-Z]/.test(password) &&
+    /[a-z]/.test(password) &&
+    /[0-9]/.test(password) &&
+    /[^a-zA-Z0-9]/.test(password);
+
+  const showChecklist = passwordFocused || (password.length > 0 && !passwordValid);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,16 +119,56 @@ const Register: React.FC = () => {
                     placeholder="Contraseña"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
                     required
                     className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-f1-red focus:border-transparent transition-all placeholder-gray-400 text-gray-800"
                 />
             </div>
 
+            {/* Password Requirements Checklist */}
+            <AnimatePresence>
+              {showChecklist && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Requisitos de contraseña</p>
+                    {[
+                      { label: "Mínimo 8 caracteres", met: password.length >= 8 },
+                      { label: "1 letra mayúscula", met: /[A-Z]/.test(password) },
+                      { label: "1 letra minúscula", met: /[a-z]/.test(password) },
+                      { label: "1 número", met: /[0-9]/.test(password) },
+                      { label: "1 carácter especial (@, #, $, etc.)", met: /[^a-zA-Z0-9]/.test(password) },
+                    ].map((req, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-colors ${req.met ? "bg-green-500" : "bg-gray-300"}`}>
+                          {req.met ? <Check size={12} className="text-white" /> : <X size={12} className="text-white" />}
+                        </div>
+                        <span className={`text-sm transition-colors ${req.met ? "text-green-600 font-medium" : "text-gray-400"}`}>
+                          {req.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={passwordValid ? { scale: 1.02 } : {}}
+                whileTap={passwordValid ? { scale: 0.98 } : {}}
                 type="submit"
-                className="w-full bg-f1-red text-white font-bold py-3.5 rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2 mt-6"
+                disabled={!passwordValid}
+                className={`w-full font-bold py-3.5 rounded-lg transition-colors flex items-center justify-center gap-2 mt-6 ${
+                  passwordValid
+                    ? "bg-f1-red text-white hover:bg-red-700 shadow-lg shadow-red-500/30 cursor-pointer"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
             >
                 <UserPlus size={20} />
                 Registrarse

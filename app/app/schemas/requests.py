@@ -59,7 +59,6 @@ class GrandPrixUpdateRequest(CamelModel):
 class AdminTeamCreateRequest(CamelModel):
     name: str
     season_id: int
-    join_code: str
 
 class UpdateRaceResultRequest(CamelModel):
     gp_id: int

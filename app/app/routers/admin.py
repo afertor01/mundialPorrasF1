@@ -127,6 +127,13 @@ class AdminRouter:
             """
             return admin_service.sync_gp_data(gp_id)
 
+        @api_router.post("/gps/{gp_id}/sync-qualy", description="Disparar sincronización manual de la CLASIFICACIÓN (Sábado) con FastF1 para un GP específico. Útil para actualizar resultados de clasificación después de la sesión o corregir errores.", response_model=Dict[str, bool | List[str]])
+        def sync_gp_qualy(gp_id: int, admin_service: AdminServiceDep) -> Dict[str, bool | List[str]]:
+            """
+            Dispara la sincronización manual de la CLASIFICACIÓN (Sábado) con FastF1 y devuelve los logs.
+            """
+            return admin_service.sync_gp_qualy(gp_id)
+
         # -----------------------
         # Gestión de Escuderías (Teams)
         # -----------------------

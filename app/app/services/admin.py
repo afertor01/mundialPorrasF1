@@ -108,6 +108,12 @@ class AdminService:
     def sync_gp_data(self, gp_id: int) -> Dict[str, bool | List[str]]:
         return self.admin_repository.sync_gp_data(gp_id)
 
+    def sync_gp_qualy(self, gp_id: int) -> Dict[str, bool | List[str]]:
+        """
+        Sincroniza los resultados de la CLASIFICACIÓN (Sábado) usando FastF1.
+        """
+        return self.admin_repository.sync_gp_qualy(gp_id)
+
     # -----------------------
     # Gestión de Escuderías (Teams)
     # -----------------------

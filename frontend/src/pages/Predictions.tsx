@@ -30,13 +30,32 @@ const Predictions: React.FC = () => {
 
   const [existingPreds, setExistingPreds] = useState<Record<number, boolean>>({});
 
-  const [positions, setPositions] = useState<Record<number, string>>({});
-  const [events, setEvents] = useState<Record<string, string>>({
-    "FASTEST_LAP": "",
-    "SAFETY_CAR": "No",
-    "DNFS": "0",
-    "DNF_DRIVER": ""
-  });
+  const [positions, setPositions] = useState<{position: number, driver_code: string}[]>([]);
+  const [events, setEvents] = useState<{type: string, description: string}[]>([
+    { type: "FASTEST_LAP", description: "" },
+    { type: "SAFETY_CAR", description: "No" },
+    { type: "DNFS", description: "0" },
+    { type: "DNF_DRIVER", description: "" },
+  ]);
+
+  const getDriverAtPosition = (pos: number) =>
+    positions.find(p => p.position === pos)?.driver_code || "";
+
+  const setDriverAtPosition = (pos: number, driver_code: string) =>
+    setPositions(prev => {
+      const filtered = prev.filter(p => p.position !== pos);
+      return driver_code ? [...filtered, { position: pos, driver_code }] : filtered;
+    });
+
+  const getEventValue = (type: string) =>
+    events.find(e => e.type === type)?.description || "";
+
+  const setEventValue = (type: string, description: string) =>
+    setEvents(prev => {
+      const exists = prev.some(e => e.type === type);
+      if (exists) return prev.map(e => e.type === type ? { ...e, description } : e);
+      return [...prev, { type, description }];
+    });
 
   useEffect(() => { loadInitialData(); }, []);
 
@@ -89,29 +108,41 @@ const Predictions: React.FC = () => {
     }
     setLoadingGp(true);
     setSelectedGp(gp);
-    const defaultPos: any = {};
-    for(let i=1; i<=10; i++) defaultPos[i] = "";
-    setPositions(defaultPos);
-    setEvents({ "FASTEST_LAP": "", "SAFETY_CAR": "No", "DNFS": "0", "DNF_DRIVER": "" });
+    setPositions([]);
+    setEvents([
+      { type: "FASTEST_LAP", description: "" },
+      { type: "SAFETY_CAR", description: "No" },
+      { type: "DNFS", description: "0" },
+      { type: "DNF_DRIVER", description: "" },
+    ]);
 
     const existing = await API.getMyPrediction(gp.id);
     if (existing) {
-        const posMap: any = {};
-        existing.positions.forEach((p: any) => posMap[p.position] = p.driver_name); 
-        setPositions(prev => ({ ...prev, ...posMap }));
-        const evtMap: any = {};
-        existing.events.forEach((e: any) => evtMap[e.event_type] = e.value);
-        setEvents(prev => ({ ...prev, ...evtMap }));
+        const loadedPositions = existing.positions.map((p: any) => ({
+          position: p.position,
+          driver_code: p.driver_name,
+        }));
+        setPositions(loadedPositions);
+        const loadedEvents = existing.events.map((e: any) => ({
+          type: e.event_type,
+          description: e.value,
+        }));
+        setEvents(prev =>
+          prev.map(ev => {
+            const found = loadedEvents.find((le: any) => le.type === ev.type);
+            return found ? found : ev;
+          })
+        );
     }
     setLoadingGp(false);
   };
 
   const handleSave = async () => {
-    const filledPositions = Object.values(positions).filter(p => p !== "");
-    const uniqueDrivers = new Set(filledPositions);
+    const filledPositions = positions.filter(p => p.driver_code !== "");
+    const uniqueDrivers = new Set(filledPositions.map(p => p.driver_code));
     if (filledPositions.length < 10) return alert("⚠️ Completa las 10 posiciones.");
     if (filledPositions.length !== uniqueDrivers.size) return alert("⚠️ Has repetido pilotos.");
-    if (!events.FASTEST_LAP) return alert("⚠️ Selecciona la Vuelta Rápida.");
+    if (!getEventValue("FASTEST_LAP")) return alert("⚠️ Selecciona la Vuelta Rápida.");
 
     try {
         await API.savePrediction(selectedGp.id, positions, events);
@@ -354,8 +385,8 @@ const Predictions: React.FC = () => {
                                             <div className="flex-grow">
                                                 <select 
                                                     className="w-full bg-transparent border-none text-sm font-bold text-gray-700 focus:ring-0 cursor-pointer disabled:cursor-default"
-                                                    value={positions[pos] || ""}
-                                                    onChange={(e) => setPositions({...positions, [pos]: e.target.value})}
+                                                    value={getDriverAtPosition(pos)}
+                                                    onChange={(e) => setDriverAtPosition(pos, e.target.value)}
                                                     disabled={isLocked}
                                                 >
                                                     {renderDriverOptions()}
@@ -380,8 +411,8 @@ const Predictions: React.FC = () => {
                                     <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">🟣 Vuelta Rápida</label>
                                     <select 
                                         className="w-full bg-white border-none rounded-xl text-sm font-bold p-3 shadow-sm focus:ring-2 focus:ring-f1-red/20"
-                                        value={events["FASTEST_LAP"]}
-                                        onChange={e => setEvents({...events, "FASTEST_LAP": e.target.value})}
+                                        value={getEventValue("FASTEST_LAP")}
+                                        onChange={e => setEventValue("FASTEST_LAP", e.target.value)}
                                         disabled={isLocked}
                                     >
                                         {renderDriverOptions()}
@@ -393,8 +424,8 @@ const Predictions: React.FC = () => {
                                         <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Safety Car</label>
                                         <select 
                                             className="w-full bg-white border-none rounded-xl text-sm font-bold p-3 shadow-sm"
-                                            value={events["SAFETY_CAR"]}
-                                            onChange={e => setEvents({...events, "SAFETY_CAR": e.target.value})}
+                                            value={getEventValue("SAFETY_CAR")}
+                                            onChange={e => setEventValue("SAFETY_CAR", e.target.value)}
                                             disabled={isLocked}
                                         >
                                             <option value="No">No</option>
@@ -406,8 +437,8 @@ const Predictions: React.FC = () => {
                                         <input 
                                             type="number" min="0"
                                             className="w-full bg-white border-none rounded-xl text-sm font-bold p-3 shadow-sm"
-                                            value={events["DNFS"]}
-                                            onChange={e => setEvents({...events, "DNFS": e.target.value})}
+                                            value={getEventValue("DNFS")}
+                                            onChange={e => setEventValue("DNFS", e.target.value)}
                                             disabled={isLocked}
                                         />
                                     </div>
@@ -415,7 +446,7 @@ const Predictions: React.FC = () => {
                             </div>
 
                             <AnimatePresence>
-                                {parseInt(events["DNFS"]) > 0 && (
+                                {parseInt(getEventValue("DNFS")) > 0 && (
                                     <motion.div 
                                         initial={{ opacity: 0, y: -10 }} 
                                         animate={{ opacity: 1, y: 0 }}
@@ -425,8 +456,8 @@ const Predictions: React.FC = () => {
                                         <label className="block text-xs font-black text-amber-600 uppercase tracking-widest mb-3">☠️ Piloto en Abandonar</label>
                                         <select 
                                             className="w-full bg-white border-none rounded-xl text-sm font-bold p-3 shadow-sm focus:ring-2 focus:ring-amber-200"
-                                            value={events["DNF_DRIVER"]}
-                                            onChange={e => setEvents({...events, "DNF_DRIVER": e.target.value})}
+                                            value={getEventValue("DNF_DRIVER")}
+                                            onChange={e => setEventValue("DNF_DRIVER", e.target.value)}
                                             disabled={isLocked}
                                         >
                                             {renderDriverOptions()}

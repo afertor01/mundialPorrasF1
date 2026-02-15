@@ -38,8 +38,8 @@ export const login = async (identifier: string, password: string) => {
 // 📊 ESTADÍSTICAS (Dashboard)
 // ==========================================
 
-export const getEvolution = async (season_id: number, type: "users" | "teams", names?: string[], ids?: number[], mode?: string) => {
-  const params: any = { season_id, type };
+export const getEvolution = async (seasonId: number, type: "users" | "teams", names?: string[], ids?: number[], mode?: string) => {
+  const params: any = { seasonId, type };
   if (names && names.length > 0) params.names = names;
   if (ids && ids.length > 0) params.ids = ids;
   if (mode) params.mode = mode;
@@ -48,8 +48,8 @@ export const getEvolution = async (season_id: number, type: "users" | "teams", n
   return res.data;
 };
 
-export const getRanking = async (season_id: number, type: "users" | "teams", mode?: string, limit?: number) => {
-  const params: any = { season_id, type };
+export const getRanking = async (seasonId: number, type: "users" | "teams", mode?: string, limit?: number) => {
+  const params: any = { seasonId, type };
   if (mode) params.mode = mode;
   if (limit) params.limit = limit;
 
@@ -66,7 +66,7 @@ export const getSeasons = async () => {
   return res.data;
 };
 
-export const createSeason = async (data: { year: number; name: string; is_active: boolean }) => {
+export const createSeason = async (data: { year: number; name: string; isActive: boolean }) => {
   const res = await client.post("/admin/seasons", data);
   return res.data;
 };
@@ -91,24 +91,22 @@ export const getUsers = async () => {
 };
 
 export const createUser = async (data: { email: string; username: string; password: string; role: string; acronym: string }) => {
-  const res = await client.post("/admin/users", null, {
-    params: data
-  });
+  const res = await client.post("/admin/users", data);
   return res.data;
 };
 
-export const deleteUser = async (user_id: number) => {
-  const res = await client.delete(`/admin/users/${user_id}`);
+export const deleteUser = async (userId: number) => {
+  const res = await client.delete(`/admin/users/${userId}`);
   return res.data;
 };
 
 export const updateUser = async (userId: number, role: string, password?: string) => {
   // Enviamos body JSON
-  const body: any = { role };
+  const body: any = { userId, role };
   if (password && password.trim() !== "") {
     body.password = password;
   }
-  const res = await client.patch(`/admin/users/${userId}`, body);
+  const res = await client.patch(`/admin/users`, body);
   return res.data;
 };
 
@@ -116,27 +114,23 @@ export const updateUser = async (userId: number, role: string, password?: string
 // ⚙️ ADMIN - EQUIPOS DE USUARIOS (ESCUDERÍAS JUGADORES)
 // ==========================================
 
-export const getTeams = async (season_id: number) => {
-  const res = await client.get(`/seasons/${season_id}/teams`);
+export const getTeams = async (seasonId: number) => {
+  const res = await client.get(`/seasons/${seasonId}/teams`);
   return res.data;
 };
 
-export const createTeam = async (season_id: number, name: string) => {
-  const res = await client.post(`/admin/seasons/${season_id}/teams`, null, {
-    params: { name }
-  });
+export const createTeam = async (seasonId: number, name: string) => {
+  const res = await client.post(`/admin/seasons/teams`, {seasonId, name});
   return res.data;
 };
 
-export const addTeamMember = async (team_id: number, user_id: number) => {
-  const res = await client.post(`/admin/teams/${team_id}/members`, null, {
-    params: { user_id }
-  });
+export const addTeamMember = async (teamId: number, userId: number) => {
+  const res = await client.post(`/admin/teams/members`, {teamId, userId});
   return res.data;
 };
 
-export const deleteTeam = async (team_id: number) => {
-  const res = await client.delete(`/admin/teams/${team_id}`);
+export const deleteTeam = async (teamId: number) => {
+  const res = await client.delete(`/admin/teams/${teamId}`);
   return res.data;
 };
 
@@ -144,40 +138,38 @@ export const deleteTeam = async (team_id: number) => {
 // ⚙️ ADMIN - GRANDES PREMIOS (GPs)
 // ==========================================
 
-export const getGPs = async (season_id: number) => {
-  const res = await client.get(`/grand-prix/season/${season_id}`);
+export const getGPs = async (seasonId: number) => {
+  const res = await client.get(`/grand-prix/season/${seasonId}`);
   return res.data;
 };
 
-export const importGPs = async (season_id: number, file: File) => {
+export const importGPs = async (seasonId: number, file: File) => {
   const formData = new FormData();
   formData.append("file", file);
   
-  const res = await client.post(`/admin/seasons/${season_id}/import-gps`, formData, {
+  const res = await client.post(`/admin/seasons/${seasonId}/import-gps`, formData, {
     headers: { "Content-Type": "multipart/form-data" }
   });
   return res.data;
 };
 
 export const getAdminGPs = async (seasonId?: number) => {
-  const url = seasonId ? `/admin/gps?season_id=${seasonId}` : '/admin/gps';
+  const url = seasonId ? `/admin/gps?seasonId=${seasonId}` : '/admin/gps';
   const res = await client.get(url);
   return res.data;
 };
 
 // Crear (Manual)
-export const createGP = async (data: { name: string, race_datetime: string, season_id: number }) => {
-  const res = await client.post('/admin/gps', null, { params: data });
+export const createGP = async (data: { name: string, raceDatetime: string, seasonId: number }) => {
+  const res = await client.post('/admin/gps', data);
   return res.data;
 };
 
 // Editar
-export const updateGP = async (gpId: number, name: string, race_datetime: string, season_id: number) => {
-    // Tu backend actual: @router.put("/gps/{gp_id}") recibe parámetros sueltos (query), no un body Pydantic.
+export const updateGP = async (gpId: number, name: string, raceDatetime: string, seasonId: number) => {
+    // Tu backend actual: @router.put("/gps/{gpId}") recibe parámetros sueltos (query), no un body Pydantic.
     // Así que lo mandamos como params.
-    const res = await client.put(`/admin/gps/${gpId}`, null, {
-        params: { name, race_datetime, season_id }
-    });
+    const res = await client.put(`/admin/gps`, {gpId, name, raceDatetime, seasonId});
     return res.data;
 };
 
@@ -191,22 +183,18 @@ export const deleteGP = async (gpId: number) => {
 // 🏎️ ADMIN - PARRILLA F1 (Constructores/Pilotos)
 // ==========================================
 
-export const getF1Grid = async (season_id: number) => {
-    const res = await client.get(`/seasons/${season_id}/constructors`);
+export const getF1Grid = async (seasonId: number) => {
+    const res = await client.get(`/seasons/${seasonId}/constructors`);
     return res.data; 
 };
 
-export const createConstructor = async (season_id: number, name: string, color: string) => {
-    const res = await client.post(`/admin/seasons/${season_id}/constructors`, null, {
-        params: { name, color }
-    });
+export const createConstructor = async (seasonId: number, name: string, color: string) => {
+    const res = await client.post(`/admin/seasons/constructors`, {seasonId, name, color});
     return res.data;
 };
 
-export const createDriver = async (constructor_id: number, code: string, name: string) => {
-    const res = await client.post(`/admin/constructors/${constructor_id}/drivers`, null, {
-        params: { code, name }
-    });
+export const createDriver = async (constructorId: number, code: string, name: string) => {
+    const res = await client.post(`/admin/constructors/drivers`, {constructorId, code, name});
     return res.data;
 };
 
@@ -224,8 +212,8 @@ export const deleteDriver = async (id: number) => {
 
 export const saveRaceResult = async (
   gpId: number, 
-  positions: Record<number, string>, 
-  events: Record<string, string>
+  positions: Array<Record<number, string>>, 
+  events: Array<Record<string, string>>
 ) => {
   // Enviamos positions y events en el body
   const res = await client.post(`/admin/results/${gpId}`, { positions, events });
@@ -251,9 +239,9 @@ export const syncQualyData = async (gpId: number) => {
 // 🔮 PREDICCIONES
 // ==========================================
 
-export const getMyPrediction = async (gp_id: number) => {
+export const getMyPrediction = async (gpId: number) => {
     try {
-      const res = await client.get(`/predictions/${gp_id}/me`);
+      const res = await client.get(`/predictions/${gpId}/me`);
       return res.data; 
     } catch (error) {
       // Si devuelve 404 o null, simplemente retornamos null para que el frontend sepa que no hay predicción
@@ -261,9 +249,10 @@ export const getMyPrediction = async (gp_id: number) => {
     }
 };
   
-export const savePrediction = async (gp_id: number, positions: Record<number, string>, events: Record<string, string>) => {
+export const savePrediction = async (gpId: number, positions: Array<Record<number, string>>, events: Array<Record<string, string>>) => {
     // Enviamos un JSON Body
-    const res = await client.post(`/predictions/${gp_id}`, {
+    const res = await client.post(`/predictions`, {
+        gpId,
         positions,
         events
     });
@@ -309,7 +298,7 @@ export const getMyTeam = async () => {
 
 export const createTeamPlayer = async (name: string) => {
     // El backend espera 'name' como query param
-    const res = await client.post("/teams/create", null, { params: { name } });
+    const res = await client.post("/teams/create", { name });
     return res.data;
 };
 
@@ -328,7 +317,7 @@ export const kickTeamMemberAdmin = async (teamId: number, userId: number) => {
     // Usamos el endpoint genérico o creamos uno. 
     // Como no tenemos endpoint específico de admin para kick en el backend que me pasaste,
     // vamos a asumir que añadiste este endpoint en admin.py:
-    // @router.delete("/teams/{team_id}/members/{user_id}")
+    // @router.delete("/teams/{teamId}/members/{userId}")
     
     // SI NO TIENES ESE ENDPOINT, avísame. 
     // Por ahora, asumiré que usas esta ruta:
@@ -344,8 +333,8 @@ export const createBingoTile = async (description: string) => {
   return res.data;
 };
 
-export const updateBingoTile = async (id: number, data: { description?: string; is_completed?: boolean }) => {
-  const res = await client.put(`/bingo/tile/${id}`, data);
+export const updateBingoTile = async (id: number, data: { description?: string; isCompleted?: boolean }) => {
+  const res = await client.put(`/bingo/tile`, { id, ...data });
   return res.data;
 };
 
@@ -417,8 +406,8 @@ export const updateProfile = async (data: {
     username?: string; 
     email?: string; 
     acronym?: string; 
-    current_password?: string; 
-    new_password?: string; 
+    currentPassword?: string; 
+    newPassword?: string; 
 }) => {
     const res = await client.patch("/auth/me", data);
     return res.data;

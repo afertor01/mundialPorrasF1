@@ -494,7 +494,7 @@ class AdminRepository:
             "logs": logs
         }
     
-    def sync_gp_qualy(self, gp_id: int):
+    def sync_gp_qualy(self, gp_id: int) -> Dict[str, bool | List[str]]:
         """
         Sincroniza los resultados de la CLASIFICACIÓN (Sábado) usando FastF1.
         """

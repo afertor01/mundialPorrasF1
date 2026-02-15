@@ -4,12 +4,12 @@ import * as API from "../api/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Settings, Calendar, Users, Shield, Flag, LayoutGrid, 
-  Plus, Trash2, Edit2, CheckCircle, XCircle, Save, AlertTriangle, Upload, Trophy,
+  Plus, Trash2, Edit2, CheckCircle, XCircle, AlertTriangle, Upload, Trophy,
   Search, X, Image, RefreshCw, Terminal, Timer
 } from "lucide-react";
 
 const Admin: React.FC = () => {
-  const { token } = useContext(AuthContext);
+  useContext(AuthContext);
   const [activeTab, setActiveTab] = useState<"seasons" | "users" | "teams" | "gps" | "grid" | "bingo" | "avatars">("seasons");
   const [seasons, setSeasons] = useState<any[]>([]);
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null);
@@ -51,7 +51,7 @@ const Admin: React.FC = () => {
 
     const handleCreate = async () => {
       try {
-        await API.createSeason({ year, name, is_active: isActive });
+        await API.createSeason({ year, name, isActive: isActive });
         setName("");
         loadSeasons();
       } catch (err: any) { alert("Error creando temporada"); }
@@ -360,8 +360,32 @@ const Admin: React.FC = () => {
     // --- Manual Edit States (Carrera) ---
     const [showResultsModal, setShowResultsModal] = useState(false);
     const [resultGp, setResultGp] = useState<any | null>(null);
-    const [positions, setPositions] = useState<Record<number, string>>({});
-    const [events, setEvents] = useState({ FASTEST_LAP: "", SAFETY_CAR: "No", DNFS: "0", DNF_DRIVER: "" });
+    const [positions, setPositions] = useState<{position: number, driver_code: string}[]>([]);
+    const [events, setEvents] = useState<{type: string, description: string}[]>([
+      { type: "FASTEST_LAP", description: "" },
+      { type: "SAFETY_CAR", description: "No" },
+      { type: "DNFS", description: "0" },
+      { type: "DNF_DRIVER", description: "" },
+    ]);
+
+    const getDriverAtPosition = (pos: number) =>
+      positions.find(p => p.position === pos)?.driver_code || "";
+
+    const setDriverAtPosition = (pos: number, driver_code: string) =>
+      setPositions(prev => {
+        const filtered = prev.filter(p => p.position !== pos);
+        return driver_code ? [...filtered, { position: pos, driver_code }] : filtered;
+      });
+
+    const getEventValue = (type: string) =>
+      events.find(e => e.type === type)?.description || "";
+
+    const setEventValue = (type: string, description: string) =>
+      setEvents(prev => {
+        const exists = prev.some(e => e.type === type);
+        if (exists) return prev.map(e => e.type === type ? { ...e, description } : e);
+        return [...prev, { type, description }];
+      });
     const [editingGp, setEditingGp] = useState<any | null>(null);
     const [newDate, setNewDate] = useState("");
 
@@ -389,12 +413,31 @@ const Admin: React.FC = () => {
     // --- Lógica Modal Carrera ---
     const handleOpenResults = async (gp: any) => {
         setResultGp(gp);
-        const defaultPos: any = {}; for(let i=1; i<=10; i++) defaultPos[i] = "";
-        setPositions(defaultPos);
-        setEvents({ FASTEST_LAP: "", SAFETY_CAR: "No", DNFS: "0", DNF_DRIVER: "" });
+        setPositions([]);
+        setEvents([
+          { type: "FASTEST_LAP", description: "" },
+          { type: "SAFETY_CAR", description: "No" },
+          { type: "DNFS", description: "0" },
+          { type: "DNF_DRIVER", description: "" },
+        ]);
         try {
             const data = await API.getRaceResult(gp.id);
-            if (data) { setPositions(data.positions); setEvents(data.events); }
+            if (data) {
+                if (Array.isArray(data.positions)) {
+                    setPositions(data.positions);
+                } else {
+                    const posArr = Object.entries(data.positions).map(([pos, code]) => ({ position: Number(pos), driver_code: code as string }));
+                    setPositions(posArr);
+                }
+                if (Array.isArray(data.events)) {
+                    setEvents(data.events);
+                } else {
+                    setEvents(prev => prev.map(ev => {
+                        const val = (data.events as any)[ev.type];
+                        return val !== undefined ? { ...ev, description: val } : ev;
+                    }));
+                }
+            }
         } catch (e) {}
         setShowResultsModal(true);
     };
@@ -572,38 +615,41 @@ const Admin: React.FC = () => {
                                    {[...Array(10)].map((_, i) => (
                                        <div key={i+1} className="flex items-center gap-3">
                                            <span className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-xs font-bold text-gray-500">#{i+1}</span>
-                                           <select value={positions[i+1]} onChange={e => setPositions({...positions, [i+1]: e.target.value})} className="flex-1 bg-gray-50 border-none rounded-lg p-2 text-sm font-bold"><option value="">--</option>{driversList.map(d => <option key={d.code} value={d.code}>{d.code} - {d.name}</option>)}</select>
+                                           <select value={getDriverAtPosition(i+1)} onChange={e => setDriverAtPosition(i+1, e.target.value)} className="flex-1 bg-gray-50 border-none rounded-lg p-2 text-sm font-bold"><option value="">--</option>{driversList.map(d => <option key={d.code} value={d.code}>{d.code} - {d.name}</option>)}</select>
                                        </div>
                                    ))}
                                </div>
                                <div className="space-y-6">
                                    <h4 className="text-xs font-black uppercase text-blue-600">Eventos de Carrera</h4>
                                    <div className="space-y-4 bg-gray-50 p-6 rounded-3xl">
-                                           <div><label className="text-[10px] font-black uppercase text-gray-400">Vuelta Rápida</label><select value={events.FASTEST_LAP} onChange={e => setEvents({...events, FASTEST_LAP: e.target.value})} className="w-full mt-1 bg-white border-none rounded-lg p-2 text-sm font-bold"><option value="">--</option>{driversList.map(d => <option key={d.code} value={d.code}>{d.code}</option>)}</select></div>
-                                           <div><label className="text-[10px] font-black uppercase text-gray-400">Safety Car</label><select value={events.SAFETY_CAR} onChange={e => setEvents({...events, SAFETY_CAR: e.target.value})} className="w-full mt-1 bg-white border-none rounded-lg p-2 text-sm font-bold"><option value="No">No</option><option value="Yes">Sí</option></select></div>
+                                           <div><label className="text-[10px] font-black uppercase text-gray-400">Vuelta Rápida</label><select value={getEventValue("FASTEST_LAP")} onChange={e => setEventValue("FASTEST_LAP", e.target.value)} className="w-full mt-1 bg-white border-none rounded-lg p-2 text-sm font-bold"><option value="">--</option>{driversList.map(d => <option key={d.code} value={d.code}>{d.code}</option>)}</select></div>
+                                           <div><label className="text-[10px] font-black uppercase text-gray-400">Safety Car</label><select value={getEventValue("SAFETY_CAR")} onChange={e => setEventValue("SAFETY_CAR", e.target.value)} className="w-full mt-1 bg-white border-none rounded-lg p-2 text-sm font-bold"><option value="No">No</option><option value="Yes">Sí</option></select></div>
                                            {/* ... (Sección Abandonos igual que antes) ... */}
                                            <div className="bg-red-50 p-4 rounded-xl space-y-3 border border-red-100">
-                                                <div className="flex justify-between items-center"><label className="text-[10px] font-black uppercase text-red-400">Lista de Abandonos</label><span className="text-[10px] font-bold text-red-600 bg-white px-2 py-0.5 rounded-full shadow-sm">Total: {events.DNFS || 0}</span></div>
+                                                <div className="flex justify-between items-center"><label className="text-[10px] font-black uppercase text-red-400">Lista de Abandonos</label><span className="text-[10px] font-bold text-red-600 bg-white px-2 py-0.5 rounded-full shadow-sm">Total: {getEventValue("DNFS") || 0}</span></div>
                                                 <select value="" onChange={(e) => {
                                                         const selectedDriverCode = e.target.value;
                                                         if (!selectedDriverCode) return;
-                                                        const currentList = events.DNF_DRIVER ? events.DNF_DRIVER.split(",").map(s => s.trim()).filter(s => s) : [];
+                                                        const currentDnf = getEventValue("DNF_DRIVER");
+                                                        const currentList = currentDnf ? currentDnf.split(",").map(s => s.trim()).filter(s => s) : [];
                                                         if (!currentList.includes(selectedDriverCode)) {
                                                             const newList = [...currentList, selectedDriverCode];
-                                                            setEvents({...events, DNF_DRIVER: newList.join(", "), DNFS: newList.length.toString()});
+                                                            setEventValue("DNF_DRIVER", newList.join(", "));
+                                                            setEventValue("DNFS", newList.length.toString());
                                                         }
                                                     }} className="w-full bg-white border border-red-100 rounded-lg p-2 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-red-200">
                                                     <option value="">+ Añadir Piloto a DNF</option>{driversList.map(d => (<option key={d.code} value={d.code}>{d.code} - {d.name}</option>))}
                                                 </select>
                                                 <div className="flex flex-wrap gap-2 mt-2 min-h-[40px] p-2 bg-white rounded-lg border border-red-50">
-                                                    {!events.DNF_DRIVER ? (<span className="text-xs text-gray-300 italic p-1">Ningún abandono seleccionado</span>) : (
-                                                        events.DNF_DRIVER.split(",").map(code => code.trim()).filter(c => c).map((code, idx) => (
+                                                    {!getEventValue("DNF_DRIVER") ? (<span className="text-xs text-gray-300 italic p-1">Ningún abandono seleccionado</span>) : (
+                                                        getEventValue("DNF_DRIVER").split(",").map(code => code.trim()).filter(c => c).map((code, idx) => (
                                                             <div key={idx} className="flex items-center gap-1 pl-3 pr-1 py-1 bg-red-100 text-red-700 rounded-full border border-red-200 shadow-sm animate-in fade-in zoom-in duration-200">
                                                                 <span className="text-xs font-black">{code}</span>
                                                                 <button onClick={() => {
-                                                                        const currentList = events.DNF_DRIVER.split(",").map(s => s.trim());
+                                                                        const currentList = getEventValue("DNF_DRIVER").split(",").map(s => s.trim());
                                                                         const newList = currentList.filter(c => c !== code);
-                                                                        setEvents({...events, DNF_DRIVER: newList.join(", "), DNFS: newList.length.toString()});
+                                                                        setEventValue("DNF_DRIVER", newList.join(", "));
+                                                                        setEventValue("DNFS", newList.length.toString());
                                                                     }} className="p-1 hover:bg-red-200 rounded-full text-red-400 hover:text-red-800 transition-colors"><XCircle size={14} /></button>
                                                             </div>
                                                         ))
@@ -767,7 +813,7 @@ const Admin: React.FC = () => {
 
     const toggleComplete = async (tile: any) => {
         try {
-            await API.updateBingoTile(tile.id, { is_completed: !tile.is_completed });
+            await API.updateBingoTile(tile.id, { isCompleted: !tile.is_completed });
             loadTiles();
         } catch (e) { alert("Error actualizando estado"); }
     };
