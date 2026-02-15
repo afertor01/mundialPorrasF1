@@ -1,36 +1,33 @@
-from typing import Dict, List
-from app.db.models.multiplier_config import MultiplierConfigs
-from app.db.models.prediction import Predictions
-from app.db.models.prediction_event import PredictionEvents
-from app.db.models.prediction_position import PredictionPositions
-from app.db.models.race_event import RaceEvents
-from app.db.models.race_position import RacePositions
-from app.db.models.race_result import RaceResults
-
-
-def get_podium_drivers(positions_list: List[RacePositions]) -> List[str | None]:
+def get_podium_drivers(positions_list):
     """
     Extrae los pilotos en las posiciones 1, 2 y 3.
     Devuelve una lista [1º, 2º, 3º] o None en esa posición si falta.
     """
+    # Creamos un mapa {posicion: driver_name}
+    pos_map = {p.position: p.driver_name for p in positions_list}
     
     # Retornamos [P1, P2, P3] usando .get() por si acaso falta alguno
-    return [p.driver_name for p in sorted(positions_list, key=lambda x: x.position)][:3]
+    return [pos_map.get(1), pos_map.get(2), pos_map.get(3)]
 
-def calculate_base_points(prediction_positions: List[PredictionPositions], race_positions: List[RacePositions]) -> int:
-    real_map = {
-        race_position.driver_name: race_position.position
-        for race_position in race_positions
+def build_real_positions_map(race_positions):
+    """
+    Devuelve: {driver_name: position}
+    """
+    return {
+        rp.driver_name: rp.position
+        for rp in race_positions
     }
 
+def calculate_base_points(prediction_positions, race_positions):
+    real_map = build_real_positions_map(race_positions)
     total = 0
 
-    for prediction_position in prediction_positions:
-        real_pos = real_map.get(prediction_position.driver_name)
+    for pp in prediction_positions:
+        real_pos = real_map.get(pp.driver_name)
         if not real_pos:
             continue
 
-        diff = abs(prediction_position.position - real_pos)
+        diff = abs(pp.position - real_pos)
 
         if diff == 0:
             total += 3
@@ -39,7 +36,7 @@ def calculate_base_points(prediction_positions: List[PredictionPositions], race_
 
     return total
 
-def build_event_map(events: List[RaceEvents | PredictionEvents]) -> Dict[str, str]:
+def build_event_map(events):
     """
     Devuelve: {event_type: value}
     """
@@ -48,18 +45,36 @@ def build_event_map(events: List[RaceEvents | PredictionEvents]) -> Dict[str, st
         for e in events
     }
 
-def get_correct_events(prediction_events: List[PredictionEvents], race_events: List[RaceEvents]) -> List[str]:
+def get_correct_events(prediction_events, race_events):
     real_events = build_event_map(race_events)
     correct = []
 
     for pe in prediction_events:
-        if pe.event_type in real_events:
-            if str(pe.value) == str(real_events[pe.event_type]):
+        # Obtenemos el valor real, si no existe asumimos cadena vacía ""
+        real_val = str(real_events.get(pe.event_type, ""))
+        pred_val = str(pe.value) if pe.value is not None else ""
+
+        if pe.event_type == "DNF_DRIVER":
+            # Si real_val es "", la lista será ['']. Si pred_val es "", coincide.
+            real_dnf_list = [x.strip() for x in real_val.split(",")]
+            # Limpiamos cadenas vacías de la lista real por si acaso
+            real_dnf_list = [x for x in real_dnf_list if x] 
+            
+            if not real_dnf_list and not pred_val:
+                 # Caso especial: Realidad vacía y predicción vacía -> Acierto
+                 correct.append(pe.event_type)
+            elif pred_val in real_dnf_list:
                 correct.append(pe.event_type)
 
+        # Lógica estándar para el resto (Safety Car, etc)
+        # Nota: Asegúrate de que real_events tenga las claves para SC, etc.
+        elif pe.event_type in real_events: 
+             if pred_val == real_val:
+                correct.append(pe.event_type)
+                
     return correct
 
-def calculate_multiplier(correct_events: List[str], multiplier_configs: List[MultiplierConfigs]) -> float:
+def calculate_multiplier(correct_events, multiplier_configs):
     multiplier = 1.0
 
     for mc in multiplier_configs:
@@ -68,7 +83,7 @@ def calculate_multiplier(correct_events: List[str], multiplier_configs: List[Mul
 
     return multiplier
 
-def evaluate_podium(prediction_positions: List[PredictionPositions], race_positions: List[RacePositions]) -> Dict[str, bool]:
+def evaluate_podium(prediction_positions, race_positions):
     pred_podium = get_podium_drivers(prediction_positions)
     real_podium = get_podium_drivers(race_positions)
 
@@ -88,10 +103,10 @@ def evaluate_podium(prediction_positions: List[PredictionPositions], race_positi
 
 
 def calculate_prediction_score(
-    prediction: Predictions,
-    race_result: RaceResults,
-    multiplier_configs: List[MultiplierConfigs]
-) -> Dict[str, int | float | List[str]]:
+    prediction,
+    race_result,
+    multiplier_configs
+):
     base_points = calculate_base_points(
         prediction.positions,
         race_result.positions

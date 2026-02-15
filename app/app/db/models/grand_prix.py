@@ -8,6 +8,7 @@ class GrandPrix(SQLModel, table=True):
     name: str = Field(description="Nombre del gran premio", nullable=False)
     race_datetime: datetime = Field(description="Fecha y hora de la carrera", nullable=False)
     season_id: int = Field(description="ID de la temporada a la que pertenece este gran premio", foreign_key="seasons.id", nullable=False)
+    qualy_results: list[str] | None = Field(description="Resultados de la clasificación", nullable=True)
 
     # Relaciones
     season: "Seasons" = Relationship(back_populates="grand_prixes")

@@ -1,6 +1,8 @@
 from typing import Annotated, Any, Dict, List
+from app.schemas.responses import AchievementResponse
 from fastapi import APIRouter, Query, HTTPException, Depends
 from sqlalchemy import or_, func, desc
+from sqlalchemy.orm import joinedload
 from app.db.session import SessionMaker, get_session
 from app.core.deps import get_current_user
 from app.db.models.prediction import Predictions
@@ -462,5 +464,59 @@ class StatsRepository:
         res = self._calculate_stats(user_id)
 
         return res
+
+    def get_user_achievements(self, user_id: int):
+        # Verificar que el usuario existe
+        user = self.session.get(Users, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        query = select(Achievements)
+        all_achievements = self.session.exec(query).all()
+        
+        # Carga optimizada de los logros del usuario con sus relaciones
+        query = select(UserAchievements).options(
+            joinedload(UserAchievements.gp).joinedload(GrandPrix.season),
+            joinedload(UserAchievements.season)
+        ).filter(UserAchievements.user_id == user_id)
+        unlocked_rows = self.session.exec(query).all()
+        
+
+        unlocked_map = {}
+        for u in unlocked_rows:
+            season_name = None
+            if u.season:
+                season_name = u.season.name
+            elif u.gp and u.gp.season:
+                season_name = u.gp.season.name
+                
+            unlocked_map[u.achievement_id] = {
+                "unlocked_at": u.unlocked_at,
+                "gp_name": u.gp.name if u.gp else None,
+                "season_name": season_name
+            }
+        
+        result = []
+        for ach in all_achievements:
+            is_unlocked = ach.id in unlocked_map
+            unlocked_data = unlocked_map.get(ach.id)
+
+            is_hidden = ach.rarity == "HIDDEN" and not is_unlocked
+            
+            result.append(AchievementResponse(
+                id=ach.id,
+                slug=ach.slug,
+                name=ach.name if not is_hidden else "???",
+                description=ach.description if not is_hidden else "???",
+                icon=ach.icon if not is_hidden else "hidden.png",
+                rarity=ach.rarity,
+                type=ach.type,
+                is_unlocked=is_unlocked,
+                unlocked_at=unlocked_data["unlocked_at"] if unlocked_data else None,
+                gp_name=unlocked_data["gp_name"] if unlocked_data else None,
+                season_name=unlocked_data["season_name"] if unlocked_data else None
+            ))
+            
+        return result
 
     

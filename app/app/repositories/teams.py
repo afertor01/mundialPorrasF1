@@ -4,6 +4,7 @@ from typing import Annotated, Dict
 from app.db.models.user import Users
 from app.schemas.requests import TeamCreateRequest
 from app.schemas.responses import MyTeamResponse, TeamResponse
+from app.services.achievements_service import grant_achievements
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import joinedload
 from app.db.session import SessionMaker, get_session
@@ -101,6 +102,7 @@ class TeamsRepository:
         
         self.session.commit()
         self.session.refresh(new_team)
+        grant_achievements(session=self.session, user_id=current_user.id, slugs=["event_founder","event_join_team"])
         
         return {"message": "Escudería creada con éxito", "code": code}
 
@@ -150,6 +152,7 @@ class TeamsRepository:
         self.session.add(new_member)
         
         self.session.commit()
+        grant_achievements(session=self.session, user_id=current_user.id, slugs=["event_join_team"])
 
         # Usamos la variable team_name, no team.name (que podría dar error de 'DetachedInstance')
         return {"message": f"Te has unido a {team.name} correctamente."}

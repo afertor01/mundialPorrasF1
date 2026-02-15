@@ -1,6 +1,21 @@
-from datetime import datetime, timezone
-
+from datetime import datetime
+from datetime import datetime
+from enum import StrEnum
 from sqlmodel import Field, Relationship, SQLModel, func
+
+# --- ENUMS PARA CATEGORIZACIÓN ---
+class AchievementRarity(StrEnum):
+    COMMON = "COMMON"
+    RARE = "RARE"
+    EPIC = "EPIC"
+    LEGENDARY = "LEGENDARY"
+    HIDDEN = "HIDDEN"
+
+class AchievementType(StrEnum):
+    EVENT = "EVENT"       # Se calcula al instante tras una carrera
+    SEASON = "SEASON"     # Se calcula consultando el agregado de la temporada actual
+    CAREER = "CAREER"     # Se calcula consultando el histórico total
+
 
 class Achievements(SQLModel, table=True):
     __tablename__ = "achievements"
@@ -10,6 +25,10 @@ class Achievements(SQLModel, table=True):
     name: str = Field(description="Nombre del logro")
     description: str = Field(description="Descripción del logro")
     icon: str = Field(description="Icono del logro (Trophy, Zap, etc)")
+    
+    # Nuevas columnas
+    rarity: AchievementRarity = Field(default=AchievementRarity.COMMON)
+    type: AchievementType = Field(default=AchievementType.EVENT)
 
 class UserAchievements(SQLModel, table=True):
     __tablename__ = "user_achievements"
@@ -20,7 +39,11 @@ class UserAchievements(SQLModel, table=True):
     unlocked_at: datetime = Field(description="Fecha de desbloqueo del logro", sa_column_kwargs={
         "server_default": func.now(),
     })
+    season_id: int = Field(foreign_key="seasons.id", nullable=True)
+    gp_id: int = Field(foreign_key="grand_prix.id", nullable=True)
 
     # Relaciones
-    user: "Users" = Relationship(back_populates="achievements")
     achievement: Achievements = Relationship()
+    user: "Users" = Relationship(back_populates="achievements")
+    gp: "GrandPrix" = Relationship("GrandPrix")
+    season: "Season" = Relationship("Season")

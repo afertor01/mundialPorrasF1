@@ -53,3 +53,6 @@ class StatsService:
 
     def get_user_stats(self, user_id: int):
         return self.stats_repository.get_user_stats(user_id)
+
+    def get_user_achievements(self, user_id: int):
+        return self.stats_repository.get_user_achievements(user_id)

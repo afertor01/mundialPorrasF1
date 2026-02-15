@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Settings, Calendar, Users, Shield, Flag, LayoutGrid, 
   Plus, Trash2, Edit2, CheckCircle, XCircle, Save, AlertTriangle, Upload, Trophy,
-  Search, X, Image, RefreshCw, Terminal
+  Search, X, Image, RefreshCw, Terminal, Timer
 } from "lucide-react";
 
 const Admin: React.FC = () => {
@@ -349,12 +349,15 @@ const Admin: React.FC = () => {
   // ------------------------------------------
   // TAB: GRANDES PREMIOS (CON AUTO-SYNC)
   // ------------------------------------------
+  // ------------------------------------------
+  // TAB: GRANDES PREMIOS (CON AUTO-SYNC & QUALY)
+  // ------------------------------------------
   const GPsTab = () => {
     const [gps, setGps] = useState<any[]>([]);
     const [file, setFile] = useState<File | null>(null);
     const [driversList, setDriversList] = useState<any[]>([]);
     
-    // Manual Edit States
+    // --- Manual Edit States (Carrera) ---
     const [showResultsModal, setShowResultsModal] = useState(false);
     const [resultGp, setResultGp] = useState<any | null>(null);
     const [positions, setPositions] = useState<Record<number, string>>({});
@@ -362,8 +365,13 @@ const Admin: React.FC = () => {
     const [editingGp, setEditingGp] = useState<any | null>(null);
     const [newDate, setNewDate] = useState("");
 
-    // Auto-Sync States
-    const [syncingId, setSyncingId] = useState<number | null>(null);
+    // --- Qualy View States ---
+    const [showQualyModal, setShowQualyModal] = useState(false);
+    const [selectedQualyGp, setSelectedQualyGp] = useState<any | null>(null);
+
+    // --- Auto-Sync States (Consola) ---
+    const [syncingId, setSyncingId] = useState<number | null>(null);      // Para Carrera
+    const [syncingQualyId, setSyncingQualyId] = useState<number | null>(null); // Para Qualy
     const [syncResult, setSyncResult] = useState<{success: boolean, logs: string[]} | null>(null);
     const [showSyncModal, setShowSyncModal] = useState(false);
 
@@ -378,6 +386,7 @@ const Admin: React.FC = () => {
         });
     };
 
+    // --- Lógica Modal Carrera ---
     const handleOpenResults = async (gp: any) => {
         setResultGp(gp);
         const defaultPos: any = {}; for(let i=1; i<=10; i++) defaultPos[i] = "";
@@ -388,6 +397,12 @@ const Admin: React.FC = () => {
             if (data) { setPositions(data.positions); setEvents(data.events); }
         } catch (e) {}
         setShowResultsModal(true);
+    };
+
+    // --- Lógica Modal Qualy ---
+    const handleOpenQualy = (gp: any) => {
+        setSelectedQualyGp(gp);
+        setShowQualyModal(true);
     };
 
     const handleEditGp = (gp: any) => {
@@ -407,17 +422,18 @@ const Admin: React.FC = () => {
         } catch(e) { alert("Error actualizando GP"); }
     };
 
-    // --- LOGICA DE SINCRONIZACIÓN AUTOMÁTICA ---
+    // --- SINCRONIZACIÓN AUTOMÁTICA (CARRERA) ---
     const handleSync = async (gp: any) => {
-        if(!confirm(`¿Conectar con la FIA para descargar resultados de ${gp.name}?`)) return;
+        if(!confirm(`¿Conectar con la FIA para descargar resultados de CARRERA de ${gp.name}?`)) return;
         
         setSyncingId(gp.id);
         setSyncResult(null);
-        setShowSyncModal(true);
+        setShowSyncModal(true); // Abre consola
 
         try {
             const data = await API.syncRaceData(gp.id);
-            setSyncResult(data);
+            const result = data && data.logs ? data : { success: data?.success, logs: ["✅ Operación completada, pero no se generaron logs detallados."] };
+            setSyncResult(result);
             loadGps(); 
         } catch (e) {
             setSyncResult({
@@ -428,6 +444,30 @@ const Admin: React.FC = () => {
             setSyncingId(null);
         }
     };
+
+    // --- SINCRONIZACIÓN AUTOMÁTICA (QUALY) ---
+    const handleSyncQualy = async (gp: any) => {
+        if(!confirm(`¿Conectar con la FIA para descargar resultados de CLASIFICACIÓN (Qualy) de ${gp.name}?`)) return;
+
+        setSyncingQualyId(gp.id);
+        setSyncResult(null);
+        setShowSyncModal(true); // Reutilizamos la misma consola
+
+        try {
+            // Asumiendo que has creado este endpoint en api.ts
+            const data = await (API as any).syncQualyData(gp.id); 
+            const result = data && data.logs ? data : { success: data?.success, logs: ["✅ Operación completada, pero no se generaron logs detallados."] };
+            setSyncResult(result);
+            loadGps();
+        } catch (e) {
+             setSyncResult({
+                success: false,
+                logs: ["❌ Error de conexión al sincronizar Qualy.", "Revisa logs del servidor."]
+            });
+        } finally {
+            setSyncingQualyId(null);
+        }
+    }
 
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -440,32 +480,71 @@ const Admin: React.FC = () => {
             </Card>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {gps.map(gp => (
+            {gps.map(gp => {
+                const hasQualyData = gp.qualy_results && gp.qualy_results.length > 0;
+                
+                return (
                 <div key={gp.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:border-blue-200 transition-all group relative">
-                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Botones Flotantes Editar/Borrar GP */}
+                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                          <button onClick={() => handleEditGp(gp)} className="p-1.5 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-100"><Edit2 size={14}/></button>
                          <button onClick={() => { if(confirm("¿Borrar GP?")) API.deleteGP(gp.id).then(loadGps) }} className="p-1.5 bg-red-50 text-red-400 rounded-lg hover:bg-red-100"><Trash2 size={14}/></button>
                     </div>
+                    
                     <div className="flex justify-between items-start mb-4"><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest border border-gray-100 px-2 py-1 rounded">{new Date(gp.race_datetime).toLocaleString()}</span></div>
                     <h4 className="text-xl font-black italic uppercase tracking-tighter text-gray-800 mb-6 truncate">{gp.name}</h4>
                     
-                    <div className="flex flex-col gap-2">
-                        <button onClick={() => handleOpenResults(gp)} className="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all flex items-center justify-center gap-2"><Trophy size={14}/> Editar Manual</button>
-                        
-                        {/* BOTÓN AUTO-SYNC */}
-                        <button 
-                            onClick={() => handleSync(gp)} 
-                            disabled={syncingId !== null}
-                            className={`w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg transition-all flex items-center justify-center gap-2 ${syncingId === gp.id ? "bg-f1-red/80 cursor-wait" : "bg-f1-red hover:bg-red-700 shadow-red-200"}`}
-                        >
-                            {syncingId === gp.id ? <><RefreshCw size={14} className="animate-spin"/> Conectando FIA...</> : <><RefreshCw size={14}/> Auto-Sincronizar</>}
-                        </button>
+                    <div className="flex flex-col gap-3">
+                        {/* GRUPO CARRERA */}
+                        <div className="flex gap-2">
+                             <button 
+                                onClick={() => handleOpenResults(gp)} 
+                                className="flex-[2] py-3 bg-gray-100 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Trophy size={14}/> Edit Race
+                            </button>
+                            <button 
+                                onClick={() => handleSync(gp)} 
+                                disabled={syncingId !== null}
+                                className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg transition-all flex items-center justify-center gap-2 ${syncingId === gp.id ? "bg-f1-red/80 cursor-wait" : "bg-f1-red hover:bg-red-700 shadow-red-200"}`}
+                                title="Sincronizar Carrera"
+                            >
+                                {syncingId === gp.id ? <RefreshCw size={14} className="animate-spin"/> : <RefreshCw size={14}/>}
+                            </button>
+                        </div>
+
+                        {/* GRUPO QUALY */}
+                        <div className="flex gap-2">
+                             {/* Botón Ver Qualy (Solo si hay datos) */}
+                             {hasQualyData ? (
+                                <button 
+                                    onClick={() => handleOpenQualy(gp)} 
+                                    className="flex-[2] py-3 bg-indigo-50 text-indigo-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Timer size={14}/> Ver Qualy
+                                </button>
+                             ) : (
+                                <div className="flex-[2] py-3 border border-dashed border-gray-200 rounded-xl flex items-center justify-center text-[9px] text-gray-300 font-bold uppercase select-none">
+                                    No Data
+                                </div>
+                             )}
+
+                            {/* Botón Sync Qualy (Siempre visible) */}
+                            <button 
+                                onClick={() => handleSyncQualy(gp)} 
+                                disabled={syncingQualyId !== null}
+                                className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg transition-all flex items-center justify-center gap-2 ${syncingQualyId === gp.id ? "bg-indigo-400 cursor-wait" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200"}`}
+                                title="Sincronizar Clasificación"
+                            >
+                                {syncingQualyId === gp.id ? <RefreshCw size={14} className="animate-spin"/> : <RefreshCw size={14}/>}
+                            </button>
+                        </div>
                     </div>
                 </div>
-            ))}
+            )})}
         </div>
 
-        {/* MODAL EDITAR GP */}
+        {/* MODAL EDITAR FECHA GP */}
         <AnimatePresence>
             {editingGp && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
@@ -480,12 +559,12 @@ const Admin: React.FC = () => {
             )}
         </AnimatePresence>
 
-        {/* MODAL RESULTADOS MANUALES */}
+        {/* MODAL RESULTADOS MANUALES (CARRERA) */}
         <AnimatePresence>
             {showResultsModal && (
                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
-                       <div className="bg-f1-dark p-6 text-white flex justify-between items-center"><h3 className="text-xl font-black italic uppercase">Resultados Oficiales: {resultGp?.name}</h3><button onClick={() => setShowResultsModal(false)}><XCircle /></button></div>
+                       <div className="bg-f1-dark p-6 text-white flex justify-between items-center"><h3 className="text-xl font-black italic uppercase">Resultados Carrera: {resultGp?.name}</h3><button onClick={() => setShowResultsModal(false)}><XCircle /></button></div>
                        <div className="p-8 overflow-y-auto max-h-[70vh]">
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                <div className="space-y-3">
@@ -502,7 +581,35 @@ const Admin: React.FC = () => {
                                    <div className="space-y-4 bg-gray-50 p-6 rounded-3xl">
                                            <div><label className="text-[10px] font-black uppercase text-gray-400">Vuelta Rápida</label><select value={events.FASTEST_LAP} onChange={e => setEvents({...events, FASTEST_LAP: e.target.value})} className="w-full mt-1 bg-white border-none rounded-lg p-2 text-sm font-bold"><option value="">--</option>{driversList.map(d => <option key={d.code} value={d.code}>{d.code}</option>)}</select></div>
                                            <div><label className="text-[10px] font-black uppercase text-gray-400">Safety Car</label><select value={events.SAFETY_CAR} onChange={e => setEvents({...events, SAFETY_CAR: e.target.value})} className="w-full mt-1 bg-white border-none rounded-lg p-2 text-sm font-bold"><option value="No">No</option><option value="Yes">Sí</option></select></div>
-                                           <div><label className="text-[10px] font-black uppercase text-gray-400">Abandonos</label><input type="number" value={events.DNFS} onChange={e => setEvents({...events, DNFS: e.target.value})} className="w-full mt-1 bg-white border-none rounded-lg p-2 text-sm font-bold"/></div>
+                                           {/* ... (Sección Abandonos igual que antes) ... */}
+                                           <div className="bg-red-50 p-4 rounded-xl space-y-3 border border-red-100">
+                                                <div className="flex justify-between items-center"><label className="text-[10px] font-black uppercase text-red-400">Lista de Abandonos</label><span className="text-[10px] font-bold text-red-600 bg-white px-2 py-0.5 rounded-full shadow-sm">Total: {events.DNFS || 0}</span></div>
+                                                <select value="" onChange={(e) => {
+                                                        const selectedDriverCode = e.target.value;
+                                                        if (!selectedDriverCode) return;
+                                                        const currentList = events.DNF_DRIVER ? events.DNF_DRIVER.split(",").map(s => s.trim()).filter(s => s) : [];
+                                                        if (!currentList.includes(selectedDriverCode)) {
+                                                            const newList = [...currentList, selectedDriverCode];
+                                                            setEvents({...events, DNF_DRIVER: newList.join(", "), DNFS: newList.length.toString()});
+                                                        }
+                                                    }} className="w-full bg-white border border-red-100 rounded-lg p-2 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-red-200">
+                                                    <option value="">+ Añadir Piloto a DNF</option>{driversList.map(d => (<option key={d.code} value={d.code}>{d.code} - {d.name}</option>))}
+                                                </select>
+                                                <div className="flex flex-wrap gap-2 mt-2 min-h-[40px] p-2 bg-white rounded-lg border border-red-50">
+                                                    {!events.DNF_DRIVER ? (<span className="text-xs text-gray-300 italic p-1">Ningún abandono seleccionado</span>) : (
+                                                        events.DNF_DRIVER.split(",").map(code => code.trim()).filter(c => c).map((code, idx) => (
+                                                            <div key={idx} className="flex items-center gap-1 pl-3 pr-1 py-1 bg-red-100 text-red-700 rounded-full border border-red-200 shadow-sm animate-in fade-in zoom-in duration-200">
+                                                                <span className="text-xs font-black">{code}</span>
+                                                                <button onClick={() => {
+                                                                        const currentList = events.DNF_DRIVER.split(",").map(s => s.trim());
+                                                                        const newList = currentList.filter(c => c !== code);
+                                                                        setEvents({...events, DNF_DRIVER: newList.join(", "), DNFS: newList.length.toString()});
+                                                                    }} className="p-1 hover:bg-red-200 rounded-full text-red-400 hover:text-red-800 transition-colors"><XCircle size={14} /></button>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
                                    </div>
                                    <button onClick={() => API.saveRaceResult(resultGp.id, positions, events).then(() => setShowResultsModal(false))} className="w-full py-4 bg-green-600 text-white font-black rounded-2xl shadow-lg shadow-green-100 hover:bg-green-700 transition-all uppercase italic tracking-tighter">Guardar y Calcular Puntos</button>
                                </div>
@@ -513,17 +620,57 @@ const Admin: React.FC = () => {
             )}
        </AnimatePresence>
 
-        {/* MODAL TERMINAL SYNC */}
+        {/* MODAL VER RESULTADOS QUALY (NUEVO) */}
+        <AnimatePresence>
+            {showQualyModal && selectedQualyGp && (
+               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+                   <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[2rem] w-full max-w-md overflow-hidden shadow-2xl">
+                       <div className="bg-indigo-600 p-6 text-white flex justify-between items-center">
+                           <div className="flex items-center gap-2">
+                               <Timer className="text-indigo-200" size={20}/>
+                               <h3 className="text-lg font-black italic uppercase">Clasificación: {selectedQualyGp.name}</h3>
+                           </div>
+                           <button onClick={() => setShowQualyModal(false)} className="hover:text-indigo-200 transition-colors"><XCircle /></button>
+                       </div>
+                       <div className="p-6 overflow-y-auto max-h-[70vh] bg-gray-50">
+                           {selectedQualyGp.qualy_results && selectedQualyGp.qualy_results.length > 0 ? (
+                               <div className="space-y-2">
+                                   {selectedQualyGp.qualy_results.map((driver: string, index: number) => (
+                                       <div key={index} className="flex items-center bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                                            <div className="w-8 h-8 flex items-center justify-center bg-indigo-50 text-indigo-600 font-black rounded-lg mr-3 text-sm">
+                                                {index + 1}
+                                            </div>
+                                            <span className="font-bold text-gray-800 text-lg">{driver}</span>
+                                            {index < 3 && <span className="ml-auto text-yellow-400"><Trophy size={16}/></span>}
+                                       </div>
+                                   ))}
+                               </div>
+                           ) : (
+                               <div className="text-center py-10 text-gray-400 italic font-bold">No hay datos de clasificación disponibles.</div>
+                           )}
+                           <button onClick={() => setShowQualyModal(false)} className="w-full mt-6 py-3 bg-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-300 transition-all">Cerrar</button>
+                       </div>
+                   </motion.div>
+               </div>
+            )}
+        </AnimatePresence>
+
+        {/* MODAL TERMINAL SYNC (COMPARTIDO) */}
         <AnimatePresence>
             {showSyncModal && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
                     <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#1e1e1e] rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl border border-gray-700 flex flex-col max-h-[80vh]">
                         <div className="bg-[#2d2d2d] px-4 py-3 flex justify-between items-center border-b border-gray-700">
                             <div className="flex items-center gap-2 text-gray-400 text-xs font-mono"><Terminal size={14} /><span>f1_sync_service.exe</span></div>
-                            {!syncingId && (<button onClick={() => setShowSyncModal(false)} className="text-gray-400 hover:text-white transition-colors"><XCircle size={18}/></button>)}
+                            {(!syncingId && !syncingQualyId) && (<button onClick={() => setShowSyncModal(false)} className="text-gray-400 hover:text-white transition-colors"><XCircle size={18}/></button>)}
                         </div>
                         <div className="p-6 overflow-y-auto font-mono text-xs md:text-sm space-y-2 flex-1">
-                            {syncingId && !syncResult && (<div className="flex items-center gap-3 text-yellow-400 animate-pulse"><RefreshCw size={16} className="animate-spin"/><span>Estableciendo conexión satelital con API FastF1...</span></div>)}
+                            {(syncingId || syncingQualyId) && !syncResult && (
+                                <div className="flex items-center gap-3 text-yellow-400 animate-pulse">
+                                    <RefreshCw size={16} className="animate-spin"/>
+                                    <span>Conectando satélite con FIA API ({syncingQualyId ? "Qualy" : "Race"})...</span>
+                                </div>
+                            )}
                             {syncResult?.logs.map((log, idx) => {
                                 let colorClass = "text-gray-300";
                                 if (log.includes("✅")) colorClass = "text-green-400";
@@ -533,7 +680,7 @@ const Admin: React.FC = () => {
                                 return (<div key={idx} className={`${colorClass} border-b border-white/5 pb-1 mb-1 last:border-0`}><span className="opacity-50 mr-2">[{new Date().toLocaleTimeString()}]</span>{log}</div>);
                             })}
                         </div>
-                        {!syncingId && (<div className="bg-[#2d2d2d] p-4 flex justify-end border-t border-gray-700"><button onClick={() => setShowSyncModal(false)} className="px-6 py-2 bg-white text-black font-bold text-xs uppercase tracking-wider rounded hover:bg-gray-200 transition-colors">Cerrar Consola</button></div>)}
+                        {(!syncingId && !syncingQualyId) && (<div className="bg-[#2d2d2d] p-4 flex justify-end border-t border-gray-700"><button onClick={() => setShowSyncModal(false)} className="px-6 py-2 bg-white text-black font-bold text-xs uppercase tracking-wider rounded hover:bg-gray-200 transition-colors">Cerrar Consola</button></div>)}
                     </motion.div>
                 </div>
             )}

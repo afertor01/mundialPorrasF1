@@ -1,6 +1,7 @@
 from typing import Annotated, Any, Dict, List
 
 from app.db.models.user import Users
+from app.schemas.responses import AchievementResponse
 from app.services.stats import StatsService
 from app.core.deps import get_current_user
 from fastapi import APIRouter, Depends, Query
@@ -43,8 +44,12 @@ class StatsRouter:
         def get_my_stats(stats_service: StatsServiceDep, current_user: Users = Depends(get_current_user)) -> Dict[str, Any]:
             return stats_service.get_my_stats(current_user)
         
-        @api_router.get("/user/{user_id}", description="Estadísticas detalladas de un usuario específico comparadas con el global.", response_model=Dict[str, Any])
+        @api_router.get("/user/{user_id}", description="Estadísticas detalladas de un usuario específico comparadas con el global.", response_model=Dict[str, Any], dependencies=[Depends(get_current_user)])
         def get_user_stats(stats_service: StatsServiceDep, user_id: int) -> Dict[str, Any]:
             return stats_service.get_user_stats(user_id)
+        
+        @api_router.get("/achievements/{user_id}", description="Logros desbloqueados por un usuario específico.", response_model=List[AchievementResponse], dependencies=[Depends(get_current_user)])
+        def get_user_achievements(stats_service: StatsServiceDep, user_id: int) -> List[AchievementResponse]:
+            return stats_service.get_user_achievements(user_id)
 
         return api_router

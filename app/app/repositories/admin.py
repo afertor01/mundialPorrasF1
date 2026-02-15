@@ -23,7 +23,7 @@ from app.db.models.constructor import Constructors
 from app.db.models.driver import Drivers
 from app.db.models.race_result import RaceResults
 from app.core.security import hash_password
-from app.utils.f1_sync import sync_race_data_manual
+from app.utils.f1_sync import sync_qualy_results, sync_race_data_manual
 from app.core.deps import generate_join_code
 
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -493,6 +493,17 @@ class AdminRepository:
             "success": success,
             "logs": logs
         }
+    
+    def sync_gp_qualy(self, gp_id: int):
+        """
+        Sincroniza los resultados de la CLASIFICACIÓN (Sábado) usando FastF1.
+        """
+        result = sync_qualy_results(self.session, gp_id)
+        
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result.get("error", "Error syncing qualy"))
+        
+        return result
 
     # -----------------------
     # Gestión de Escuderías (Teams)

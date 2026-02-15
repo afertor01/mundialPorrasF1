@@ -1,8 +1,8 @@
+from app.db.models.season import Seasons
 import fastf1
 import pandas as pd
 import os
-from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlmodel import delete, select
 
 # TUS MODELOS
 from app.db.models.grand_prix import GrandPrix
@@ -10,7 +10,8 @@ from app.db.models.race_result import RaceResults
 from app.db.models.race_position import RacePositions
 from app.db.models.race_event import RaceEvents
 from app.db.models.driver import Drivers
-from app.utils.achievements import evaluate_race_achievements 
+from app.utils.achievements import evaluate_race_achievements
+from sqlmodel import Session 
 
 # Configuración caché
 CACHE_DIR = 'cache'
@@ -24,10 +25,57 @@ DB_TO_API_MAP = {
     "Gran Premio de Bahrein": "Bahrain",
     "GP Bahrain": "Bahrain",
     "Gran Premio de Arabia Saudí": "Saudi Arabia",
-    # ... resto de tus mapeos
+    "Saudi Arabian Grand Prix": "Saudi Arabia",
+    "Australian Grand Prix": "Australia",
+    "Japanese Grand Prix": "Japan",
+    "Chinese Grand Prix": "China",
+    "Miami Grand Prix": "Miami",
+    "Emilia Romagna Grand Prix": "Imola",
+    "Monaco Grand Prix": "Monaco",
+    "Canadian Grand Prix": "Canada",
+    "Spanish Grand Prix": "Spain",
+    "Austrian Grand Prix": "Austria",
+    "British Grand Prix": "Great Britain",
+    "Hungarian Grand Prix": "Hungary",
+    "Belgian Grand Prix": "Belgium",
+    "Dutch Grand Prix": "Netherlands",
+    "Italian Grand Prix": "Italy",
+    "Azerbaijan Grand Prix": "Azerbaijan",
+    "Singapore Grand Prix": "Singapore",
+    "United States Grand Prix": "United States",
+    "Mexico City Grand Prix": "Mexico",
+    "São Paulo Grand Prix": "Brazil",
+    "Las Vegas Grand Prix": "Las Vegas",
+    "Qatar Grand Prix": "Qatar",
+    "Abu Dhabi Grand Prix": "Abu Dhabi"
 }
 
-def sync_race_data_manual(db: Session, gp_id: int):
+# --- FUNCIÓN 1: Sincronizar QUALY (La que hicimos antes) ---
+def sync_qualy_results(session: Session, gp_id: int):
+    gp = session.get(GrandPrix, gp_id)
+
+    if not gp:
+        return {"success": False, "error": "GP no encontrado"}
+
+    season = session.get(Seasons, gp.season_id)
+    
+    try:
+        api_name = DB_TO_API_MAP.get(gp.name, gp.name)
+        session = fastf1.get_session(season.year, api_name, 'Q')
+        session.load()
+        
+        results = session.results
+        qualy_order = results['Abbreviation'].tolist()
+        
+        gp.qualy_results = qualy_order
+        session.commit()
+        
+        return {"success": True, "data": qualy_order}
+    except Exception as e:
+        print(f"Error syncing qualy: {e}")
+        return {"success": False, "error": str(e)}
+
+def sync_race_data_manual(session: Session, gp_id: int):
     logs = []
     def log(msg):
         logs.append(msg)
@@ -35,19 +83,19 @@ def sync_race_data_manual(db: Session, gp_id: int):
     log(f"🚀 Iniciando análisis avanzado para GP ID: {gp_id}")
 
     # 1. Obtener GP
-    gp = db.get(GrandPrix, gp_id)
+    gp = session.get(GrandPrix, gp_id)
     if not gp:
         log("❌ Error: GP no encontrado.")
         return False, logs
 
     # 2. Limpieza previa (Posiciones y Eventos)
-    existing_result = db.query(RaceResults).filter(RaceResults.gp_id == gp.id).first()
+    existing_result = session.exec(select(RaceResults).where(RaceResults.gp_id == gp.id)).first()
     if existing_result:
         log("⚠️ Resultados previos detectados. Eliminando datos antiguos...")
-        db.query(RacePositions).filter(RacePositions.race_result_id == existing_result.id).delete()
-        db.query(RaceEvents).filter(RaceEvents.race_result_id == existing_result.id).delete()
-        db.delete(existing_result)
-        db.commit()
+        session.exec(delete(RacePositions).where(RacePositions.race_result_id == existing_result.id))
+        session.exec(delete(RaceEvents).where(RaceEvents.race_result_id == existing_result.id))
+        session.delete(existing_result)
+        session.commit()
 
     # 3. Preparar FastF1
     year = gp.race_datetime.year
@@ -71,8 +119,8 @@ def sync_race_data_manual(db: Session, gp_id: int):
 
         # 5. Crear Cabecera
         new_race_result = RaceResults(gp_id=gp.id)
-        db.add(new_race_result)
-        db.flush() # Generar ID
+        session.add(new_race_result)
+        session.flush() # Generar ID
 
         # ==========================================
         # PARTE A: POSICIONES & DNFs (LOGICA MEJORADA)
@@ -86,10 +134,7 @@ def sync_race_data_manual(db: Session, gp_id: int):
         dns_drivers = [] # No empezaron (No cuenta como DNF de carrera)
         dsq_drivers = [] # Descalificados
         
-        db_drivers = db.execute(select(Drivers)).scalars().all()
-        known_codes = {d.code for d in db_drivers}
-
-        for i, row in results.iterrows():
+        for _, row in results.iterrows():
             acronym = row['Abbreviation']
             
             # Datos crudos de FastF1
@@ -132,7 +177,7 @@ def sync_race_data_manual(db: Session, gp_id: int):
             )
             positions_to_add.append(pos_entry)
 
-        db.add_all(positions_to_add)
+        session.add_all(positions_to_add)
         log(f"✅ {len(positions_to_add)} posiciones registradas.")
 
         # ==========================================
@@ -201,22 +246,22 @@ def sync_race_data_manual(db: Session, gp_id: int):
             dnf_list_str = ", ".join(dnf_drivers)
             events_to_add.append(RaceEvents(
                 race_result_id=new_race_result.id,
-                event_type="DNF_LIST", # Nuevo tipo de evento informativo
+                event_type="DNF_DRIVER", # Nuevo tipo de evento informativo
                 value=dnf_list_str
             ))
         
         log(f"💥 DNFs: {len(dnf_drivers)} ({', '.join(dnf_drivers) if dnf_drivers else 'Ninguno'})")
 
         # Guardar Eventos
-        db.add_all(events_to_add)
-        db.commit()
+        session.add_all(events_to_add)
+        session.commit()
 
         # ==========================================
         # PARTE C: CÁLCULOS FINALES
         # ==========================================
         log("🏆 Recalculando puntos y logros de usuarios...")
         try:
-            evaluate_race_achievements(db, gp.id)
+            evaluate_race_achievements(session, gp.id)
             log("✅ Logros actualizados.")
         except Exception as e:
             log(f"⚠️ Error en logros: {e}")
@@ -226,5 +271,5 @@ def sync_race_data_manual(db: Session, gp_id: int):
 
     except Exception as e:
         log(f"❌ Error inesperado: {str(e)}")
-        db.rollback()
+        session.rollback()
         return False, logs

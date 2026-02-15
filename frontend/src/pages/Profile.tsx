@@ -2,16 +2,28 @@ import React, { useEffect, useState, useContext, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import * as API from "../api/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  User, Settings, Image as ImageIcon, Save, Lock, Unlock, 
-  Trophy, Activity, Zap, Star, Shield, CheckCircle, Flag, Info,
-  Flame, Heart, Skull, TrendingUp, Calendar, MapPin, Search, ChevronDown
+import {
+  // Career / Achievement icons
+  Flag, TrendingUp, Award, Star, Calendar, Crosshair, Trophy, Crown, Medal, Target,
+  Gauge, Zap, AlertTriangle, Shield, Activity, Skull, Ghost, UserX,
+
+  // Season icons
+  Battery, BatteryCharging, UserCheck, ShoppingBag,
+
+  // Event icons
+  Play, Users, DollarSign, Package, Hand, Eye, Mic, Sun, Maximize, Swords,
+
+  // Extra icons from your second import
+  User, Settings, Image as ImageIcon, Save, Lock, Unlock, CheckCircle, Info,
+  Flame, Heart, MapPin, Search, ChevronDown, Watch, Smile, Frown, Umbrella,
+  RefreshCw, PenTool, LayoutGrid
 } from "lucide-react";
+
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip 
 } from 'recharts';
 
-// Helper para formatear fechas
+// --- HELPERS ---
 const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "Desconocido";
     try {
@@ -23,7 +35,88 @@ const formatDate = (dateString: string | null | undefined) => {
     } catch (e) { return "Desconocido"; }
 };
 
-// --- BUSCADOR DE PILOTOS (ESTÉTICA ARCHIVO 1) ---
+// --- MAPEO SEGURO DE ICONOS ---
+// Usamos iconos genéricos para evitar crashes si faltan específicos en tu versión de librerías
+const ICON_MAP: any = {
+  // Básicos / Career / Achievement
+  Trophy: <Trophy size={20} />,
+  Star: <Star size={20} />,
+  Award: <Award size={20} />,
+  Crown: <Crown size={20} />,
+  Flag: <Flag size={20} />,
+  Shield: <Shield size={20} />,
+  Zap: <Zap size={20} />,
+  Flame: <Flame size={20} />,
+  Heart: <Heart size={20} />,
+  Skull: <Skull size={20} />,
+  Ghost: <Ghost size={20} />,
+  UserX: <UserX size={20} />,
+  TrendingUp: <TrendingUp size={20} />,
+  Calendar: <Calendar size={20} />,
+  Watch: <Watch size={20} />,
+  Crosshair: <Crosshair size={20} />,
+  Target: <Crosshair size={20} />, // Mapeamos Target a Crosshair por seguridad
+  Gauge: <Gauge size={20} />,
+  AlertTriangle: <AlertTriangle size={20} />,
+
+  // Season
+  Battery: <Battery size={20} />,
+  BatteryCharging: <BatteryCharging size={20} />,
+  UserCheck: <UserCheck size={20} />,
+  ShoppingBag: <ShoppingBag size={20} />,
+
+  // Event
+  Play: <Play size={20} />,
+  Users: <Users size={20} />,
+  DollarSign: <DollarSign size={20} />,
+  Package: <Package size={20} />,
+  Hand: <Hand size={20} />,
+  Eye: <Eye size={20} />,
+  Mic: <Mic size={20} />,
+  Sun: <Sun size={20} />,
+  Maximize: <Maximize size={20} />,
+  Swords: <Swords size={20} />,
+
+  // Extras del segundo import
+  User: <User size={20} />,
+  Settings: <Settings size={20} />,
+  ImageIcon: <ImageIcon size={20} />,
+  Save: <Save size={20} />,
+  Lock: <Lock size={20} />,
+  Unlock: <Unlock size={20} />,
+  CheckCircle: <CheckCircle size={20} />,
+  Info: <Info size={20} />,
+  MapPin: <MapPin size={20} />,
+  Search: <Search size={20} />,
+  ChevronDown: <ChevronDown size={20} />,
+  Smile: <Smile size={20} />,
+  Frown: <Frown size={20} />,
+  Umbrella: <Umbrella size={20} />,
+  RefreshCw: <RefreshCw size={20} />,
+  PenTool: <PenTool size={20} />,
+  Grid: <LayoutGrid size={20} />,
+
+  // Por defecto, si un icono no existe
+  DEFAULT: <Star size={20} />
+};
+
+
+const RARITY_STYLES: any = {
+    COMMON: { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-500", badge: "bg-gray-200 text-gray-600", label: "Común" },
+    RARE: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-600", badge: "bg-blue-100 text-blue-700", label: "Raro" },
+    EPIC: { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-600", badge: "bg-purple-100 text-purple-700", label: "Épico" },
+    LEGENDARY: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-600", badge: "bg-gradient-to-r from-amber-200 to-yellow-400 text-yellow-800", label: "Legendario" },
+    HIDDEN: { bg: "bg-gray-100", border: "border-gray-300 border-dashed", text: "text-gray-400", badge: "bg-gray-800 text-gray-300", label: "Secreto" },
+};
+
+const TYPE_LABELS: any = {
+    CAREER: "Salón de la Fama (Histórico)",
+    SEASON: "Temporada Actual",
+    EVENT: "Eventos y Hazañas"
+};
+
+// --- COMPONENTES AUXILIARES ---
+
 const UserSearch = ({ currentUser, onSelectUser, usersList }: any) => {
     const [query, setQuery] = useState("");
     const [isOpen, setIsOpen] = useState(false);
@@ -105,9 +198,6 @@ const UserSearch = ({ currentUser, onSelectUser, usersList }: any) => {
                                 </div>
                             </button>
                         ))}
-                        {filteredUsers.length === 0 && (
-                            <div className="p-4 text-center text-xs text-gray-500 font-mono">Piloto no encontrado</div>
-                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -115,7 +205,6 @@ const UserSearch = ({ currentUser, onSelectUser, usersList }: any) => {
     );
 };
 
-// --- CONFIGURACIÓN (ESTÉTICA ARCHIVO 1) ---
 const SettingsTab = ({ avatars, avatar, handleSelectAvatar, loadingAvatar, reloadUser }: any) => {
     const { username, login } = useContext(AuthContext) as any;
     const [formData, setFormData] = useState({ username: "", acronym: "", current_password: "", new_password: "" });
@@ -127,127 +216,59 @@ const SettingsTab = ({ avatars, avatar, handleSelectAvatar, loadingAvatar, reloa
             const payload: any = {};
             if (formData.username && formData.username !== username) payload.username = formData.username;
             if (formData.acronym) payload.acronym = formData.acronym;
-            
-            // VALIDACIONES DE CONTRASEÑA
             if (formData.new_password) {
-                if (!formData.current_password) {
-                    alert("⚠️ Debes introducir tu contraseña actual para hacer cambios.");
-                    return;
-                }
-                if (formData.new_password === formData.current_password) {
-                    alert("⚠️ La nueva contraseña no puede ser igual a la anterior.");
-                    return;
-                }
+                if (!formData.current_password) { alert("⚠️ Debes introducir tu contraseña actual."); return; }
+                if (formData.new_password === formData.current_password) { alert("⚠️ La nueva contraseña no puede ser igual."); return; }
                 payload.current_password = formData.current_password;
                 payload.new_password = formData.new_password;
             }
 
             if (Object.keys(payload).length === 0) return;
-
             const response = await API.updateProfile(payload);
-            
             if (response.access_token && login) login(response.access_token);
-            
-            alert("✅ Perfil actualizado correctamente");
+            alert("✅ Perfil actualizado");
             setFormData({ ...formData, current_password: "", new_password: "" }); 
             if (reloadUser) reloadUser();
-            
-        } catch (error: any) {
-            const detail = error.response?.data?.detail || "";
-            if (error.response?.status === 401 || detail.includes("incorrecta")) {
-                alert("❌ La contraseña actual es incorrecta.");
-            } else if (detail.includes("taken") || detail.includes("existe")) {
-                alert("❌ Ese nombre o acrónimo ya está en uso.");
-            } else {
-                alert("❌ Error al actualizar: " + detail);
-            }
-        }
+        } catch (error: any) { alert("❌ Error al actualizar"); }
     };
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* SECCIÓN 1: AVATARES (DISEÑO RESTAURADO + PADDING FIX) */}
             <section className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-purple-100 text-purple-600 rounded-xl"><ImageIcon size={20}/></div>
-                    <div>
-                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Identidad Visual</h3>
-                        <p className="text-xs text-gray-400">Elige el casco que verán tus rivales</p>
-                    </div>
-                </div>
-                
+                <div className="flex items-center gap-3 mb-6"><div className="p-2 bg-purple-100 text-purple-600 rounded-xl"><ImageIcon size={20}/></div><div><h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Identidad Visual</h3></div></div>
                 <div className="max-h-64 overflow-y-auto p-4 -m-4 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
                     <div className="grid grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-3">
                         {avatars.map((av: any) => {
                             const isSelected = avatar === av.filename;
                             return (
-                                <button key={av.id} onClick={() => handleSelectAvatar(av.filename)} disabled={loadingAvatar}
-                                    className={`relative rounded-full aspect-square transition-all duration-200 group 
-                                    ${isSelected ? "scale-110 z-10 ring-4 ring-green-100 bg-white" : "hover:scale-110 hover:z-20 opacity-80 hover:opacity-100"}`}>
-                                    
+                                <button key={av.id} onClick={() => handleSelectAvatar(av.filename)} disabled={loadingAvatar} className={`relative rounded-full aspect-square transition-all duration-200 group ${isSelected ? "scale-110 z-10 ring-4 ring-green-100 bg-white" : "hover:scale-110 hover:z-20 opacity-80 hover:opacity-100"}`}>
                                     <div className={`absolute inset-0 rounded-full border-2 ${isSelected ? "border-green-500" : "border-transparent group-hover:border-purple-200"}`}></div>
                                     <img src={av.url} alt={av.filename} className="w-full h-full rounded-full object-cover shadow-sm" />
-                                    
-                                    {isSelected && (
-                                        <div className="absolute inset-0 bg-green-500/20 rounded-full flex items-center justify-center">
-                                            <CheckCircle className="text-white drop-shadow-md w-1/2 h-1/2"/>
-                                        </div>
-                                    )}
+                                    {isSelected && (<div className="absolute inset-0 bg-green-500/20 rounded-full flex items-center justify-center"><CheckCircle className="text-white drop-shadow-md w-1/2 h-1/2"/></div>)}
                                 </button>
                             );
                         })}
                     </div>
                 </div>
             </section>
-
-            {/* SECCIÓN 2: DATOS */}
             <section className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-blue-100 text-blue-600 rounded-xl"><Settings size={20}/></div>
-                    <div>
-                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Credenciales</h3>
-                    </div>
-                </div>
-
+                <div className="flex items-center gap-3 mb-6"><div className="p-2 bg-blue-100 text-blue-600 rounded-xl"><Settings size={20}/></div><div><h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Credenciales</h3></div></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Usuario</label>
-                        <input name="username" placeholder={username} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
-                    </div>
-                    <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Acrónimo</label>
-                        <input name="acronym" maxLength={3} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-500 uppercase transition-all"/>
-                    </div>
+                    <div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Usuario</label><input name="username" placeholder={username} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 outline-none"/></div>
+                    <div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Acrónimo</label><input name="acronym" maxLength={3} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 outline-none uppercase"/></div>
                 </div>
-
                 <div className="pt-6 border-t border-gray-100">
-                    <div className="flex items-center gap-2 mb-4 text-red-500">
-                        <Lock size={14}/> 
-                        <span className="text-xs font-black uppercase tracking-widest">Seguridad</span>
-                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-red-50/50 p-4 rounded-xl border border-red-100">
-                        <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Contraseña Actual</label>
-                            <input name="current_password" type="password" onChange={handleChange} placeholder="••••••••" className="w-full mt-1 px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-red-200 transition-all"/>
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Nueva Contraseña</label>
-                            <input name="new_password" type="password" onChange={handleChange} placeholder="••••••••" className="w-full mt-1 px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-red-200 transition-all"/>
-                        </div>
+                        <div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Contraseña Actual</label><input name="current_password" type="password" onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-white border border-gray-200 rounded-xl"/></div>
+                        <div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Nueva Contraseña</label><input name="new_password" type="password" onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-white border border-gray-200 rounded-xl"/></div>
                     </div>
                 </div>
-
-                <div className="mt-8 flex justify-end">
-                    <button onClick={handleSave} className="flex items-center gap-2 px-8 py-3 bg-gray-900 text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-f1-red hover:shadow-lg hover:shadow-red-500/30 transition-all transform hover:-translate-y-1">
-                        <Save size={16}/> Guardar Cambios
-                    </button>
-                </div>
+                <div className="mt-8 flex justify-end"><button onClick={handleSave} className="flex items-center gap-2 px-8 py-3 bg-gray-900 text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-f1-red transition-all"><Save size={16}/> Guardar Cambios</button></div>
             </section>
         </div>
     );
 };
 
-// --- ESTADÍSTICAS ---
 const StatsTab = ({ targetUser, isMe }: { targetUser: any, isMe: boolean }) => {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -263,13 +284,7 @@ const StatsTab = ({ targetUser, isMe }: { targetUser: any, isMe: boolean }) => {
     useEffect(() => { 
         setLoading(true);
         const fetchStats = isMe ? API.getMyStats() : API.getUserStats(targetUser.id);
-        fetchStats
-            .then(setStats)
-            .catch((err) => {
-                console.error(err);
-                setStats(null);
-            })
-            .finally(() => setLoading(false));
+        fetchStats.then(setStats).catch(() => setStats(null)).finally(() => setLoading(false));
     }, [targetUser.id, isMe]);
 
     if (loading) return <div className="p-10 text-center text-gray-400 font-bold animate-pulse flex flex-col items-center gap-4"><Activity className="animate-spin text-f1-red"/> Cargando telemetría...</div>;
@@ -283,25 +298,24 @@ const StatsTab = ({ targetUser, isMe }: { targetUser: any, isMe: boolean }) => {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* KPI CARDS */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <div className="text-gray-400 mb-2"><Activity size={20}/></div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center md:text-left">
+                    <div className="text-gray-400 mb-2 flex justify-center md:justify-start"><Activity size={20}/></div>
                     <div className="text-3xl font-black text-gray-900">{stats.total_points}</div>
                     <div className="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Puntos Totales</div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <div className="text-blue-400 mb-2"><Zap size={20}/></div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center md:text-left">
+                    <div className="text-blue-400 mb-2 flex justify-center md:justify-start"><Zap size={20}/></div>
                     <div className="text-3xl font-black text-gray-900">{stats.avg_points}</div>
                     <div className="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Media / Carrera</div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <div className="text-purple-400 mb-2"><Flag size={20}/></div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center md:text-left">
+                    <div className="text-purple-400 mb-2 flex justify-center md:justify-start"><Flag size={20}/></div>
                     <div className="text-3xl font-black text-gray-900">{stats.races_played}</div>
                     <div className="text-[10px] font-bold uppercase text-gray-400 tracking-widest">GPs Disputados</div>
                 </div>
-                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <div className="text-green-400 mb-2"><Star size={20}/></div>
+                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center md:text-left">
+                    <div className="text-green-400 mb-2 flex justify-center md:justify-start"><Star size={20}/></div>
                     <div className="text-3xl font-black text-gray-900">{stats.podium_ratio_percent}%</div>
                     <div className="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Ratio Podios</div>
                 </div>
@@ -348,14 +362,12 @@ const StatsTab = ({ targetUser, isMe }: { targetUser: any, isMe: boolean }) => {
                                     <div className="text-[10px] font-bold text-green-600 uppercase tracking-wider mb-0.5">Ojito Derecho</div>
                                     <div className="text-xs font-black text-gray-800 leading-tight mb-1">Top 3</div>
                                     <div className="text-[9px] text-green-600/70 font-bold bg-green-100 px-2 py-0.5 rounded-full">{hero.count} Veces</div>
-                                    <Heart className="absolute -bottom-2 -right-2 text-green-200/50" size={40} fill="currentColor"/>
                                 </div>
                                 <div className="flex-1 bg-red-50/80 rounded-2xl p-3 flex flex-col items-center text-center relative overflow-hidden">
                                     <div className="w-10 h-10 rounded-full bg-white border-2 border-red-200 flex items-center justify-center shadow-sm mb-2 z-10"><span className="font-black text-red-700 text-xs">{villain.code}</span></div>
                                     <div className="text-[10px] font-bold text-red-500 uppercase tracking-wider mb-0.5">Bestia Negra</div>
                                     <div className="text-xs font-black text-gray-800 leading-tight mb-1">Predicción DNF</div>
                                     <div className="text-[9px] text-red-500/70 font-bold bg-red-100 px-2 py-0.5 rounded-full">{villain.count} Veces</div>
-                                    <Skull className="absolute -bottom-2 -right-2 text-red-200/50" size={40} fill="currentColor"/>
                                 </div>
                             </div>
                         </div>
@@ -386,7 +398,7 @@ const StatsTab = ({ targetUser, isMe }: { targetUser: any, isMe: boolean }) => {
                     </div>
                     <div className="w-full h-64 relative z-10 flex-shrink-0">
                         <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={stats.radar}>
+                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={stats.radar || []}>
                                 <PolarGrid stroke="#e5e7eb" />
                                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 900 }} />
                                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
@@ -412,7 +424,7 @@ const StatsTab = ({ targetUser, isMe }: { targetUser: any, isMe: boolean }) => {
     );
 };
 
-// --- LOGROS ---
+// --- LOGROS ORGANIZADOS POR TIPO ---
 const AchievementsTab = ({ targetUser }: { targetUser: any }) => {
     const [list, setList] = useState<any[]>([]);
     
@@ -420,27 +432,109 @@ const AchievementsTab = ({ targetUser }: { targetUser: any }) => {
         API.getAchievements(targetUser.id).then(setList).catch(console.error);
     }, [targetUser.id]);
 
-    const iconMap: any = { "Trophy": <Trophy size={24}/>, "Flag": <Flag size={24}/>, "Eye": <Zap size={24}/>, "Star": <Star size={24}/>, "Wrench": <Settings size={24}/> };
+    // Agrupar por tipo (Protección contra undefined)
+    const grouped = {
+        CAREER: (list || []).filter(a => a.type === 'CAREER'),
+        SEASON: (list || []).filter(a => a.type === 'SEASON'),
+        EVENT: (list || []).filter(a => a.type === 'EVENT')
+    };
+
+    const typeOrder = ['CAREER', 'SEASON', 'EVENT'];
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {list.map(ach => (
-                <div key={ach.id} className={`p-6 rounded-2xl border-2 transition-all flex items-start gap-4 ${ach.unlocked ? "bg-white border-yellow-400 shadow-md" : "bg-gray-50 border-gray-200 opacity-60 grayscale"}`}>
-                    <div className={`p-3 rounded-xl ${ach.unlocked ? "bg-yellow-100 text-yellow-600" : "bg-gray-200 text-gray-400"}`}>{iconMap[ach.icon] || <Star />}</div>
-                    <div className="flex-1">
-                        <h4 className="font-black text-gray-900 uppercase italic tracking-tighter">{ach.name}</h4>
-                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">{ach.description}</p>
-                        {ach.unlocked ? <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-yellow-600 uppercase tracking-widest"><Unlock size={12}/> Desbloqueado {ach.date && `- ${new Date(ach.date).toLocaleDateString()}`}</div> : <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest"><Lock size={12}/> Bloqueado</div>}
+        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {typeOrder.map(type => {
+                const achievements = grouped[type as keyof typeof grouped];
+                if (!achievements || achievements.length === 0) return null;
+
+                const unlockedCount = achievements.filter(a => a.unlocked).length;
+
+                return (
+                    <div key={type} className="space-y-4">
+                        <div className="flex items-center justify-between px-2">
+                            <h3 className="text-lg font-black text-gray-900 italic uppercase tracking-tighter flex items-center gap-2">
+                                {type === 'CAREER' && <Crown className="text-yellow-500" size={24}/>}
+                                {type === 'SEASON' && <Calendar className="text-blue-500" size={24}/>}
+                                {type === 'EVENT' && <Zap className="text-purple-500" size={24}/>}
+                                {TYPE_LABELS[type] || type}
+                            </h3>
+                            <span className="text-xs font-bold text-gray-400 bg-gray-100 px-3 py-1 rounded-full">{unlockedCount} / {achievements.length}</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {achievements.map((ach: any) => {
+                                const styles = RARITY_STYLES[ach.rarity] || RARITY_STYLES.COMMON;
+                                const isHidden = ach.rarity === 'HIDDEN' && !ach.unlocked;
+                                // Fallback a Star si el icono no existe
+                                const IconComponent = ICON_MAP[ach.icon] || <Star size={24}/>;
+
+                                return (
+                                    <div key={ach.id} className={`relative p-6 rounded-2xl border-2 transition-all flex items-start gap-4 overflow-hidden group hover:shadow-lg ${ach.unlocked ? `${styles.bg} ${styles.border}` : "bg-gray-50 border-gray-100 opacity-70 grayscale hover:grayscale-0"}`}>
+                                        
+                                        <div className={`p-3 rounded-xl shrink-0 ${ach.unlocked ? "bg-white shadow-sm" : "bg-gray-200 text-gray-400"}`}>
+                                            <div className={ach.unlocked ? styles.text : "text-gray-400"}>
+                                                {isHidden ? <Lock size={24}/> : IconComponent}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex-1 z-10">
+                                            <div className="flex justify-between items-start mb-1">
+                                                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${styles.badge}`}>
+                                                    {isHidden ? "???" : styles.label}
+                                                </span>
+                                            </div>
+                                            
+                                            <h4 className={`font-black text-sm uppercase italic tracking-tighter leading-tight ${ach.unlocked ? "text-gray-900" : "text-gray-500"}`}>
+                                                {isHidden ? "Logro Secreto" : ach.name}
+                                            </h4>
+                                            
+                                            <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                                                {isHidden ? "Sigue jugando para descubrirlo..." : ach.description}
+                                            </p>
+
+                                            {ach.unlocked && (
+                                                <div className="mt-3 pt-3 border-t border-black/5 flex flex-col gap-2">
+                                                    {/* FECHA */}
+                                                    <div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                                        <Unlock size={10}/> 
+                                                        {/* Usamos tu helper formatDate si existe la fecha, o fallback */}
+                                                        {ach.unlocked_at ? formatDate(ach.unlocked_at) : (ach.date ? formatDate(ach.date) : "Desbloqueado")}
+                                                    </div>
+
+                                                    {/* CONTEXTO (GP y/o TEMPORADA) */}
+                                                    {(ach.gp_name || ach.season_name) && (
+                                                        <div className="flex flex-wrap items-center gap-1.5">
+                                                            {/* Si tiene GP, lo mostramos con el pin */}
+                                                            {ach.gp_name && (
+                                                                <span className="flex items-center gap-1 text-[9px] font-black text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded uppercase tracking-wider border border-gray-200">
+                                                                    <MapPin size={10} /> {ach.gp_name}
+                                                                </span>
+                                                            )}
+                                                            
+                                                            {/* Si tiene Temporada, lo mostramos con el calendario */}
+                                                            {ach.season_name && (
+                                                                <span className="flex items-center gap-1 text-[9px] font-black text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded uppercase tracking-wider border border-gray-100">
+                                                                    <Calendar size={10} /> {ach.season_name}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 };
 
 // --- COMPONENTE PRINCIPAL ---
 export default function Profile() {
-    // 1. EXTRAEMOS DATOS SEGUROS DEL CONTEXTO (Esta es la clave)
     const { refreshProfile, avatar, username: ctxUsername, acronym: ctxAcronym, createdAt: ctxCreatedAt } = useContext(AuthContext) as any;
     
     const [currentUserFull, setCurrentUserFull] = useState<any>(null);
@@ -450,10 +544,9 @@ export default function Profile() {
 
     const [avatars, setAvatars] = useState<any[]>([]);
     const [loadingAvatar, setLoadingAvatar] = useState(false);
-    const [activeTab, setActiveTab] = useState("settings");
+    const [activeTab, setActiveTab] = useState("stats");
     
     useEffect(() => {
-        // Carga inicial masiva
         Promise.all([
             API.getMe().catch(err => null),
             API.getUsersList().catch(err => []),
@@ -463,7 +556,6 @@ export default function Profile() {
             if (usersData) setUsersList(usersData);
             if (avatarsData) setAvatars(avatarsData);
 
-            // Inicialización de usuario mostrado
             if (meData) {
                 const meInList = usersData ? usersData.find((u: any) => u.id === meData.id) : null;
                 setDisplayedUser(meInList || meData);
@@ -472,9 +564,6 @@ export default function Profile() {
         });
     }, []);
     
-    // EFECTO DE REFUERZO:
-    // Si la lista tarda más que getMe, displayedUser puede haberse seteado sin fecha.
-    // Cuando la lista llegue, actualizamos displayedUser si es el mismo ID.
     useEffect(() => {
         if (displayedUser && usersList.length > 0) {
             const found = usersList.find((u: any) => u.id === displayedUser.id);
@@ -502,19 +591,13 @@ export default function Profile() {
 
     return (
         <div className="space-y-8 max-w-6xl mx-auto pb-20 p-4">
-            
-            {/* CABECERA (MAIN CARD) - ESTÉTICA ARCHIVO 1 */}
             <div className="relative text-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl border border-gray-800 bg-gray-900">
-                
-                {/* FONDO ANIMADO */}
                 <div className="absolute inset-0 rounded-[2.5rem] overflow-hidden pointer-events-none">
-                     <div className="absolute top-0 right-0 w-96 h-96 bg-f1-red opacity-10 blur-[100px] rounded-full transform translate-x-20 -translate-y-20"></div>
-                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-600 opacity-10 blur-[80px] rounded-full transform -translate-x-10 translate-y-10"></div>
+                      <div className="absolute top-0 right-0 w-96 h-96 bg-f1-red opacity-10 blur-[100px] rounded-full transform translate-x-20 -translate-y-20"></div>
+                      <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-600 opacity-10 blur-[80px] rounded-full transform -translate-x-10 translate-y-10"></div>
                 </div>
                 
                 <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-                    
-                    {/* AVATAR + BADGE */}
                     <div className="relative group shrink-0">
                         <div className="w-28 h-28 md:w-36 md:h-36 rounded-full p-1.5 bg-gradient-to-br from-f1-red to-purple-600 shadow-2xl shadow-purple-900/50">
                             <img 
@@ -525,26 +608,22 @@ export default function Profile() {
                         </div>
                         <div className="absolute -bottom-2 inset-x-0 flex justify-center">
                             <div className="bg-white text-gray-900 text-xs font-black px-3 py-1 rounded-md shadow-lg border-2 border-gray-900 uppercase tracking-widest transform skew-x-[-10deg]">
-                                {/* ID: Si soy yo, uso el Contexto. Si es rival, uso displayedUser */}
                                 {isMe ? ctxAcronym : (displayedUser.acronym || "---")}
                             </div>
                         </div>
                     </div>
                     
-                    {/* INFO TEXTO */}
                     <div className="text-center md:text-left space-y-1 flex-1 w-full">
                         <div className="flex flex-wrap justify-center md:justify-start gap-3 items-center mb-2">
                             <span className={`px-3 py-1 rounded-full border backdrop-blur-md text-[10px] font-black uppercase tracking-widest ${isMe ? "bg-white/10 border-white/20 text-white/80" : "bg-f1-red/20 border-f1-red/30 text-f1-red"}`}>
                                 {isMe ? "Licencia Oficial" : "Perfil Visitante"}
                             </span>
                             <span className="flex items-center gap-1.5 text-[10px] font-mono text-white/50">
-                                {/* FECHA: Aquí está el arreglo. Si soy yo, uso Contexto. Si es rival, displayedUser */}
                                 <Calendar size={10}/> Debut: {formatDate(isMe ? ctxCreatedAt : displayedUser.created_at)}
                             </span>
                         </div>
                         
                         <h1 className="text-3xl md:text-5xl font-black tracking-tighter italic text-white leading-tight">
-                            {/* NOMBRE: Si soy yo, uso Contexto. Si es rival, displayedUser */}
                             {isMe ? ctxUsername : displayedUser.username}
                         </h1>
                         <p className="text-gray-400 text-sm max-w-md mx-auto md:mx-0 leading-relaxed">
@@ -554,7 +633,6 @@ export default function Profile() {
                         </p>
                     </div>
 
-                    {/* COLUMNA DERECHA: BUSCADOR + BOTONES */}
                     <div className="flex flex-col gap-4 items-center md:items-end w-full md:w-auto">
                         <div className="flex flex-col items-end gap-1 w-full">
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider hidden md:block">Explorar Parrilla</label>

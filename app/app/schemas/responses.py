@@ -8,10 +8,16 @@ from app.schemas.shared import CamelModel, DriverPosition, RaceEvent, SeasonBase
 
 class AchievementResponse(CamelModel):
     id: int
+    slug: str
     name: str
     description: str
+    icon: str
+    rarity: str
+    type: str
     is_unlocked: bool
     unlocked_at: datetime | None = None
+    gp_name: str | None = None
+    season_name: str | None = None
 
 class UserResponse(CamelModel):
     id: int
@@ -71,6 +77,7 @@ class BingoStandingsItem(CamelModel):
 class PredictionResponse(CamelModel):
     username: str
     points: int
+    base_points: int
     multiplier: float
     positions: List[DriverPosition]
     events: List[RaceEvent]

@@ -117,6 +117,7 @@ class PredictionsRepository:
             results.append(PredictionResponse(
                 username=prediction.user.username,
                 points=prediction.points,
+                base_points=prediction.points_base,
                 multiplier=prediction.multiplier,
                 positions=[DriverPosition(position=p.position, driver_code=p.driver_name) for p in prediction.positions],
                 events=[RaceEvent(type=e.event_type, description=e.value) for e in prediction.events]

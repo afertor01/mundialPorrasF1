@@ -14,15 +14,18 @@ from app.db.models.bingo import BingoTiles, BingoSelections
 from app.db.models.multiplier_config import MultiplierConfigs
 from app.db.models.constructor import Constructors
 from app.db.models.driver import Drivers
+from app.db.models.user_stats import UserStats
 from app.core.security import hash_password
+from app.db.session import get_session
 
 from app.db.session import drop_tables, create_tables, SessionMaker
 
 # --- IMPORTANTE: Nuevos modelos para evitar que falten tablas ---
-from app.db.models.achievement import Achievements, UserAchievements
+from app.db.models.achievement import Achievements, UserAchievements, AchievementRarity, AchievementType
+from app.repositories.achievements import ACHIEVEMENT_DEFINITIONS
 from app.db.models.avatar import Avatars
 
-# Modelos necesarios para las relaciones de SQLAlchemy (aunque no se instancien directamente aquí)
+# Modelos necesarios para las relaciones de SQLAlchemy
 from app.db.models.prediction import Predictions
 from app.db.models.prediction_position import PredictionPositions
 from app.db.models.prediction_event import PredictionEvents
@@ -33,6 +36,9 @@ from app.db.models.race_event import RaceEvents
 from app.utils.scoring import calculate_prediction_score
 from fastapi import Depends
 from sqlmodel import SQLModel, Session, select
+
+# 👇👇👇 IMPORT CRÍTICO AÑADIDO 👇👇👇
+from app.services.achievements_service import evaluate_race_achievements
 
 # --- CONFIGURACIÓN ---
 NUM_USERS = 100       
@@ -61,24 +67,33 @@ def create_season(session: Session):
     return season
 
 # ---------------------------------------------------------
-# 🏆 LOGROS (NUEVO: Para evitar error 500 en /achievements)
+# 🏆 LOGROS
 # ---------------------------------------------------------
-def create_default_achievements(session: Session):
-    print("🏆 Creando logros por defecto...")
-    defaults = [
-        {"slug": "first_race", "name": "Debutante", "description": "Participa en tu primer GP", "icon": "Flag"},
-        {"slug": "first_win", "name": "Pole Position", "description": "Queda 1º en el ranking de un GP", "icon": "Trophy"},
-        {"slug": "oracle", "name": "El Oráculo", "description": "Acierta el podio exacto en orden", "icon": "Eye"},
-        {"slug": "veteran", "name": "Veterano", "description": "Participa en 10 carreras", "icon": "Star"},
-        {"slug": "mechanic", "name": "Ingeniero", "description": "Crea tu propia escudería", "icon": "Wrench"},
-    ]
-    for default in defaults:
+def create_default_achievements(session: Session) -> None:
+    print("🏆 Sembrando TODOS los logros desde las definiciones...")
+    for default in ACHIEVEMENT_DEFINITIONS:
         # Verificar si existe para evitar duplicados si se corre varias veces
         query = select(Achievements).where(Achievements.slug == default["slug"])
         exists = session.exec(query).first()
         if not exists:
-            session.add(Achievements(**default))
+            new_ach = Achievements(
+                slug=default["slug"],
+                name=default["name"],
+                description=default["desc"],
+                icon=default["icon"],
+                rarity=AchievementRarity(default["rare"]),
+                type=AchievementType(default["type"])
+            )
+            session.add(new_ach)
+        else:
+            exists.name = default["name"]
+            exists.description = default["desc"]
+            exists.icon = default["icon"]
+            exists.rarity = AchievementRarity(default["rare"])
+            exists.type = AchievementType(default["type"])
     session.commit()
+    print(f"✅ {len(ACHIEVEMENT_DEFINITIONS)} logros creados.")
+
 
 # ---------------------------------------------------------
 # 🎲 LÓGICA DE BINGO
@@ -368,7 +383,7 @@ def simulate_race(session: Session, season: Seasons, users: List[Users], gp_inde
         for k, v in pred_evs.items():
             session.add(PredictionEvents(prediction_id=prediction.id, event_type=k, value=v))
             
-        # Mock objects
+        # Mock objects para el servicio de scoring
         class Mock: pass
         m_pred = Mock(); m_pred.positions = []; m_pred.events = []
         for i, c in enumerate(pred_pos): m_pred.positions.append(Mock()); m_pred.positions[i].driver_name=c; m_pred.positions[i].position=i+1
@@ -385,48 +400,53 @@ def simulate_race(session: Session, season: Seasons, users: List[Users], gp_inde
         prediction.points = score["final_points"]
         
     session.commit() 
-    sys.stdout.write(" OK\n")
+    sys.stdout.write(" OK") # Quitamos salto de línea
 
-def main():
+    # 👇👇👇 LLAMADA CRÍTICA AÑADIDA 👇👇👇
+    sys.stdout.write(" [Evaluando Logros...]")
+    sys.stdout.flush()
+    evaluate_race_achievements(session, gp.id)
+    sys.stdout.write(" ✅\n")
+
+def main(session: Session):
     try:
-        with SessionMaker() as session:
-            reset_db()
-            season = create_season(session)
-            
-            # Crear Logros por defecto (NUEVO PASO CRÍTICO)
-            create_default_achievements(session)
+        reset_db()
+        season = create_season(session)
+        
+        # Crear Logros por defecto
+        create_default_achievements(session)
 
-            driver_codes = create_f1_grid(session, season)
+        driver_codes = create_f1_grid(session, season)
+        
+        # 1. Crear Usuarios
+        users, user_skills = create_users_and_teams(session, season)
+        
+        # 2. Configurar Bingo (Pretemporada)
+        tiles = create_bingo_tiles(session, season) # Crear las 50 casillas
+        simulate_bingo_selections(session, users, tiles) # Usuarios eligen sus casillas
+        
+        # 3. Simular Carreras (Temporada regular)
+        print(f"🚦 Iniciando simulación de {COMPLETED_GPS} carreras...")
+        for i in range(COMPLETED_GPS):
+            simulate_race(session, season, users, i, driver_codes, user_skills)
             
-            # 1. Crear Usuarios
-            users, user_skills = create_users_and_teams(session, season)
+        # 4. Resolver Bingo (Simular que ocurren cosas durante la temporada)
+        resolve_random_bingo_events(session, tiles)
             
-            # 2. Configurar Bingo (Pretemporada)
-            tiles = create_bingo_tiles(session, season) # Crear las 50 casillas
-            simulate_bingo_selections(session, users, tiles) # Usuarios eligen sus casillas
-            
-            # 3. Simular Carreras (Temporada regular)
-            print(f"🚦 Iniciando simulación de {COMPLETED_GPS} carreras...")
-            for i in range(COMPLETED_GPS):
-                simulate_race(session, season, users, i, driver_codes, user_skills)
-                
-            # 4. Resolver Bingo (Simular que ocurren cosas durante la temporada)
-            resolve_random_bingo_events(session, tiles)
-                
-            # 5. Programar carreras futuras
-            print("🔮 Programando carreras futuras...")
-            future_date = datetime.now(tz=timezone.utc) + timedelta(days=7)
-            session.add(GrandPrix(name="GP Qatar", race_datetime=future_date, season_id=season.id))
-            session.add(GrandPrix(name="GP Abu Dhabi", race_datetime=future_date + timedelta(days=7), season_id=season.id))
-            session.commit()
-            
-            print("\n✅ ¡Simulación MASIVA CON BINGO completada con éxito!")
-            print(f"   Usuarios: {NUM_USERS}")
-            print(f"   Eventos Bingo: 50")
-            print(f"   Carreras terminadas: {COMPLETED_GPS}")
+        # 5. Programar carreras futuras
+        print("🔮 Programando carreras futuras...")
+        future_date = datetime.now(tz=timezone.utc) + timedelta(days=7)
+        session.add(GrandPrix(name="GP Qatar", race_datetime=future_date, season_id=season.id))
+        session.add(GrandPrix(name="GP Abu Dhabi", race_datetime=future_date + timedelta(days=7), season_id=season.id))
+        session.commit()
+        
+        print("\n✅ ¡Simulación MASIVA CON BINGO completada con éxito!")
+        print(f"   Usuarios: {NUM_USERS}")
+        print(f"   Eventos Bingo: 50")
+        print(f"   Carreras terminadas: {COMPLETED_GPS}")
         
     except Exception as e:
         print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
-    main()
+    main(get_session())
