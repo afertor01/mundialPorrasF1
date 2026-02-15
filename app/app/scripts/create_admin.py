@@ -1,11 +1,11 @@
-from app.db.session import SessionLocal
+from app.db.session import SessionMaker
 from app.db.models import _all
-from app.db.models.user import User
+from app.db.models.user import Users
 from app.core.security import hash_password
 
 
 def create_admin_user():
-    db = SessionLocal()
+    db = SessionMaker()
 
     email = "administrador@example.com"
     username = "ADMINISTRADOR"
@@ -14,9 +14,9 @@ def create_admin_user():
     try:
         # Comprobar si ya existe
         existing_user = (
-            db.query(User)
+            db.query(Users)
             .filter(
-                (User.email == email) | (User.username == username)
+                (Users.email == email) | (Users.username == username)
             )
             .first()
         )
@@ -29,7 +29,7 @@ def create_admin_user():
             return
 
 
-        admin_user = User(
+        admin_user = Users(
             email=email,
             username=username,
             hashed_password=hash_password(password),

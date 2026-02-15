@@ -1,28 +1,31 @@
-# app/db/models/prediction.py
-from sqlalchemy import Integer, ForeignKey, Boolean, UniqueConstraint, DateTime # <--- AÑADIR DateTime
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func # <--- AÑADIR func
-from app.db.session import Base
-from datetime import datetime # <--- AÑADIR datetime
+from typing import List
+from datetime import datetime
 
-class Prediction(Base):
+from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint, func
+
+class Predictions(SQLModel, table=True):
     __tablename__ = "predictions"
     __table_args__ = (
         # Un usuario solo puede hacer 1 predicción por GP
         UniqueConstraint("user_id", "gp_id", name="uq_user_gp"),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    gp_id: Mapped[int] = mapped_column(Integer, ForeignKey("grand_prix.id"), nullable=False)
-    points_base: Mapped[int] = mapped_column(Integer, default=0)
-    multiplier: Mapped[float] = mapped_column(default=1.0)
-    points: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+    id: int = Field(description="ID único de la predicción", primary_key=True)
+    user_id: int = Field(description="ID del usuario que hizo la predicción", foreign_key="users.id", nullable=False)
+    gp_id: int = Field(description="ID del Grand Prix al que pertenece la predicción", foreign_key="grand_prix.id", nullable=False)
+    points_base: int = Field(description="Puntos base de la predicción", default=0)
+    multiplier: float = Field(description="Multiplicador de puntos de la predicción", default=1.0)
+    points: int = Field(description="Puntos totales de la predicción", default=0)
+    created_at: datetime = Field(description="Fecha de creación de la predicción", sa_column_kwargs={
+        "server_default": func.now(),
+    })
+    updated_at: datetime = Field(description="Fecha de actualización de la predicción", sa_column_kwargs={
+        "server_default": func.now(),
+        "onupdate": func.now(),
+    })
     
     # Relaciones
-    user: Mapped["User"] = relationship("User", back_populates="predictions")
-    grand_prix: Mapped["GrandPrix"] = relationship("GrandPrix", back_populates="predictions")
-    positions: Mapped[list["PredictionPosition"]] = relationship("PredictionPosition", back_populates="prediction")
-    events: Mapped[list["PredictionEvent"]] = relationship("PredictionEvent", back_populates="prediction")
+    user: "Users" = Relationship(back_populates="predictions")
+    grand_prix: "GrandPrix" = Relationship(back_populates="predictions")
+    positions: List["PredictionPositions"] = Relationship(back_populates="prediction", cascade_delete=True)
+    events: List["PredictionEvents"] = Relationship(back_populates="prediction", cascade_delete=True)

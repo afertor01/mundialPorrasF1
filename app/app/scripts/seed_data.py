@@ -1,25 +1,25 @@
 import random
 import string # <--- NECESARIO PARA GENERAR CÓDIGOS
 from datetime import datetime, timedelta
-from app.db.session import SessionLocal, engine, Base
+from app.db.session import SessionMaker, engine, Base
 from app.db.models import _all
-from app.db.models.user import User
-from app.db.models.season import Season
+from app.db.models.user import Users
+from app.db.models.season import Seasons
 from app.db.models.grand_prix import GrandPrix
-from app.db.models.team import Team
-from app.db.models.team_member import TeamMember
-from app.db.models.prediction import Prediction
-from app.db.models.prediction_position import PredictionPosition
-from app.db.models.prediction_event import PredictionEvent
-from app.db.models.race_result import RaceResult
-from app.db.models.race_position import RacePosition
-from app.db.models.race_event import RaceEvent
-from app.db.models.multiplier_config import MultiplierConfig
-from app.db.models.constructor import Constructor
-from app.db.models.driver import Driver
+from app.db.models.team import Teams
+from app.db.models.team_member import TeamMembers
+from app.db.models.prediction import Predictions
+from app.db.models.prediction_position import PredictionPositions
+from app.db.models.prediction_event import PredictionEvents
+from app.db.models.race_result import RaceResults
+from app.db.models.race_position import RacePositions
+from app.db.models.race_event import RaceEvents
+from app.db.models.multiplier_config import MultiplierConfigs
+from app.db.models.constructor import Constructors
+from app.db.models.driver import Drivers
 
 from app.core.security import hash_password
-from app.services.scoring import calculate_prediction_score
+from app.utils.scoring import calculate_prediction_score
 
 # Configuración
 NUM_USERS = 20
@@ -31,7 +31,7 @@ def reset_db():
     print("✅ Tablas creadas.")
 
 def create_season(db):
-    season = Season(year=2026, name="F1 2026 Simulación", is_active=True)
+    season = Seasons(year=2026, name="F1 2026 Simulación", is_active=True)
     db.add(season)
     
     configs = [
@@ -39,7 +39,7 @@ def create_season(db):
         ("DNF_DRIVER", 3.0), ("PODIUM_PARTIAL", 1.25), ("PODIUM_TOTAL", 1.5)
     ]
     for evt, val in configs:
-        db.add(MultiplierConfig(season=season, event_type=evt, multiplier=val))
+        db.add(MultiplierConfigs(season=season, event_type=evt, multiplier=val))
         
     db.commit()
     return season
@@ -63,12 +63,12 @@ def create_f1_grid(db, season):
     driver_codes = []
 
     for team_name, color, drivers in grid_data:
-        const = Constructor(name=team_name, color=color, season_id=season.id)
+        const = Constructors(name=team_name, color=color, season_id=season.id)
         db.add(const)
         db.commit() 
         
         for code, name in drivers:
-            d = Driver(code=code, name=name, constructor_id=const.id)
+            d = Drivers(code=code, name=name, constructor_id=const.id)
             db.add(d)
             driver_codes.append(code)
     
@@ -78,8 +78,8 @@ def create_f1_grid(db, season):
 def create_users_and_teams(db, season):
     users = []
     # Admin y Usuario principal
-    admin = User(email="admin@test.com", username="ADMIN", acronym="ADM", hashed_password=hash_password("123"), role="admin")
-    yo = User(email="yo@test.com", username="afertor", acronym="AFE", hashed_password=hash_password("123"), role="user")
+    admin = Users(email="admin@test.com", username="ADMIN", acronym="ADM", hashed_password=hash_password("123"), role="admin")
+    yo = Users(email="yo@test.com", username="afertor", acronym="AFE", hashed_password=hash_password("123"), role="user")
     users.extend([admin, yo])
     db.add_all([admin, yo])
     
@@ -87,7 +87,7 @@ def create_users_and_teams(db, season):
     for i in range(NUM_USERS - 2):
         name = f"Jugador_{i+1}"
         acr = f"J{i+1}"[:3].upper()
-        u = User(email=f"bot{i}@test.com", username=name, acronym=acr, hashed_password=hash_password("123"), role="user")
+        u = Users(email=f"bot{i}@test.com", username=name, acronym=acr, hashed_password=hash_password("123"), role="user")
         users.append(u)
         db.add(u)
     db.commit()
@@ -107,7 +107,7 @@ def create_users_and_teams(db, season):
             code_str = ''.join(random.choices(chars, k=6))
             formatted_code = f"{code_str[:3]}-{code_str[3:]}"
             
-            team = Team(
+            team = Teams(
                 name=f"Escudería {team_count}", 
                 season_id=season.id,
                 join_code=formatted_code # <--- AÑADIDO
@@ -116,12 +116,12 @@ def create_users_and_teams(db, season):
             db.commit()
             
             # Añadir miembros
-            m1 = TeamMember(team_id=team.id, user_id=users[i].id, season_id=season.id)
-            m2 = TeamMember(team_id=team.id, user_id=users[i+1].id, season_id=season.id)
+            m1 = TeamMembers(team_id=team.id, user_id=users[i].id, season_id=season.id)
+            m2 = TeamMembers(team_id=team.id, user_id=users[i+1].id, season_id=season.id)
             db.add_all([m1, m2])
             
     db.commit()
-    return db.query(User).all()
+    return db.query(Users).all()
 
 def simulate_race(db, season, users, gp_index, all_driver_codes):
     race_date = datetime.now() - timedelta(days=(5 - gp_index) * 7)
@@ -140,18 +140,18 @@ def simulate_race(db, season, users, gp_index, all_driver_codes):
         "DNF_DRIVER": random.choice(all_driver_codes)
     }
     
-    result = RaceResult(gp_id=gp.id)
+    result = RaceResults(gp_id=gp.id)
     db.add(result)
     db.commit()
     
     for i, code in enumerate(real_positions):
-        db.add(RacePosition(race_result_id=result.id, position=i+1, driver_name=code))
+        db.add(RacePositions(race_result_id=result.id, position=i+1, driver_name=code))
     for k, v in real_events.items():
-        db.add(RaceEvent(race_result_id=result.id, event_type=k, value=v))
+        db.add(RaceEvents(race_result_id=result.id, event_type=k, value=v))
     db.commit()
 
     # Generar predicciones
-    multipliers = db.query(MultiplierConfig).filter(MultiplierConfig.season_id == season.id).all()
+    multipliers = db.query(MultiplierConfigs).filter(MultiplierConfigs.season_id == season.id).all()
     
     for user in users:
         pred_pos = random.sample(all_driver_codes, 10)
@@ -160,13 +160,13 @@ def simulate_race(db, season, users, gp_index, all_driver_codes):
         if user.username == "afertor" and random.random() > 0.4:
              pred_pos[0:3] = real_positions[0:3]
 
-        prediction = Prediction(user_id=user.id, gp_id=gp.id)
+        prediction = Predictions(user_id=user.id, gp_id=gp.id)
         db.add(prediction)
         db.commit()
         
         pos_objs = []
         for i, code in enumerate(pred_pos):
-            p = PredictionPosition(prediction_id=prediction.id, position=i+1, driver_name=code)
+            p = PredictionPositions(prediction_id=prediction.id, position=i+1, driver_name=code)
             db.add(p)
             pos_objs.append(p)
 
@@ -178,7 +178,7 @@ def simulate_race(db, season, users, gp_index, all_driver_codes):
             "DNF_DRIVER": random.choice(all_driver_codes)
         }
         for k, v in pred_events.items():
-            e = PredictionEvent(prediction_id=prediction.id, event_type=k, value=v)
+            e = PredictionEvents(prediction_id=prediction.id, event_type=k, value=v)
             db.add(e)
             ev_objs.append(e)
 
@@ -189,8 +189,8 @@ def simulate_race(db, season, users, gp_index, all_driver_codes):
         mock_pred.events = ev_objs
         
         mock_res = MockObj()
-        mock_res.positions = [RacePosition(driver_name=d, position=i+1) for i, d in enumerate(real_positions)]
-        mock_res.events = [RaceEvent(event_type=k, value=v) for k, v in real_events.items()]
+        mock_res.positions = [RacePositions(driver_name=d, position=i+1) for i, d in enumerate(real_positions)]
+        mock_res.events = [RaceEvents(event_type=k, value=v) for k, v in real_events.items()]
 
         score_data = calculate_prediction_score(mock_pred, mock_res, multipliers)
         
@@ -201,7 +201,7 @@ def simulate_race(db, season, users, gp_index, all_driver_codes):
     db.commit()
 
 def main():
-    db = SessionLocal()
+    db = SessionMaker()
     try:
         reset_db()
         season = create_season(db)

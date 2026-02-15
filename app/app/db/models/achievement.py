@@ -1,25 +1,26 @@
-from sqlalchemy import String, Integer, ForeignKey, DateTime
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime
-from app.db.session import Base
+from datetime import datetime, timezone
 
-class Achievement(Base):
+from sqlmodel import Field, Relationship, SQLModel, func
+
+class Achievements(SQLModel, table=True):
     __tablename__ = "achievements"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    slug: Mapped[str] = mapped_column(String, unique=True, index=True) # Ej: "first_win"
-    name: Mapped[str] = mapped_column(String)
-    description: Mapped[str] = mapped_column(String)
-    icon: Mapped[str] = mapped_column(String) # Ej: "Trophy", "Zap", etc.
+    id: int = Field(description="ID del logro autogenerada", primary_key=True)
+    slug: str = Field(description="Slug único del logro ('first_win', 'debut', etc)", unique=True, index=True) # Ej: "first_win"
+    name: str = Field(description="Nombre del logro")
+    description: str = Field(description="Descripción del logro")
+    icon: str = Field(description="Icono del logro (Trophy, Zap, etc)")
 
-class UserAchievement(Base):
+class UserAchievements(SQLModel, table=True):
     __tablename__ = "user_achievements"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
-    achievement_id: Mapped[int] = mapped_column(Integer, ForeignKey("achievements.id"))
-    unlocked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    id: int = Field(description="ID del logro del usuario autogenerada", primary_key=True)
+    user_id: int = Field(description="ID del usuario", foreign_key="users.id")
+    achievement_id: int = Field(description="ID del logro", foreign_key="achievements.id")
+    unlocked_at: datetime = Field(description="Fecha de desbloqueo del logro", sa_column_kwargs={
+        "server_default": func.now(),
+    })
 
     # Relaciones
-    user: Mapped["User"] = relationship("User", backref="achievements")
-    achievement: Mapped["Achievement"] = relationship("Achievement")
+    user: "Users" = Relationship(back_populates="achievements")
+    achievement: Achievements = Relationship()

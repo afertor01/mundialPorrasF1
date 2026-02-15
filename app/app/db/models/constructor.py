@@ -1,15 +1,13 @@
-from sqlalchemy import String, Integer, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.db.session import Base
+from sqlmodel import Field, Relationship, SQLModel
 
-class Constructor(Base):
+class Constructors(SQLModel, table=True):
     __tablename__ = "constructors"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String, nullable=False) # Ej: Ferrari
-    color: Mapped[str] = mapped_column(String, default="#000000") # Ej: #FF0000
-    season_id: Mapped[int] = mapped_column(Integer, ForeignKey("seasons.id"), nullable=False)
+    id: int = Field(description="ID del constructor", primary_key=True)
+    name: str = Field(description="Nombre del constructor", nullable=False) # Ej: Ferrari
+    color: str = Field(description="Color del constructor", default="#000000") # Ej: #FF0000
+    season_id: int = Field(description="ID de la temporada a la que pertenece este constructor", foreign_key="seasons.id", nullable=False)
 
     # Relaciones
-    season: Mapped["Season"] = relationship("Season")
-    drivers: Mapped[list["Driver"]] = relationship("Driver", back_populates="constructor")
+    season: "Seasons" = Relationship()
+    drivers: list["Drivers"] = Relationship(back_populates="constructor", cascade_delete=True)

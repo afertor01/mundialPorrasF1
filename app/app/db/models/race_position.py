@@ -1,15 +1,12 @@
-# app/db/models/race_position.py
-from sqlalchemy import Integer, String, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.db.session import Base
+from sqlmodel import Field, Relationship, SQLModel
 
-class RacePosition(Base):
+class RacePositions(SQLModel, table=True):
     __tablename__ = "race_positions"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    race_result_id: Mapped[int] = mapped_column(Integer, ForeignKey("race_results.id"), nullable=False)
-    position: Mapped[int] = mapped_column(Integer, nullable=False)
-    driver_name: Mapped[str] = mapped_column(String, nullable=False)
+    id: int = Field(description="ID de la posición en la carrera", primary_key=True)
+    race_result_id: int = Field(description="ID del resultado de carrera al que pertenece esta posición", foreign_key="race_results.id", nullable=False)
+    position: int = Field(description="Posición del piloto en la carrera", nullable=False)
+    driver_name: str = Field(description="Nombre del piloto", nullable=False)
 
     # Relaciones
-    race_result: Mapped["RaceResult"] = relationship("RaceResult", back_populates="positions")
+    race_result: "RaceResults" = Relationship(back_populates="positions")

@@ -1,17 +1,15 @@
-# app/db/models/grand_prix.py
-from sqlalchemy import Integer, String, DateTime, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.db.session import Base
+from datetime import datetime
+from sqlmodel import Field, Relationship, SQLModel
 
-class GrandPrix(Base):
+class GrandPrix(SQLModel, table=True):
     __tablename__ = "grand_prix"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    race_datetime: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
-    season_id: Mapped[int] = mapped_column(Integer, ForeignKey("seasons.id"), nullable=False)
+    id: int = Field(description="ID del gran premio", primary_key=True)
+    name: str = Field(description="Nombre del gran premio", nullable=False)
+    race_datetime: datetime = Field(description="Fecha y hora de la carrera", nullable=False)
+    season_id: int = Field(description="ID de la temporada a la que pertenece este gran premio", foreign_key="seasons.id", nullable=False)
 
     # Relaciones
-    season: Mapped["Season"] = relationship("Season", back_populates="grand_prixes")
-    predictions: Mapped[list["Prediction"]] = relationship("Prediction", back_populates="grand_prix")
-    race_result: Mapped["RaceResult"] = relationship("RaceResult", back_populates="grand_prix", uselist=False)
+    season: "Seasons" = Relationship(back_populates="grand_prixes")
+    predictions: list["Predictions"] = Relationship(back_populates="grand_prix", cascade_delete=True)
+    race_results: "RaceResults" = Relationship(back_populates="grand_prix", cascade_delete=True)

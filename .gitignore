@@ -9,3 +9,6 @@
 
 # --- Scripts Bash y demás pruebas ---
 ignore/
+
+# --- Configuración de IDEs ---
+.vscode/

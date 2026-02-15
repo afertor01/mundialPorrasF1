@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { toFormData } from "axios";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
@@ -30,7 +30,7 @@ export const register = async (data: { email: string; username: string; password
 };
 
 export const login = async (identifier: string, password: string) => {
-  const res = await client.post(`/auth/login`, { identifier, password });
+  const res = await client.post(`/auth/login`, toFormData({ username: identifier, password: password }));
   return res.data;
 };
 

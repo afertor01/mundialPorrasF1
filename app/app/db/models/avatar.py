@@ -1,10 +1,8 @@
-from sqlalchemy import String, Integer
-from sqlalchemy.orm import Mapped, mapped_column
-from app.db.session import Base
+from sqlmodel import Field, SQLModel
 
-class Avatar(Base):
+class Avatars(SQLModel, table=True):
     __tablename__ = "avatars"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    filename: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    id: int = Field(description="ID del avatar autogenerada", primary_key=True)
+    filename: str = Field(description="Nombre del archivo del avatar", unique=True, nullable=False)
     # Podrías añadir 'category' si en el futuro quieres separarlos

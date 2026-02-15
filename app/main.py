@@ -1,32 +1,28 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import os
-
-# IMPORTANTE: Importar Base y Engine para que funcione la creación de tablas
-from app.db.session import engine, Base 
-
-# Importar modelos para que SQLAlchemy los "vea" antes de crear las tablas
-# El nombre _all suele ser un truco para importar todo a la vez
-from app.db.models import _all 
-
-# Importar las rutas (los routers)
-from app.api.auth import router as auth_router
-from app.api.grand_prix import router as grand_prix_router
-from app.api.predictions import router as predictions_router
-from app.api.race_results import router as race_results_router
-from app.api.admin import router as admin_router
-from app.api import stats
-from app.api.seasons import router as seasons_router
-from app.api.teams import router as teams_router
-from app.api.bingo import router as bingo_router
-from app.api.avatars import router as avatars_router
-from app.api.achievements import router as achievements_router
-
+from app.routers.bingo import BingoRouter
+from app.routers.grand_prix import GrandPrixRouter
+from app.routers.race_results import RaceResultsRouter
+from app.routers.scoring import ScoringRouter
+from app.routers.seasons import SeasonsRouter
+from app.routers.standings import StandingsRouter
+from app.routers.stats import StatsRouter
+from app.routers.teams import TeamsRouter
+from app.routers.admin import AdminRouter
+from app.routers.auth import AuthRouter
+from app.routers.avatars import AvatarsRouter
+from app.routers.achievements import AchievementsRouter
+from app.routers.predictions import PredictionsRouter
 
 app = FastAPI(
     title="Mundial de Porras F1",
-    version="1.0.0"
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 
 # 👇 CREAR CARPETAS SI NO EXISTEN
@@ -36,21 +32,34 @@ os.makedirs("app/static/avatars", exist_ok=True)
 # Esto hace que http://localhost:8000/static/avatars/foto.png sea accesible
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Creamos las tablas en la base de datos
-Base.metadata.create_all(bind=engine)
+achievements = AchievementsRouter()
+admin = AdminRouter()
+auth = AuthRouter()
+avatars = AvatarsRouter()
+bingo = BingoRouter()
+grand_prix = GrandPrixRouter()
+predictions = PredictionsRouter()
+race_results = RaceResultsRouter()
+scoring = ScoringRouter()
+seasons = SeasonsRouter()
+standings = StandingsRouter()
+stats = StatsRouter()
+teams = TeamsRouter()
 
 # Conectamos las piezas (routers)
-app.include_router(auth_router)
-app.include_router(grand_prix_router)
-app.include_router(predictions_router)
-app.include_router(race_results_router)
-app.include_router(admin_router)
+app.include_router(auth.router)
+app.include_router(grand_prix.router)
+app.include_router(predictions.router)
+app.include_router(race_results.router)
+app.include_router(admin.router)
 app.include_router(stats.router)
-app.include_router(seasons_router)
-app.include_router(teams_router)
-app.include_router(bingo_router)
-app.include_router(avatars_router)
-app.include_router(achievements_router)
+app.include_router(seasons.router)
+app.include_router(teams.router)
+app.include_router(bingo.router)
+app.include_router(avatars.router)
+app.include_router(achievements.router)
+app.include_router(scoring.router)
+app.include_router(standings.router)
 
 
 # Configuramos el permiso para que React pueda hablar con Python

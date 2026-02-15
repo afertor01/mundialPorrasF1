@@ -5,27 +5,27 @@ import time
 from datetime import datetime, timedelta
 
 # --- DB & MODELOS ---
-from app.db.session import SessionLocal, engine, Base
-from app.db.models.user import User
-from app.db.models.season import Season
+from app.db.session import SessionMaker, engine, Base
+from app.db.models.user import Users
+from app.db.models.season import Seasons
 from app.db.models.grand_prix import GrandPrix
-from app.db.models.team import Team
-from app.db.models.team_member import TeamMember
-from app.db.models.bingo import BingoTile, BingoSelection
-from app.db.models.multiplier_config import MultiplierConfig
-from app.db.models.constructor import Constructor
-from app.db.models.driver import Driver
+from app.db.models.team import Teams
+from app.db.models.team_member import TeamMembers
+from app.db.models.bingo import BingoTiles, BingoSelections
+from app.db.models.multiplier_config import MultiplierConfigs
+from app.db.models.constructor import Constructors
+from app.db.models.driver import Drivers
 from app.core.security import hash_password
 
 # 👇 IMPORTANTE: Aunque no creemos predicciones en este script, 
 # hay que importarlos para que SQLAlchemy sepa resolver las relaciones 
 # que tiene el modelo 'User' y 'GrandPrix'.
-from app.db.models.prediction import Prediction
-from app.db.models.prediction_position import PredictionPosition
-from app.db.models.prediction_event import PredictionEvent
-from app.db.models.race_result import RaceResult
-from app.db.models.race_position import RacePosition
-from app.db.models.race_event import RaceEvent
+from app.db.models.prediction import Predictions
+from app.db.models.prediction_position import PredictionPositions
+from app.db.models.prediction_event import PredictionEvents
+from app.db.models.race_result import RaceResults
+from app.db.models.race_position import RacePositions
+from app.db.models.race_event import RaceEvents
 
 # --- CONFIGURACIÓN ---
 NUM_USERS = 100       
@@ -38,7 +38,7 @@ def reset_db():
     print("✅ Tablas creadas.")
 
 def create_season(db):
-    season = Season(year=2026, name="F1 2026 Championship", is_active=True)
+    season = Seasons(year=2026, name="F1 2026 Championship", is_active=True)
     db.add(season)
     
     configs = [
@@ -46,7 +46,7 @@ def create_season(db):
         ("DNF_DRIVER", 3.0), ("PODIUM_PARTIAL", 1.0), ("PODIUM_TOTAL", 2.0)
     ]
     for evt, val in configs:
-        db.add(MultiplierConfig(season=season, event_type=evt, multiplier=val))
+        db.add(MultiplierConfigs(season=season, event_type=evt, multiplier=val))
         
     db.commit()
     return season
@@ -118,7 +118,7 @@ def create_bingo_tiles(db, season):
 
     tiles = []
     for desc in bingo_events:
-        t = BingoTile(season_id=season.id, description=desc, is_completed=False)
+        t = BingoTiles(season_id=season.id, description=desc, is_completed=False)
         db.add(t)
         tiles.append(t)
     
@@ -137,7 +137,7 @@ def simulate_bingo_selections(db, users, tiles):
         my_picks = random.sample(tiles, num_picks)
         
         for tile in my_picks:
-            sel = BingoSelection(user_id=user.id, bingo_tile_id=tile.id)
+            sel = BingoSelections(user_id=user.id, bingo_tile_id=tile.id)
             db.add(sel)
             selections.append(sel)
             
@@ -162,11 +162,11 @@ def create_f1_grid(db, season):
 
     driver_codes = []
     for team_name, color, drivers in grid_data:
-        const = Constructor(name=team_name, color=color, season_id=season.id)
+        const = Constructors(name=team_name, color=color, season_id=season.id)
         db.add(const)
         db.commit() 
         for code, name in drivers:
-            d = Driver(code=code, name=name, constructor_id=const.id)
+            d = Drivers(code=code, name=name, constructor_id=const.id)
             db.add(d)
             driver_codes.append(code)
     
@@ -177,8 +177,8 @@ def create_users_and_teams(db, season):
     users = []
     
     # 1. Admin y Tú
-    admin = User(email="admin@test.com", username="ADMIN", acronym="ADM", hashed_password=hash_password("123"), role="admin")
-    yo = User(email="yo@test.com", username="afertor", acronym="AFE", hashed_password=hash_password("123"), role="user")
+    admin = Users(email="admin@test.com", username="ADMIN", acronym="ADM", hashed_password=hash_password("123"), role="admin")
+    yo = Users(email="yo@test.com", username="afertor", acronym="AFE", hashed_password=hash_password("123"), role="user")
     
     users.extend([admin, yo])
     db.add_all([admin, yo])
@@ -195,7 +195,7 @@ def create_users_and_teams(db, season):
             name = f"Jugador_{i+1}"
             acr = f"J{str(i+1).zfill(2)}"[:3] 
 
-        u = User(email=f"bot{i}@test.com", username=name, acronym=acr, hashed_password=hash_password("123"), role="user")
+        u = Users(email=f"bot{i}@test.com", username=name, acronym=acr, hashed_password=hash_password("123"), role="user")
         users.append(u)
         db.add(u)
         
@@ -220,16 +220,16 @@ def create_users_and_teams(db, season):
             
             t_name = f"Team {u1.acronym}" if random.random() > 0.5 else f"Scuderia {team_count}"
             
-            team = Team(name=t_name, season_id=season.id, join_code=formatted_code)
+            team = Teams(name=t_name, season_id=season.id, join_code=formatted_code)
             db.add(team)
             db.commit()
             
-            m1 = TeamMember(team_id=team.id, user_id=u1.id, season_id=season.id)
-            m2 = TeamMember(team_id=team.id, user_id=u2.id, season_id=season.id)
+            m1 = TeamMembers(team_id=team.id, user_id=u1.id, season_id=season.id)
+            m2 = TeamMembers(team_id=team.id, user_id=u2.id, season_id=season.id)
             db.add_all([m1, m2])
             
     db.commit()
-    return db.query(User).all()
+    return db.query(Users).all()
 
 def schedule_future_calendar(db, season):
     print("📅 Programando calendario futuro (PRE-TEMPORADA)...")
@@ -252,7 +252,7 @@ def schedule_future_calendar(db, season):
     print(f"✅ Calendario de {len(gp_names)} carreras creado. Primera carrera: {start_date.strftime('%Y-%m-%d')}")
 
 def main():
-    db = SessionLocal()
+    db = SessionMaker()
     try:
         reset_db()
         season = create_season(db)

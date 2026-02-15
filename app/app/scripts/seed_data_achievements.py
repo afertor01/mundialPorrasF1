@@ -1,35 +1,38 @@
 import random
 import string
 import sys
-import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List
 
 # --- DB & MODELOS ---
-from app.db.session import SessionLocal, engine, Base
-from app.db.models.user import User
-from app.db.models.season import Season
+from app.db.models.user import Users
+from app.db.models.season import Seasons
 from app.db.models.grand_prix import GrandPrix
-from app.db.models.team import Team
-from app.db.models.team_member import TeamMember
-from app.db.models.bingo import BingoTile, BingoSelection
-from app.db.models.multiplier_config import MultiplierConfig
-from app.db.models.constructor import Constructor
-from app.db.models.driver import Driver
+from app.db.models.team import Teams
+from app.db.models.team_member import TeamMembers
+from app.db.models.bingo import BingoTiles, BingoSelections
+from app.db.models.multiplier_config import MultiplierConfigs
+from app.db.models.constructor import Constructors
+from app.db.models.driver import Drivers
 from app.core.security import hash_password
 
+from app.db.session import drop_tables, create_tables, SessionMaker
+
 # --- IMPORTANTE: Nuevos modelos para evitar que falten tablas ---
-from app.db.models.achievement import Achievement, UserAchievement
-from app.db.models.avatar import Avatar
+from app.db.models.achievement import Achievements, UserAchievements
+from app.db.models.avatar import Avatars
 
 # Modelos necesarios para las relaciones de SQLAlchemy (aunque no se instancien directamente aquí)
-from app.db.models.prediction import Prediction
-from app.db.models.prediction_position import PredictionPosition
-from app.db.models.prediction_event import PredictionEvent
-from app.db.models.race_result import RaceResult
-from app.db.models.race_position import RacePosition
-from app.db.models.race_event import RaceEvent
+from app.db.models.prediction import Predictions
+from app.db.models.prediction_position import PredictionPositions
+from app.db.models.prediction_event import PredictionEvents
+from app.db.models.race_result import RaceResults
+from app.db.models.race_position import RacePositions
+from app.db.models.race_event import RaceEvents
 
-from app.services.scoring import calculate_prediction_score
+from app.utils.scoring import calculate_prediction_score
+from fastapi import Depends
+from sqlmodel import SQLModel, Session, select
 
 # --- CONFIGURACIÓN ---
 NUM_USERS = 100       
@@ -39,47 +42,48 @@ COMPLETED_GPS = 10   # Simulamos media temporada
 
 def reset_db():
     print("🗑️  Borrando base de datos antigua...")
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    drop_tables()
+    create_tables()
     print("✅ Tablas creadas (incluyendo Achievements y Avatars).")
 
-def create_season(db):
-    season = Season(year=2026, name="F1 2026 Championship", is_active=True)
-    db.add(season)
+def create_season(session: Session):
+    season = Seasons(year=2026, name="F1 2026 Championship", is_active=True)
+    session.add(season)
     
     configs = [
         ("FASTEST_LAP", 1.0), ("SAFETY_CAR", 2.0), ("DNFS", 2.0), 
         ("DNF_DRIVER", 3.0), ("PODIUM_PARTIAL", 1.0), ("PODIUM_TOTAL", 2.0)
     ]
     for evt, val in configs:
-        db.add(MultiplierConfig(season=season, event_type=evt, multiplier=val))
+        session.add(MultiplierConfigs(season=season, event_type=evt, multiplier=val))
         
-    db.commit()
+    session.commit()
     return season
 
 # ---------------------------------------------------------
 # 🏆 LOGROS (NUEVO: Para evitar error 500 en /achievements)
 # ---------------------------------------------------------
-def create_default_achievements(db):
+def create_default_achievements(session: Session):
     print("🏆 Creando logros por defecto...")
     defaults = [
-        {"slug": "first_race", "name": "Debutante", "desc": "Participa en tu primer GP", "icon": "Flag"},
-        {"slug": "first_win", "name": "Pole Position", "desc": "Queda 1º en el ranking de un GP", "icon": "Trophy"},
-        {"slug": "oracle", "name": "El Oráculo", "desc": "Acierta el podio exacto en orden", "icon": "Eye"},
-        {"slug": "veteran", "name": "Veterano", "desc": "Participa en 10 carreras", "icon": "Star"},
-        {"slug": "mechanic", "name": "Ingeniero", "desc": "Crea tu propia escudería", "icon": "Wrench"},
+        {"slug": "first_race", "name": "Debutante", "description": "Participa en tu primer GP", "icon": "Flag"},
+        {"slug": "first_win", "name": "Pole Position", "description": "Queda 1º en el ranking de un GP", "icon": "Trophy"},
+        {"slug": "oracle", "name": "El Oráculo", "description": "Acierta el podio exacto en orden", "icon": "Eye"},
+        {"slug": "veteran", "name": "Veterano", "description": "Participa en 10 carreras", "icon": "Star"},
+        {"slug": "mechanic", "name": "Ingeniero", "description": "Crea tu propia escudería", "icon": "Wrench"},
     ]
-    for d in defaults:
+    for default in defaults:
         # Verificar si existe para evitar duplicados si se corre varias veces
-        exists = db.query(Achievement).filter(Achievement.slug == d["slug"]).first()
+        query = select(Achievements).where(Achievements.slug == default["slug"])
+        exists = session.exec(query).first()
         if not exists:
-            db.add(Achievement(slug=d["slug"], name=d["name"], description=d["desc"], icon=d["icon"]))
-    db.commit()
+            session.add(Achievements(**default))
+    session.commit()
 
 # ---------------------------------------------------------
 # 🎲 LÓGICA DE BINGO
 # ---------------------------------------------------------
-def create_bingo_tiles(db, season):
+def create_bingo_tiles(session: Session, season: Seasons):
     print("🎲 Generando 50 eventos de Bingo creativos...")
     
     bingo_events = [
@@ -136,16 +140,16 @@ def create_bingo_tiles(db, season):
     ]
 
     tiles = []
-    for desc in bingo_events:
-        t = BingoTile(season_id=season.id, description=desc, is_completed=False)
-        db.add(t)
-        tiles.append(t)
+    for description in bingo_events:
+        tile = BingoTiles(season_id=season.id, description=description, is_completed=False)
+        session.add(tile)
+        tiles.append(tile)
     
-    db.commit()
+    session.commit()
     print(f"✅ {len(tiles)} Casillas de Bingo creadas.")
     return tiles
 
-def simulate_bingo_selections(db, users, tiles):
+def simulate_bingo_selections(session: Session, users: List[Users], tiles: List[BingoTiles]):
     print("📝 Simulando que los usuarios rellenan sus cartones de Bingo...")
     
     selections = []
@@ -155,26 +159,26 @@ def simulate_bingo_selections(db, users, tiles):
         my_picks = random.sample(tiles, num_picks)
         
         for tile in my_picks:
-            sel = BingoSelection(user_id=user.id, bingo_tile_id=tile.id)
-            db.add(sel)
-            selections.append(sel)
+            selection = BingoSelections(user_id=user.id, bingo_tile_id=tile.id)
+            session.add(selection)
+            selections.append(selection)
             
-    db.commit()
+    session.commit()
     print(f"✅ {len(selections)} Selecciones de bingo registradas.")
 
-def resolve_random_bingo_events(db, tiles):
+def resolve_random_bingo_events(session: Session, tiles: List[BingoTiles]):
     print("🔮 Resolviendo eventos de Bingo (simulación de temporada)...")
     completed_tiles = random.sample(tiles, k=random.randint(5, 10))
     
-    for t in completed_tiles:
-        t.is_completed = True
-        print(f"   ✨ ¡BINGO! Ha ocurrido: {t.description}")
+    for tile in completed_tiles:
+        tile.is_completed = True
+        print(f"   ✨ ¡BINGO! Ha ocurrido: {tile.description}")
         
-    db.commit()
+    session.commit()
 
 # ---------------------------------------------------------
 
-def create_f1_grid(db, season):
+def create_f1_grid(session: Session, season: Seasons):
     print("🏎️  Creando Parrilla F1 Real...")
     
     grid_data = [
@@ -192,30 +196,30 @@ def create_f1_grid(db, season):
 
     driver_codes = []
     for team_name, color, drivers in grid_data:
-        const = Constructor(name=team_name, color=color, season_id=season.id)
-        db.add(const)
-        db.commit() 
+        const = Constructors(name=team_name, color=color, season_id=season.id)
+        session.add(const)
+        session.commit() 
         for code, name in drivers:
-            d = Driver(code=code, name=name, constructor_id=const.id)
-            db.add(d)
+            d = Drivers(code=code, name=name, constructor_id=const.id)
+            session.add(d)
             driver_codes.append(code)
     
-    db.commit()
+    session.commit()
     return driver_codes
 
-def create_users_and_teams(db, season):
+def create_users_and_teams(session: Session, season: Seasons):
     users = []
     user_skills = {}
     
     # 1. Admin y Tú
-    admin = User(email="admin@test.com", username="ADMIN", acronym="ADM", hashed_password=hash_password("123"), role="admin")
-    yo = User(email="yo@test.com", username="afertor", acronym="AFE", hashed_password=hash_password("123"), role="user")
+    admin = Users(email="admin@test.com", username="ADMIN", acronym="ADM", hashed_password=hash_password("123"), role="admin")
+    yo = Users(email="yo@test.com", username="afertor", acronym="AFE", hashed_password=hash_password("123"), role="user")
     
     users.extend([admin, yo])
     user_skills["ADMIN"] = 0.5
     user_skills["afertor"] = 0.90 
 
-    db.add_all([admin, yo])
+    session.add_all([admin, yo])
     
     # 2. Bots
     print(f"👥 Generando {NUM_USERS} usuarios...")
@@ -229,9 +233,9 @@ def create_users_and_teams(db, season):
             name = f"Jugador_{i+1}"
             acr = f"J{str(i+1).zfill(2)}"[:3] 
 
-        u = User(email=f"bot{i}@test.com", username=name, acronym=acr, hashed_password=hash_password("123"), role="user")
+        u = Users(email=f"bot{i}@test.com", username=name, acronym=acr, hashed_password=hash_password("123"), role="user")
         users.append(u)
-        db.add(u)
+        session.add(u)
         
         rand = random.random()
         if rand > 0.85: skill = random.uniform(0.75, 0.85) 
@@ -240,7 +244,7 @@ def create_users_and_teams(db, season):
         
         user_skills[name] = skill
 
-    db.commit()
+    session.commit()
 
     # 3. Equipos
     print("🤝 Creando escuderías de jugadores...")
@@ -261,18 +265,19 @@ def create_users_and_teams(db, season):
             
             t_name = f"Team {u1.acronym}" if random.random() > 0.5 else f"Scuderia {team_count}"
             
-            team = Team(name=t_name, season_id=season.id, join_code=formatted_code)
-            db.add(team)
-            db.commit()
+            team = Teams(name=t_name, season_id=season.id, join_code=formatted_code)
+            session.add(team)
+            session.commit()
             
-            m1 = TeamMember(team_id=team.id, user_id=u1.id, season_id=season.id)
-            m2 = TeamMember(team_id=team.id, user_id=u2.id, season_id=season.id)
-            db.add_all([m1, m2])
+            m1 = TeamMembers(team_id=team.id, user_id=u1.id, season_id=season.id)
+            m2 = TeamMembers(team_id=team.id, user_id=u2.id, season_id=season.id)
+            session.add_all([m1, m2])
             
-    db.commit()
-    return db.query(User).all(), user_skills
+    session.commit()
+    query = select(Users)
+    return session.exec(query).all(), user_skills
 
-def generate_realistic_prediction(real_result, all_drivers, skill):
+def generate_realistic_prediction(real_result: List[str], all_drivers: List[str], skill: float):
     prediction = list(real_result)
     error_factor = (1.0 - skill) + 0.1
     num_changes = int(error_factor * 10) 
@@ -288,7 +293,7 @@ def generate_realistic_prediction(real_result, all_drivers, skill):
                 prediction[idx] = random.choice(outsiders)
     return prediction
 
-def simulate_race(db, season, users, gp_index, all_driver_codes, user_skills):
+def simulate_race(session: Session, season: Seasons, users: List[Users], gp_index: int, all_driver_codes: List[str], user_skills: Dict[str, float]):
     gp_names = [
         "Bahrain", "Saudi Arabia", "Australia", "Japan", "China", "Miami", "Emilia Romagna", 
         "Monaco", "Canada", "Spain", "Austria", "Great Britain", "Hungary", "Belgium", 
@@ -297,12 +302,12 @@ def simulate_race(db, season, users, gp_index, all_driver_codes, user_skills):
     ]
     
     # Usamos UTC now para evitar líos con naive datetimes
-    race_date = datetime.utcnow() - timedelta(days=(COMPLETED_GPS - gp_index + 1) * 7)
+    race_date = datetime.now(tz=timezone.utc) - timedelta(days=(COMPLETED_GPS - gp_index + 1) * 7)
     gp_name = gp_names[gp_index] if gp_index < len(gp_names) else f"GP {gp_index+1}"
     
     gp = GrandPrix(name=f"GP {gp_name}", race_datetime=race_date, season_id=season.id)
-    db.add(gp)
-    db.commit()
+    session.add(gp)
+    session.commit()
     
     sys.stdout.write(f"🏁 Simulando {gp.name} ")
     sys.stdout.flush()
@@ -323,18 +328,19 @@ def simulate_race(db, season, users, gp_index, all_driver_codes, user_skills):
         "DNF_DRIVER": random.choice(back_tier)
     }
     
-    result = RaceResult(gp_id=gp.id)
-    db.add(result)
-    db.commit()
+    result = RaceResults(gp_id=gp.id)
+    session.add(result)
+    session.commit()
     
     for i, code in enumerate(real_positions):
-        db.add(RacePosition(race_result_id=result.id, position=i+1, driver_name=code))
+        session.add(RacePositions(race_result_id=result.id, position=i+1, driver_name=code))
     for k, v in real_events.items():
-        db.add(RaceEvent(race_result_id=result.id, event_type=k, value=v))
-    db.commit()
+        session.add(RaceEvents(race_result_id=result.id, event_type=k, value=v))
+    session.commit()
 
     # --- 2. PREDICCIONES ---
-    multipliers = db.query(MultiplierConfig).filter(MultiplierConfig.season_id == season.id).all()
+    query = select(MultiplierConfigs).where(MultiplierConfigs.season_id == season.id)
+    multipliers = session.exec(query).all()
     
     for idx, user in enumerate(users):
         if idx % 20 == 0: 
@@ -344,12 +350,12 @@ def simulate_race(db, season, users, gp_index, all_driver_codes, user_skills):
         skill = user_skills.get(user.username, 0.3)
         pred_pos = generate_realistic_prediction(real_positions, all_driver_codes, skill)
         
-        prediction = Prediction(user_id=user.id, gp_id=gp.id)
-        db.add(prediction)
-        db.flush() 
+        prediction = Predictions(user_id=user.id, gp_id=gp.id)
+        session.add(prediction)
+        session.flush() 
         
         for i, code in enumerate(pred_pos):
-            db.add(PredictionPosition(prediction_id=prediction.id, position=i+1, driver_name=code))
+            session.add(PredictionPositions(prediction_id=prediction.id, position=i+1, driver_name=code))
             
         pred_evs = {}
         if random.random() < (skill * 0.4): pred_evs["FASTEST_LAP"] = real_events["FASTEST_LAP"]
@@ -360,7 +366,7 @@ def simulate_race(db, season, users, gp_index, all_driver_codes, user_skills):
         pred_evs["DNF_DRIVER"] = random.choice(all_driver_codes)
         
         for k, v in pred_evs.items():
-            db.add(PredictionEvent(prediction_id=prediction.id, event_type=k, value=v))
+            session.add(PredictionEvents(prediction_id=prediction.id, event_type=k, value=v))
             
         # Mock objects
         class Mock: pass
@@ -378,53 +384,49 @@ def simulate_race(db, season, users, gp_index, all_driver_codes, user_skills):
         prediction.multiplier = score["multiplier"]
         prediction.points = score["final_points"]
         
-    db.commit() 
+    session.commit() 
     sys.stdout.write(" OK\n")
 
 def main():
-    db = SessionLocal()
     try:
-        reset_db()
-        season = create_season(db)
-        
-        # Crear Logros por defecto (NUEVO PASO CRÍTICO)
-        create_default_achievements(db)
+        with SessionMaker() as session:
+            reset_db()
+            season = create_season(session)
+            
+            # Crear Logros por defecto (NUEVO PASO CRÍTICO)
+            create_default_achievements(session)
 
-        driver_codes = create_f1_grid(db, season)
-        
-        # 1. Crear Usuarios
-        users, user_skills = create_users_and_teams(db, season)
-        
-        # 2. Configurar Bingo (Pretemporada)
-        tiles = create_bingo_tiles(db, season) # Crear las 50 casillas
-        simulate_bingo_selections(db, users, tiles) # Usuarios eligen sus casillas
-        
-        # 3. Simular Carreras (Temporada regular)
-        print(f"🚦 Iniciando simulación de {COMPLETED_GPS} carreras...")
-        for i in range(COMPLETED_GPS):
-            simulate_race(db, season, users, i, driver_codes, user_skills)
+            driver_codes = create_f1_grid(session, season)
             
-        # 4. Resolver Bingo (Simular que ocurren cosas durante la temporada)
-        resolve_random_bingo_events(db, tiles)
+            # 1. Crear Usuarios
+            users, user_skills = create_users_and_teams(session, season)
             
-        # 5. Programar carreras futuras
-        print("🔮 Programando carreras futuras...")
-        future_date = datetime.utcnow() + timedelta(days=7)
-        db.add(GrandPrix(name="GP Qatar", race_datetime=future_date, season_id=season.id))
-        db.add(GrandPrix(name="GP Abu Dhabi", race_datetime=future_date + timedelta(days=7), season_id=season.id))
-        db.commit()
-        
-        print("\n✅ ¡Simulación MASIVA CON BINGO completada con éxito!")
-        print(f"   Usuarios: {NUM_USERS}")
-        print(f"   Eventos Bingo: 50")
-        print(f"   Carreras terminadas: {COMPLETED_GPS}")
+            # 2. Configurar Bingo (Pretemporada)
+            tiles = create_bingo_tiles(session, season) # Crear las 50 casillas
+            simulate_bingo_selections(session, users, tiles) # Usuarios eligen sus casillas
+            
+            # 3. Simular Carreras (Temporada regular)
+            print(f"🚦 Iniciando simulación de {COMPLETED_GPS} carreras...")
+            for i in range(COMPLETED_GPS):
+                simulate_race(session, season, users, i, driver_codes, user_skills)
+                
+            # 4. Resolver Bingo (Simular que ocurren cosas durante la temporada)
+            resolve_random_bingo_events(session, tiles)
+                
+            # 5. Programar carreras futuras
+            print("🔮 Programando carreras futuras...")
+            future_date = datetime.now(tz=timezone.utc) + timedelta(days=7)
+            session.add(GrandPrix(name="GP Qatar", race_datetime=future_date, season_id=season.id))
+            session.add(GrandPrix(name="GP Abu Dhabi", race_datetime=future_date + timedelta(days=7), season_id=season.id))
+            session.commit()
+            
+            print("\n✅ ¡Simulación MASIVA CON BINGO completada con éxito!")
+            print(f"   Usuarios: {NUM_USERS}")
+            print(f"   Eventos Bingo: 50")
+            print(f"   Carreras terminadas: {COMPLETED_GPS}")
         
     except Exception as e:
         print(f"❌ Error: {e}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        db.close()
 
 if __name__ == "__main__":
     main()

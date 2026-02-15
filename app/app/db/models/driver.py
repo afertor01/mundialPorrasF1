@@ -1,14 +1,12 @@
-from sqlalchemy import String, Integer, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.db.session import Base
+from sqlmodel import Field, Relationship, SQLModel
 
-class Driver(Base):
+class Drivers(SQLModel, table=True):
     __tablename__ = "drivers"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    code: Mapped[str] = mapped_column(String, nullable=False) # Ej: ALO
-    name: Mapped[str] = mapped_column(String, nullable=False) # Ej: Fernando Alonso
-    constructor_id: Mapped[int] = mapped_column(Integer, ForeignKey("constructors.id"), nullable=False)
+    id: int = Field(description="ID del driver", primary_key=True)
+    code: str = Field(description="Código del driver", nullable=False) # Ej: ALO
+    name: str = Field(description="Nombre del driver", nullable=False) # Ej: Fernando Alonso
+    constructor_id: int = Field(description="ID del constructor al que pertenece este driver", foreign_key="constructors.id", nullable=False)
 
     # Relaciones
-    constructor: Mapped["Constructor"] = relationship("Constructor", back_populates="drivers")
+    constructor: "Constructors" = Relationship(back_populates="drivers")
