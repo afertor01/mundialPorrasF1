@@ -38,7 +38,7 @@ from fastapi import Depends
 from sqlmodel import SQLModel, Session, select
 
 # 👇👇👇 IMPORT CRÍTICO AÑADIDO 👇👇👇
-from app.services.achievements_service import evaluate_race_achievements
+from app.utils.achievements import evaluate_race_achievements
 
 # --- CONFIGURACIÓN ---
 NUM_USERS = 100       

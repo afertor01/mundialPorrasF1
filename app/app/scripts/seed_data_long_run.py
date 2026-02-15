@@ -31,7 +31,7 @@ from app.db.models.bingo import BingoTile, BingoSelection
 
 # Servicios
 from app.services.scoring import calculate_prediction_score
-from app.services.achievements_service import evaluate_race_achievements, evaluate_season_finale_achievements
+from app.utils.achievements import evaluate_race_achievements, evaluate_season_finale_achievements
 
 # Definiciones de logros
 ACHIEVEMENT_DEFINITIONS = [

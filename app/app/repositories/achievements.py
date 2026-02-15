@@ -1,5 +1,5 @@
 from typing import Annotated
-from app.api.achievements import AchievementType
+from app.db.models.achievement import AchievementType
 from app.schemas.responses import AchievementResponse
 from fastapi import APIRouter, Depends
 from app.db.session import get_session

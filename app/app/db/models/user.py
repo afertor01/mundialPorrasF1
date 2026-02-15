@@ -24,3 +24,4 @@ class Users(SQLModel, table=True):
     team_memberships: List["TeamMembers"] = Relationship(back_populates="user", cascade_delete=True)
     bingo_selections: List["BingoSelections"] = Relationship(back_populates="user", cascade_delete=True)
     achievements: List["UserAchievements"] = Relationship(back_populates="user", cascade_delete=True)
+    stats: "UserStats" = Relationship(back_populates="user", cascade_delete=True)

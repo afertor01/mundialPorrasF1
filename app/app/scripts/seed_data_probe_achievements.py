@@ -30,7 +30,7 @@ from app.db.models.race_event import RaceEvent
 from app.core.security import hash_password
 
 from app.services.scoring import calculate_prediction_score
-from app.services.achievements_service import evaluate_race_achievements, evaluate_season_finale_achievements
+from app.utils.achievements import evaluate_race_achievements, evaluate_season_finale_achievements
 
 # LISTA PURGADA DE LOGROS
 ACHIEVEMENT_DEFINITIONS = [

@@ -1,50 +1,51 @@
 # app/db/models/user_stats.py
+from datetime import datetime
 from sqlalchemy import Column, Integer, String, ForeignKey, JSON, Boolean, Float, DateTime
 from sqlalchemy.orm import relationship
-from app.db.session import Base
+from sqlmodel import Field, Relationship, SQLModel
 
-class UserStats(Base):
+class UserStats(SQLModel, table=True):
     __tablename__ = "user_stats"
 
-    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    user_id: int = Field(description="ID del usuario", foreign_key="users.id", primary_key=True)
     
     # --- GLOBAL CAREER STATS ---
-    total_points = Column(Float, default=0.0)
-    total_gps_played = Column(Integer, default=0)
+    total_points: float = Field(description="Puntos totales del usuario", default=0.0)
+    total_gps_played: int = Field(description="Número total de GP jugados", default=0)
     
     # Rachas
-    consecutive_gps = Column(Integer, default=0) 
-    last_gp_played_date = Column(DateTime, nullable=True) # Usamos fecha para robustez
-    last_gp_played_id = Column(Integer, nullable=True)    # Mantenemos por compatibilidad
+    consecutive_gps: int = Field(description="Racha de GP consecutivos jugados", default=0)
+    last_gp_played_date: datetime = Field(description="Fecha del último GP jugado", nullable=True) # Usamos fecha para robustez
+    last_gp_played_id: int = Field(description="ID del último GP jugado", nullable=True)    # Mantenemos por compatibilidad
 
     # --- CONTADORES DE PRECISIÓN ---
-    exact_positions_count = Column(Integer, default=0)
-    exact_podiums_count = Column(Integer, default=0)
-    fastest_lap_hits = Column(Integer, default=0)
-    safety_car_hits = Column(Integer, default=0)
-    dnf_count_hits = Column(Integer, default=0)
-    dnf_driver_hits = Column(Integer, default=0)
+    exact_positions_count: int = Field(description="Número de posiciones exactas acertadas", default=0)
+    exact_podiums_count: int = Field(description="Número de podios exactos acertados", default=0)
+    fastest_lap_hits: int = Field(description="Número de vueltas rápidas acertadas", default=0)
+    safety_car_hits: int = Field(description="Número de aciertos de Safety Car", default=0)
+    dnf_count_hits: int = Field(description="Número de aciertos de DNFs", default=0)
+    dnf_driver_hits: int = Field(description="Número de aciertos de DNF de pilotos específicos", default=0)
     
     # --- ESTADÍSTICAS DE TEMPORADA / HISTÓRICAS ---
     # Cuántas veces ha ganado la jornada (MVP) en la temporada actual
-    season_wins = Column(Integer, default=0) 
+    season_wins: int = Field(description="Número de veces que el usuario ha ganado la jornada (MVP) en la temporada actual", default=0) 
     # Cuántas temporadas ha jugado activamente
-    seasons_participated = Column(Integer, default=0)
+    seasons_participated: int = Field(description="Número de temporadas en las que el usuario ha participado activamente", default=0)
     
     # --- COLECCIONABLES (JSON) ---
-    won_circuits = Column(JSON, default=list) 
-    collected_drivers = Column(JSON, default=list) 
+    won_circuits: list = Field(default_factory=list, sa_column=Column(JSON), description="Circuitos ganados por el usuario")
+    collected_drivers: list = Field(default_factory=list, sa_column=Column(JSON), description="Pilotos coleccionados por el usuario")
     
     # --- PALMARÉS (JSON) ---
     # Guardaremos aquí el ranking final de cada año. Ej: {"2024": 1, "2025": 5}
-    season_rankings = Column(JSON, default=dict)
+    season_rankings: dict = Field(default_factory=dict, sa_column=Column(JSON), description="Ranking final de cada año")
 
     # --- SEASON STATS ACTUALES ---
-    current_season_points = Column(Float, default=0.0)
+    current_season_points: float = Field(description="Puntos de la temporada actual", default=0.0)
     
-    user = relationship("User", backref="stats")
+    user: "Users" = Relationship(back_populates="stats")
 
-class UserGpStats(Base):
+class UserGpStats(SQLModel, table=True):
     """
     Guarda el desglose de lo que un usuario consiguió en un GP específico.
     Sirve para poder 'revertir' estadísticas si se modifica el resultado del GP
@@ -52,14 +53,14 @@ class UserGpStats(Base):
     """
     __tablename__ = "user_gp_stats"
 
-    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
-    gp_id = Column(Integer, ForeignKey("grand_prix.id"), primary_key=True)
+    user_id: int = Field(foreign_key="users.id", primary_key=True)
+    gp_id: int = Field(foreign_key="grand_prix.id", primary_key=True)
 
     # Métricas que se suman al UserStats global
-    points = Column(Integer, default=0)
-    exact_positions = Column(Integer, default=0)
-    exact_podium_hit = Column(Boolean, default=False) # 1, 2, 3 exactos
-    fastest_lap_hit = Column(Boolean, default=False)
-    safety_car_hit = Column(Boolean, default=False)
-    dnf_count_hit = Column(Boolean, default=False)
-    dnf_driver_hit = Column(Boolean, default=False)
+    points: int = Field(default=0)
+    exact_positions: int = Field(default=0)
+    exact_podium_hit: bool = Field(default=False) # 1, 2, 3 exactos
+    fastest_lap_hit: bool = Field(default=False)
+    safety_car_hit: bool = Field(default=False)
+    dnf_count_hit: bool = Field(default=False)
+    dnf_driver_hit: bool = Field(default=False)

@@ -4,7 +4,7 @@ from typing import Annotated, Dict
 from app.db.models.user import Users
 from app.schemas.requests import TeamCreateRequest
 from app.schemas.responses import MyTeamResponse, TeamResponse
-from app.services.achievements_service import grant_achievements
+from app.utils.achievements import grant_achievements
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import joinedload
 from app.db.session import SessionMaker, get_session

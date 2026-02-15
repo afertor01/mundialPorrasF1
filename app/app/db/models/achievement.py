@@ -45,5 +45,5 @@ class UserAchievements(SQLModel, table=True):
     # Relaciones
     achievement: Achievements = Relationship()
     user: "Users" = Relationship(back_populates="achievements")
-    gp: "GrandPrix" = Relationship("GrandPrix")
-    season: "Season" = Relationship("Season")
+    gp: "GrandPrix" = Relationship()
+    season: "Seasons" = Relationship()
