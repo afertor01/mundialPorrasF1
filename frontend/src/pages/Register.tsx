@@ -29,9 +29,10 @@ const Register: React.FC = () => {
       await apiRegister({ email, username, password, acronym });
       alert("✅ Usuario registrado correctamente. ¡Ahora inicia sesión!");
       navigate("/login");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert("❌ Error: " + (err.response?.data?.detail || "Error en el registro"));
+      const error = err as { response?: { data?: { detail?: string } } };
+      alert("❌ Error: " + (error.response?.data?.detail || "Error en el registro"));
     }
   };
 

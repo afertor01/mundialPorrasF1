@@ -11,7 +11,10 @@ from sqlmodel import Session
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)) -> Users:
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)
+) -> Users:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = int(payload.get("sub"))
@@ -25,6 +28,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Dep
 
     return user
 
+
 def require_admin(current_user: Users = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(
@@ -33,9 +37,10 @@ def require_admin(current_user: Users = Depends(get_current_user)):
         )
     return current_user
 
+
 def generate_join_code():
     """Genera un código aleatorio de 6 caracteres (Ej: A7X-9Y2)"""
     chars = string.ascii_uppercase + string.digits
-    part1 = ''.join(secrets.choice(chars) for _ in range(3))
-    part2 = ''.join(secrets.choice(chars) for _ in range(3))
+    part1 = "".join(secrets.choice(chars) for _ in range(3))
+    part2 = "".join(secrets.choice(chars) for _ in range(3))
     return f"{part1}-{part2}"

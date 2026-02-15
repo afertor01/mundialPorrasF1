@@ -21,13 +21,12 @@ class RaceResultsRepository:
         self.session = session
 
     def update_race_result(
-        self,
-        race_result_data: UpdateRaceResultRequest
+        self, race_result_data: UpdateRaceResultRequest
     ) -> Dict[str, str]:
         gp = self.session.get(GrandPrix, race_result_data.gp_id)
         if not gp:
             raise HTTPException(status_code=404, detail="GP no encontrado")
-        
+
         query = select(RaceResults).where(RaceResults.gp_id == race_result_data.gp_id)
         result = self.session.exec(query).first()
 
@@ -43,18 +42,22 @@ class RaceResultsRepository:
         self.session.exec(query)
 
         for position in race_result_data.positions:
-            self.session.add(RacePositions(
-                race_result_id=result.id,
-                position=position.position,
-                driver_name=position.driver_code
-            ))
+            self.session.add(
+                RacePositions(
+                    race_result_id=result.id,
+                    position=position.position,
+                    driver_name=position.driver_code,
+                )
+            )
 
         for event in race_result_data.events:
-            self.session.add(RaceEvents(
-                race_result_id=result.id,
-                event_type=event.type,
-                value=event.description
-            ))
+            self.session.add(
+                RaceEvents(
+                    race_result_id=result.id,
+                    event_type=event.type,
+                    value=event.description,
+                )
+            )
 
         self.session.commit()
 
@@ -63,13 +66,10 @@ class RaceResultsRepository:
 
         return {"message": "Resultado guardado y logros calculados"}
 
-    def get_race_result(
-        self,
-        gp_id: int
-    ) -> RaceResultResponse:
+    def get_race_result(self, gp_id: int) -> RaceResultResponse:
         query = select(RaceResults).where(RaceResults.gp_id == gp_id)
         result = self.session.exec(query).first()
-        
+
         if not result:
             raise HTTPException(status_code=404, detail="Resultados no disponibles aún")
 
@@ -78,8 +78,13 @@ class RaceResultsRepository:
         data = RaceResultResponse(
             id=result.id,
             gp_id=result.gp_id,
-            positions=[DriverPosition(position=p.position, driver_code=p.driver_name) for p in result.positions],
-            events=[RaceEvent(type=e.event_type, description=e.value) for e in result.events]
+            positions=[
+                DriverPosition(position=p.position, driver_code=p.driver_name)
+                for p in result.positions
+            ],
+            events=[
+                RaceEvent(type=e.event_type, description=e.value) for e in result.events
+            ],
         )
-        
+
         return data

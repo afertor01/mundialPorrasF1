@@ -1,5 +1,6 @@
 import React, { useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
+import type { AuthContextType } from "../context/AuthContext";
 import { login as apiLogin } from "../api/api";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -8,7 +9,7 @@ import { LogIn, Lock, User } from "lucide-react";
 const Login: React.FC = () => {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const { login } = useContext(AuthContext) as any;
+  const { login } = useContext(AuthContext) as AuthContextType;
   const navigate = useNavigate();
   const [error, setError] = useState("");
 
@@ -19,7 +20,7 @@ const Login: React.FC = () => {
       const res = await apiLogin(identifier, password);
       login(res.access_token);
       navigate("/dashboard");
-    } catch (err) {
+    } catch {
       setError("Credenciales incorrectas. Inténtalo de nuevo.");
     }
   };

@@ -11,10 +11,10 @@ from app.db.models.race_position import RacePositions
 from app.db.models.race_event import RaceEvents
 from app.db.models.driver import Drivers
 from app.utils.achievements import evaluate_race_achievements
-from sqlmodel import Session 
+from sqlmodel import Session
 
 # Configuración caché
-CACHE_DIR = 'cache'
+CACHE_DIR = "cache"
 if not os.path.exists(CACHE_DIR):
     os.makedirs(CACHE_DIR)
 fastf1.Cache.enable_cache(CACHE_DIR)
@@ -47,8 +47,9 @@ DB_TO_API_MAP = {
     "São Paulo Grand Prix": "Brazil",
     "Las Vegas Grand Prix": "Las Vegas",
     "Qatar Grand Prix": "Qatar",
-    "Abu Dhabi Grand Prix": "Abu Dhabi"
+    "Abu Dhabi Grand Prix": "Abu Dhabi",
 }
+
 
 # --- FUNCIÓN 1: Sincronizar QUALY (La que hicimos antes) ---
 def sync_qualy_results(session: Session, gp_id: int):
@@ -58,25 +59,27 @@ def sync_qualy_results(session: Session, gp_id: int):
         return {"success": False, "error": "GP no encontrado"}
 
     season = session.get(Seasons, gp.season_id)
-    
+
     try:
         api_name = DB_TO_API_MAP.get(gp.name, gp.name)
-        session = fastf1.get_session(season.year, api_name, 'Q')
+        session = fastf1.get_session(season.year, api_name, "Q")
         session.load()
-        
+
         results = session.results
-        qualy_order = results['Abbreviation'].tolist()
-        
+        qualy_order = results["Abbreviation"].tolist()
+
         gp.qualy_results = qualy_order
         session.commit()
-        
+
         return {"success": True, "data": qualy_order}
     except Exception as e:
         print(f"Error syncing qualy: {e}")
         return {"success": False, "error": str(e)}
 
+
 def sync_race_data_manual(session: Session, gp_id: int):
     logs = []
+
     def log(msg):
         logs.append(msg)
 
@@ -89,11 +92,19 @@ def sync_race_data_manual(session: Session, gp_id: int):
         return False, logs
 
     # 2. Limpieza previa (Posiciones y Eventos)
-    existing_result = session.exec(select(RaceResults).where(RaceResults.gp_id == gp.id)).first()
+    existing_result = session.exec(
+        select(RaceResults).where(RaceResults.gp_id == gp.id)
+    ).first()
     if existing_result:
         log("⚠️ Resultados previos detectados. Eliminando datos antiguos...")
-        session.exec(delete(RacePositions).where(RacePositions.race_result_id == existing_result.id))
-        session.exec(delete(RaceEvents).where(RaceEvents.race_result_id == existing_result.id))
+        session.exec(
+            delete(RacePositions).where(
+                RacePositions.race_result_id == existing_result.id
+            )
+        )
+        session.exec(
+            delete(RaceEvents).where(RaceEvents.race_result_id == existing_result.id)
+        )
         session.delete(existing_result)
         session.commit()
 
@@ -105,11 +116,11 @@ def sync_race_data_manual(session: Session, gp_id: int):
     try:
         # 4. Cargar Sesión (IMPORTANTE: Laps=True por defecto)
         log("⏳ Descargando tiempos de vuelta y telemetría...")
-        session = fastf1.get_session(year, api_name, 'R')
-        
+        session = fastf1.get_session(year, api_name, "R")
+
         # Cargamos datos. Telemetry=False para ir rápido, pero Laps lo necesitamos
         session.load(telemetry=False, weather=False, messages=False)
-        
+
         results = session.results
         laps = session.laps
 
@@ -120,48 +131,50 @@ def sync_race_data_manual(session: Session, gp_id: int):
         # 5. Crear Cabecera
         new_race_result = RaceResults(gp_id=gp.id)
         session.add(new_race_result)
-        session.flush() # Generar ID
+        session.flush()  # Generar ID
 
         # ==========================================
         # PARTE A: POSICIONES & DNFs (LOGICA MEJORADA)
         # ==========================================
         log(f"📊 Procesando parrilla de {len(results)} pilotos...")
-        
+
         positions_to_add = []
-        
+
         # Listas para desglose (informativo)
-        dnf_drivers = [] # Retirados en carrera (Accidente, Mecánico...)
-        dns_drivers = [] # No empezaron (No cuenta como DNF de carrera)
-        dsq_drivers = [] # Descalificados
-        
+        dnf_drivers = []  # Retirados en carrera (Accidente, Mecánico...)
+        dns_drivers = []  # No empezaron (No cuenta como DNF de carrera)
+        dsq_drivers = []  # Descalificados
+
         for _, row in results.iterrows():
-            acronym = row['Abbreviation']
-            
+            acronym = row["Abbreviation"]
+
             # Datos crudos de FastF1
-            raw_pos = str(row['ClassifiedPosition']) # '1', 'R', 'D', 'N/C'
-            raw_status = str(row['Status']).lower()  # 'collision', 'finished', 'did not start'
-            
+            raw_pos = str(row["ClassifiedPosition"])  # '1', 'R', 'D', 'N/C'
+            raw_status = str(
+                row["Status"]
+            ).lower()  # 'collision', 'finished', 'did not start'
+
             # --- LÓGICA DE POSICIÓN ---
             if raw_pos.isnumeric():
                 position = int(raw_pos)
             else:
-                position = 20 # Fondo de parrilla para ordenar visualmente
-            
+                position = 20  # Fondo de parrilla para ordenar visualmente
+
             # --- LÓGICA DE ESTADO (DNF vs DNS vs DSQ) ---
             # Caso 1: Terminó (o clasificado a +vueltas)
-            if raw_status in ['finished'] or raw_status.startswith('+'):
-                pass # Todo bien, no es incidencia
-            
+            if raw_status in ["finished"] or raw_status.startswith("+"):
+                pass  # Todo bien, no es incidencia
+
             # Caso 2: DNS - No empezó
-            elif raw_status in ['did not start', 'withdrew', 'did not qualify']:
+            elif raw_status in ["did not start", "withdrew", "did not qualify"]:
                 dns_drivers.append(acronym)
                 log(f"⚠️ {acronym} -> DNS (No empezó)")
-                
+
             # Caso 3: DSQ - Descalificado
-            elif 'disqualified' in raw_status:
+            elif "disqualified" in raw_status:
                 dsq_drivers.append(acronym)
                 log(f"🚫 {acronym} -> DSQ (Descalificado)")
-                
+
             # Caso 4: DNF Real (Accidente, Motor, etc.)
             # Si NO tiene posición numérica y NO es DNS/DSQ, asumimos DNF de carrera
             elif not raw_pos.isnumeric():
@@ -172,8 +185,8 @@ def sync_race_data_manual(session: Session, gp_id: int):
             # Crear objeto posición
             pos_entry = RacePositions(
                 race_result_id=new_race_result.id,
-                driver_name=acronym, 
-                position=position
+                driver_name=acronym,
+                position=position,
             )
             positions_to_add.append(pos_entry)
 
@@ -189,13 +202,15 @@ def sync_race_data_manual(session: Session, gp_id: int):
         try:
             # pick_fastest devuelve la vuelta más rápida de toda la sesión
             fastest_lap = laps.pick_fastest()
-            fl_driver = fastest_lap['Driver']
-            
-            events_to_add.append(RaceEvents(
-                race_result_id=new_race_result.id,
-                event_type="FASTEST_LAP",
-                value=fl_driver
-            ))
+            fl_driver = fastest_lap["Driver"]
+
+            events_to_add.append(
+                RaceEvents(
+                    race_result_id=new_race_result.id,
+                    event_type="FASTEST_LAP",
+                    value=fl_driver,
+                )
+            )
             log(f"🏎️ Vuelta Rápida: {fl_driver}")
         except Exception:
             log("⚠️ No se pudo determinar la vuelta rápida.")
@@ -204,53 +219,68 @@ def sync_race_data_manual(session: Session, gp_id: int):
         try:
             # FastF1 'TrackStatus': '1'=Green, '2'=Yellow, '4'=SC, '5'=Red, '6'=VSC, '7'=VSC End
             # Convertimos la columna a string y buscamos el código '4'
-            track_status = laps['TrackStatus'].astype(str)
-            has_sc = track_status.str.contains('4').any()
-            
+            track_status = laps["TrackStatus"].astype(str)
+            has_sc = track_status.str.contains("4").any()
+
             sc_value = "Yes" if has_sc else "No"
-            
-            events_to_add.append(RaceEvents(
-                race_result_id=new_race_result.id,
-                event_type="SAFETY_CAR",
-                value=sc_value
-            ))
+
+            events_to_add.append(
+                RaceEvents(
+                    race_result_id=new_race_result.id,
+                    event_type="SAFETY_CAR",
+                    value=sc_value,
+                )
+            )
             log(f"⚠️ Safety Car: {sc_value}")
         except Exception:
-             log("⚠️ No se pudo determinar el Safety Car.")
+            log("⚠️ No se pudo determinar el Safety Car.")
 
         # 3. DNFs (SOLO contamos los abandonos reales en carrera)
-        events_to_add.append(RaceEvents(
-            race_result_id=new_race_result.id,
-            event_type="DNFS",
-            value=str(len(dnf_drivers)) # Solo sumamos los crashes/mecánicos
-        ))
-        
+        events_to_add.append(
+            RaceEvents(
+                race_result_id=new_race_result.id,
+                event_type="DNFS",
+                value=str(len(dnf_drivers)),  # Solo sumamos los crashes/mecánicos
+            )
+        )
+
         # 4. LISTA DE INCIDENCIAS (Opcional, muy útil para ver qué pasó)
         # Guardamos una cadena con detalle: "SAI(DNF), HAM(DSQ), ALB(DNS)"
         incidents_list = []
-        if dnf_drivers: incidents_list.append(f"DNF: {', '.join(dnf_drivers)}")
-        if dsq_drivers: incidents_list.append(f"DSQ: {', '.join(dsq_drivers)}")
-        if dns_drivers: incidents_list.append(f"DNS: {', '.join(dns_drivers)}")
-        
-        if incidents_list:
-            events_to_add.append(RaceEvents(
-                race_result_id=new_race_result.id,
-                event_type="INCIDENTS_INFO", 
-                value=" | ".join(incidents_list)
-            ))
+        if dnf_drivers:
+            incidents_list.append(f"DNF: {', '.join(dnf_drivers)}")
+        if dsq_drivers:
+            incidents_list.append(f"DSQ: {', '.join(dsq_drivers)}")
+        if dns_drivers:
+            incidents_list.append(f"DNS: {', '.join(dns_drivers)}")
 
-        log(f"Resumen Incidencias: {len(dnf_drivers)} DNF, {len(dsq_drivers)} DSQ, {len(dns_drivers)} DNS")
-        
+        if incidents_list:
+            events_to_add.append(
+                RaceEvents(
+                    race_result_id=new_race_result.id,
+                    event_type="INCIDENTS_INFO",
+                    value=" | ".join(incidents_list),
+                )
+            )
+
+        log(
+            f"Resumen Incidencias: {len(dnf_drivers)} DNF, {len(dsq_drivers)} DSQ, {len(dns_drivers)} DNS"
+        )
+
         # Guardamos la LISTA DE NOMBRES (separada por comas) para mostrarla en el frontend si quieres
         if dnf_drivers:
             dnf_list_str = ", ".join(dnf_drivers)
-            events_to_add.append(RaceEvents(
-                race_result_id=new_race_result.id,
-                event_type="DNF_DRIVER", # Nuevo tipo de evento informativo
-                value=dnf_list_str
-            ))
-        
-        log(f"💥 DNFs: {len(dnf_drivers)} ({', '.join(dnf_drivers) if dnf_drivers else 'Ninguno'})")
+            events_to_add.append(
+                RaceEvents(
+                    race_result_id=new_race_result.id,
+                    event_type="DNF_DRIVER",  # Nuevo tipo de evento informativo
+                    value=dnf_list_str,
+                )
+            )
+
+        log(
+            f"💥 DNFs: {len(dnf_drivers)} ({', '.join(dnf_drivers) if dnf_drivers else 'Ninguno'})"
+        )
 
         # Guardar Eventos
         session.add_all(events_to_add)

@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState, useContext, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import * as API from "../api/api";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   // Career / Achievement icons
-  Flag, TrendingUp, Award, Star, Calendar, Crosshair, Trophy, Crown, Medal, Target,
+  Flag, TrendingUp, Award, Star, Calendar, Crosshair, Trophy, Crown,
   Gauge, Zap, AlertTriangle, Shield, Activity, Skull, Ghost, UserX,
 
   // Season icons
@@ -32,7 +33,7 @@ const formatDate = (dateString: string | null | undefined) => {
         const formatter = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' });
         const formatted = formatter.format(date);
         return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-    } catch (e) { return "Desconocido"; }
+    } catch { return "Desconocido"; }
 };
 
 // --- MAPEO SEGURO DE ICONOS ---
@@ -229,7 +230,7 @@ const SettingsTab = ({ avatars, avatar, handleSelectAvatar, loadingAvatar, reloa
             alert("✅ Perfil actualizado");
             setFormData({ ...formData, current_password: "", new_password: "" }); 
             if (reloadUser) reloadUser();
-        } catch (error: any) { alert("❌ Error al actualizar"); }
+        } catch { alert("❌ Error al actualizar"); }
     };
 
     return (
@@ -281,10 +282,13 @@ const StatsTab = ({ targetUser, isMe }: { targetUser: any, isMe: boolean }) => {
         { key: "Vidente", label: "Vidente", desc: "Precisión. 100 = Alto % de aciertos exactos.", color: "text-red-500" }
     ];
 
-    useEffect(() => { 
-        setLoading(true);
+    useEffect(() => {
+        let cancelled = false;
         const fetchStats = isMe ? API.getMyStats() : API.getUserStats(targetUser.id);
-        fetchStats.then(setStats).catch(() => setStats(null)).finally(() => setLoading(false));
+        fetchStats
+            .then(data => { if (!cancelled) { setLoading(false); setStats(data); } })
+            .catch(() => { if (!cancelled) { setLoading(false); setStats(null); } });
+        return () => { cancelled = true; };
     }, [targetUser.id, isMe]);
 
     if (loading) return <div className="p-10 text-center text-gray-400 font-bold animate-pulse flex flex-col items-center gap-4"><Activity className="animate-spin text-f1-red"/> Cargando telemetría...</div>;
@@ -548,9 +552,9 @@ export default function Profile() {
     
     useEffect(() => {
         Promise.all([
-            API.getMe().catch(err => null),
-            API.getUsersList().catch(err => []),
-            API.getAvatars().catch(err => [])
+            API.getMe().catch(() => null),
+            API.getUsersList().catch(() => []),
+            API.getAvatars().catch(() => [])
         ]).then(([meData, usersData, avatarsData]) => {
             if (meData) setCurrentUserFull(meData);
             if (usersData) setUsersList(usersData);
@@ -571,11 +575,12 @@ export default function Profile() {
                 setDisplayedUser((prev: any) => ({ ...prev, created_at: found.created_at }));
             }
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [usersList, displayedUser?.id]); 
 
     const handleSelectAvatar = async (filename: string) => {
         setLoadingAvatar(true);
-        try { await API.updateMyAvatar(filename); if (refreshProfile) await refreshProfile(); } catch (e) { alert("Error"); }
+        try { await API.updateMyAvatar(filename); if (refreshProfile) await refreshProfile(); } catch { alert("Error"); }
         setLoadingAvatar(false);
     };
 

@@ -8,10 +8,11 @@ from app.repositories.auth import AuthRepository
 
 AuthRepositoryDep = Annotated[AuthRepository, Depends()]
 
+
 class AuthService:
     def __init__(self, auth_repository: AuthRepositoryDep):
         self.auth_repository = auth_repository
-    
+
     def register(self, user: UserCreateRequest) -> Users:
         return self.auth_repository.register(user)
 
@@ -23,8 +24,6 @@ class AuthService:
         return self.auth_repository.get_current_user_data(current_user)
 
     def update_profile(
-        self,
-        user_update: UserUpdateRequest,
-        current_user: Users
+        self, user_update: UserUpdateRequest, current_user: Users
     ) -> Dict[str, UserResponse | str]:
         return self.auth_repository.update_profile(user_update, current_user)

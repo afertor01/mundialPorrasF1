@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, { toFormData } from "axios";
 
 const BASE_URL = "http://127.0.0.1:8000";
@@ -243,7 +244,7 @@ export const getMyPrediction = async (gpId: number) => {
     try {
       const res = await client.get(`/predictions/${gpId}/me`);
       return res.data; 
-    } catch (error) {
+    } catch {
       // Si devuelve 404 o null, simplemente retornamos null para que el frontend sepa que no hay predicción
       return null;
     }
@@ -276,7 +277,7 @@ export const getPublicRaceResult = async (gpId: number) => {
   try {
     const response = await client.get(`/results/${gpId}`);
     return response.data;
-  } catch (error) {
+  } catch {
     // Si no hay resultados aún (404), devolvemos null para que el front no explote
     return null;
   }
@@ -290,7 +291,7 @@ export const getMyTeam = async () => {
     try {
         const res = await client.get("/teams/my-team");
         return res.data;
-    } catch (e) {
+    } catch {
         // Si devuelve null o 404, retornamos null
         return null;
     }

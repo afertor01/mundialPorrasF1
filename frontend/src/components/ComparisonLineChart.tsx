@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo } from "react";
 import {
   LineChart,
@@ -57,6 +58,7 @@ const ComparisonLineChart: React.FC<Props> = ({ fullData, currentUser, gps }) =>
         if (leader && leader !== currentUser) initial.push(leader);
         setSelectedUsers(initial);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, rankedUsers, allUsers]);
 
   const buttonsToShow = useMemo(() => {

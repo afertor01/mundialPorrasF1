@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useContext } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useEffect, useState, useContext, useCallback } from "react";
 import * as API from "../api/api";
 import { AuthContext } from "../context/AuthContext";
 import { jwtDecode } from "jwt-decode";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Flag, MapPin, Calendar, Search, Plus, X, 
-  CheckCircle2, Trophy, Medal, Calculator 
+  CheckCircle2, Trophy, Medal 
 } from "lucide-react";
 import { getTrackImage } from "../utils/getTrackImage"; 
 
@@ -120,8 +121,11 @@ const RaceControl: React.FC = () => {
             const user = decoded.username || "";
             setCurrentUser(user);
             if (user && selectedUsers.length === 0) setSelectedUsers([user]);
-        } catch (e) {}
+        } catch {
+            // Token decode failed
+        }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   useEffect(() => {
@@ -144,11 +148,7 @@ const RaceControl: React.FC = () => {
     init();
   }, []);
 
-  useEffect(() => {
-    if (selectedGpId) loadGpData(selectedGpId);
-  }, [selectedGpId]);
-
-  const loadGpData = async (gpId: number) => {
+  const loadGpData = useCallback(async (gpId: number) => {
       setAllPredictions([]);
       setRaceResult(null);
       try {
@@ -157,7 +157,11 @@ const RaceControl: React.FC = () => {
           const result = await API.getPublicRaceResult(gpId);
           setRaceResult(result);
       } catch (e) { console.error(e); }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (selectedGpId) loadGpData(selectedGpId);
+  }, [selectedGpId, loadGpData]);
 
   const toggleUser = (username: string) => {
       if (selectedUsers.includes(username)) setSelectedUsers(selectedUsers.filter(u => u !== username));

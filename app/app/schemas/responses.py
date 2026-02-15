@@ -1,5 +1,3 @@
-
-
 from datetime import datetime
 from typing import Dict, List
 from pydantic import EmailStr
@@ -19,6 +17,7 @@ class AchievementResponse(CamelModel):
     gp_name: str | None = None
     season_name: str | None = None
 
+
 class UserResponse(CamelModel):
     id: int
     email: EmailStr
@@ -28,19 +27,22 @@ class UserResponse(CamelModel):
     created_at: datetime | None = None
     avatar: str | None = "default.png"
 
+
 class AvatarResponse(CamelModel):
     id: int
     filename: str
-    url: str # Calcularemos la URL completa para facilitar al front
+    url: str  # Calcularemos la URL completa para facilitar al front
 
     class Config:
         from_attributes = True
+
 
 class SeasonResponse(SeasonBase):
     id: int
 
     class Config:
         from_attributes = True
+
 
 class GrandPrixResponse(CamelModel):
     id: int
@@ -51,9 +53,11 @@ class GrandPrixResponse(CamelModel):
     class Config:
         from_attributes = True
 
+
 class AdminRaceResultResponse(CamelModel):
     positions: List[DriverPosition]
     events: List[RaceEvent]
+
 
 class BingoTileResponse(CamelModel):
     id: int
@@ -66,6 +70,7 @@ class BingoTileResponse(CamelModel):
     class Config:
         from_attributes = True
 
+
 class BingoStandingsItem(CamelModel):
     username: str
     acronym: str
@@ -73,6 +78,7 @@ class BingoStandingsItem(CamelModel):
     hits: int
     missed: int
     total_points: int
+
 
 class PredictionResponse(CamelModel):
     username: str
@@ -82,31 +88,37 @@ class PredictionResponse(CamelModel):
     positions: List[DriverPosition]
     events: List[RaceEvent]
 
+
 class RaceResultResponse(CamelModel):
     id: int
     gp_id: int
     positions: List[DriverPosition]
     events: List[RaceEvent]
 
+
 class TeamResponse(CamelModel):
     id: int
     name: str
     members: List[str]
+
 
 class TeamStandingResponse(CamelModel):
     team_id: int
     team_name: str
     points: int
 
+
 class GPStandingResponse(CamelModel):
     user_id: int
     username: str
     points: int
 
+
 class SeasonStandingResponse(CamelModel):
     user_id: int
     username: str
     points: int
+
 
 class MyTeamResponse(TeamResponse):
     join_code: str

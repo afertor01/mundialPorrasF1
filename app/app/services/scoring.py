@@ -11,6 +11,7 @@ from sqlmodel import Session, select
 
 ScoringRepositoryDep = Annotated[ScoringRepository, Depends(get_session)]
 
+
 class ScoringService:
     def __init__(self, scoring_repository: ScoringRepositoryDep):
         self.scoring_repository = scoring_repository

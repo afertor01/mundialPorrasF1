@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState, useContext } from "react";
 import * as API from "../api/api";
 import { AuthContext } from "../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-    Users, Plus, LogOut, Copy, CheckCircle, Shield, 
-    Search, Award, Zap, Loader2 // <--- AÑADE Loader2
+    Plus, LogOut, Copy, CheckCircle, Shield, 
+    Award, Zap, Loader2 // <--- AÑADE Loader2
 } from "lucide-react";
 
 const TeamHQ: React.FC = () => {
@@ -29,7 +30,7 @@ const TeamHQ: React.FC = () => {
         try {
             const data = await API.getMyTeam();
             setTeam(data);
-        } catch (e) {
+        } catch {
             setTeam(null);
         } finally {
             setLoading(false);
@@ -45,8 +46,9 @@ const TeamHQ: React.FC = () => {
             await API.createTeamPlayer(createName);
             setCreateName(""); // Limpiar input
             await loadMyTeam(); // Recargar datos
-        } catch (err: any) {
-            setErrorMsg(err.response?.data?.detail || "Error al crear equipo");
+        } catch (err: unknown) {
+            const error = err as { response?: { data?: { detail?: string } } };
+            setErrorMsg(error.response?.data?.detail || "Error al crear equipo");
         } finally {
             setIsSubmitting(false);
         }
@@ -61,8 +63,9 @@ const TeamHQ: React.FC = () => {
             await API.joinTeamPlayer(joinCode);
             setJoinCode(""); // Limpiar input
             await loadMyTeam(); // Recargar datos inmediatamente
-        } catch (err: any) {
-            setErrorMsg(err.response?.data?.detail || "Código inválido o equipo lleno");
+        } catch (err: unknown) {
+            const error = err as { response?: { data?: { detail?: string } } };
+            setErrorMsg(error.response?.data?.detail || "Código inválido o equipo lleno");
         } finally {
             setIsSubmitting(false);
         }
@@ -77,7 +80,7 @@ const TeamHQ: React.FC = () => {
             await API.leaveTeamPlayer();
             setTeam(null); // Borrar equipo de la vista localmente
             await loadMyTeam(); // Verificar con backend
-        } catch (err) {
+        } catch {
             alert("Error al salir del equipo");
         } finally {
             setIsSubmitting(false);

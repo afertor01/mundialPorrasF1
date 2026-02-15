@@ -15,12 +15,10 @@ def create_admin_user():
         # Comprobar si ya existe
         existing_user = (
             db.query(Users)
-            .filter(
-                (Users.email == email) | (Users.username == username)
-            )
+            .filter((Users.email == email) | (Users.username == username))
             .first()
         )
-        
+
         if existing_user:
             print("⚠️  Ya existe un usuario con ese email o username")
             print("➡️  Email:", existing_user.email)
@@ -28,12 +26,11 @@ def create_admin_user():
             print("➡️  Rol:", existing_user.role)
             return
 
-
         admin_user = Users(
             email=email,
             username=username,
             hashed_password=hash_password(password),
-            role="admin"
+            role="admin",
         )
 
         db.add(admin_user)

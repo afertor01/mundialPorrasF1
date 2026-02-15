@@ -10,17 +10,14 @@ from app.core.deps import get_current_user
 from app.schemas.requests import GrandPrixCreateRequest
 from sqlmodel import Session, select
 
-
 SessionDep = Annotated[Session, Depends(get_session)]
+
 
 class GrandPrixRepository:
     def __init__(self, session: SessionDep):
         self.session = session
 
-    def create_grand_prix(
-        self,
-        gp_data: GrandPrixCreateRequest
-    ) -> GrandPrix:
+    def create_grand_prix(self, gp_data: GrandPrixCreateRequest) -> GrandPrix:
         season = self.session.get(Seasons, gp_data.season_id)
         if not season:
             raise HTTPException(status_code=404, detail="Temporada no encontrada")
@@ -34,7 +31,11 @@ class GrandPrixRepository:
         return gp
 
     def list_grand_prix(self, season_id: int) -> List[GrandPrix]:
-        query = select(GrandPrix).where(GrandPrix.season_id == season_id).order_by(GrandPrix.race_datetime)
+        query = (
+            select(GrandPrix)
+            .where(GrandPrix.season_id == season_id)
+            .order_by(GrandPrix.race_datetime)
+        )
         gps = self.session.exec(query).all()
 
         return gps

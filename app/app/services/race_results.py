@@ -22,13 +22,9 @@ class RaceResultsService:
         self.race_results_repository = race_results_repository
 
     def update_race_result(
-        self,
-        race_result_data: UpdateRaceResultRequest
+        self, race_result_data: UpdateRaceResultRequest
     ) -> Dict[str, str]:
         return self.race_results_repository.update_race_result(race_result_data)
 
-    def get_race_result(
-        self,
-        gp_id: int
-    ) -> RaceResultResponse:
+    def get_race_result(self, gp_id: int) -> RaceResultResponse:
         return self.race_results_repository.get_race_result(gp_id)

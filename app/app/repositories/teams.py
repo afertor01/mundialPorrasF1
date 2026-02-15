@@ -20,13 +20,13 @@ SessionDep = Annotated[Session, Depends(get_session)]
 class TeamsRepository:
     def __init__(self, session: SessionDep):
         self.session = session
-    
+
     def get_my_team(self, current_user: Users) -> MyTeamResponse | None:
         """
         Devuelve la información de tu equipo actual en la temporada activa.
         Incluye el código para invitar amigos.
         """
-        
+
         query = select(Seasons).where(Seasons.is_active == True)
         # 1. Buscar temporada activa
         active_season = self.session.exec(query).first()
@@ -34,9 +34,17 @@ class TeamsRepository:
             return None
 
         # 2. Buscar si el usuario tiene membresía en esta temporada
-        query = select(TeamMembers).options(joinedload(TeamMembers.team).joinedload(Teams.members).joinedload(TeamMembers.user)).where(
-            TeamMembers.user_id == current_user.id,
-            TeamMembers.season_id == active_season.id
+        query = (
+            select(TeamMembers)
+            .options(
+                joinedload(TeamMembers.team)
+                .joinedload(Teams.members)
+                .joinedload(TeamMembers.user)
+            )
+            .where(
+                TeamMembers.user_id == current_user.id,
+                TeamMembers.season_id == active_season.id,
+            )
         )
         membership = self.session.exec(query).first()
 
@@ -50,14 +58,16 @@ class TeamsRepository:
         response = MyTeamResponse(
             id=team.id,
             name=team.name,
-            join_code=team.join_code, # <--- El dato clave para invitar
+            join_code=team.join_code,  # <--- El dato clave para invitar
             members=members_names,
-            is_full=len(members_names) >= 2
+            is_full=len(members_names) >= 2,
         )
-        
+
         return response
 
-    def create_team_player(self, team_data: TeamCreateRequest, current_user: Users) -> Dict[str, str]:
+    def create_team_player(
+        self, team_data: TeamCreateRequest, current_user: Users
+    ) -> Dict[str, str]:
         """
         Crea un equipo nuevo y asigna al creador como primer miembro.
         """
@@ -70,10 +80,10 @@ class TeamsRepository:
         # 2. Verificar que el usuario no tenga equipo ya
         query = select(TeamMembers).where(
             TeamMembers.user_id == current_user.id,
-            TeamMembers.season_id == active_season.id
+            TeamMembers.season_id == active_season.id,
         )
         existing_member = self.session.exec(query).first()
-        
+
         if existing_member:
             raise HTTPException(400, "Ya perteneces a una escudería en esta temporada.")
 
@@ -85,25 +95,25 @@ class TeamsRepository:
 
         # 4. Crear Equipo
         new_team = Teams(
-            name=team_data.name,
-            season_id=active_season.id,
-            join_code=code
+            name=team_data.name, season_id=active_season.id, join_code=code
         )
         self.session.add(new_team)
-        self.session.flush() # Para obtener el ID del equipo
+        self.session.flush()  # Para obtener el ID del equipo
 
         # 5. Añadir al usuario como miembro
         membership = TeamMembers(
-            team_id=new_team.id,
-            user_id=current_user.id,
-            season_id=active_season.id
+            team_id=new_team.id, user_id=current_user.id, season_id=active_season.id
         )
         self.session.add(membership)
-        
+
         self.session.commit()
         self.session.refresh(new_team)
-        grant_achievements(session=self.session, user_id=current_user.id, slugs=["event_founder","event_join_team"])
-        
+        grant_achievements(
+            session=self.session,
+            user_id=current_user.id,
+            slugs=["event_founder", "event_join_team"],
+        )
+
         return {"message": "Escudería creada con éxito", "code": code}
 
     def join_team_player(self, code: str, current_user: Users) -> Dict[str, str]:
@@ -120,22 +130,23 @@ class TeamsRepository:
         # 2. Verificar si usuario ya tiene equipo
         query = select(TeamMembers).where(
             TeamMembers.user_id == current_user.id,
-            TeamMembers.season_id == active_season.id
+            TeamMembers.season_id == active_season.id,
         )
         existing_member = self.session.exec(query).first()
-        
+
         if existing_member:
             raise HTTPException(400, "Ya tienes equipo. Debes salirte primero.")
 
         # 3. Buscar el equipo por código
         query = select(Teams).where(
-            Teams.join_code == code.upper(), 
-            Teams.season_id == active_season.id
+            Teams.join_code == code.upper(), Teams.season_id == active_season.id
         )
         team = self.session.exec(query).first()
-        
+
         if not team:
-            raise HTTPException(404, "Código de escudería inválido o de otra temporada.")
+            raise HTTPException(
+                404, "Código de escudería inválido o de otra temporada."
+            )
 
         # 4. Verificar capacidad (Máximo 2)
         query = select(TeamMembers).where(TeamMembers.team_id == team.id)
@@ -145,14 +156,14 @@ class TeamsRepository:
 
         # 5. Crear la unión
         new_member = TeamMembers(
-            team_id=team.id,
-            user_id=current_user.id,
-            season_id=active_season.id
+            team_id=team.id, user_id=current_user.id, season_id=active_season.id
         )
         self.session.add(new_member)
-        
+
         self.session.commit()
-        grant_achievements(session=self.session, user_id=current_user.id, slugs=["event_join_team"])
+        grant_achievements(
+            session=self.session, user_id=current_user.id, slugs=["event_join_team"]
+        )
 
         # Usamos la variable team_name, no team.name (que podría dar error de 'DetachedInstance')
         return {"message": f"Te has unido a {team.name} correctamente."}
@@ -162,7 +173,7 @@ class TeamsRepository:
         Salirse del equipo actual.
         Si el equipo queda vacío (0 miembros), SE BORRA automáticamente.
         """
-        query = select(Seasons).where(Seasons.is_active == True)        
+        query = select(Seasons).where(Seasons.is_active == True)
         active_season = self.session.exec(query).first()
         if not active_season:
             raise HTTPException(400, "No hay temporada activa.")
@@ -170,7 +181,7 @@ class TeamsRepository:
         # 1. Buscar mi membresía
         query = select(TeamMembers).where(
             TeamMembers.user_id == current_user.id,
-            TeamMembers.season_id == active_season.id
+            TeamMembers.season_id == active_season.id,
         )
         membership = self.session.exec(query).first()
 
@@ -178,15 +189,15 @@ class TeamsRepository:
             raise HTTPException(400, "No tienes equipo del que salir.")
 
         team_id = membership.team_id
-        
+
         # 2. Borrar membresía
         self.session.delete(membership)
-        self.session.commit() # Confirmamos la salida
+        self.session.commit()  # Confirmamos la salida
 
         # 3. Verificar si el equipo quedó vacío
         query = select(TeamMembers).where(TeamMembers.team_id == team_id)
         remaining_members = len(self.session.exec(query).all())
-        
+
         if remaining_members == 0:
             # Borrar el equipo fantasma
             query = select(Teams).where(Teams.id == team_id)

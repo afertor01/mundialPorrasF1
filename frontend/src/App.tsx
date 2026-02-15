@@ -62,7 +62,7 @@ const AppRoutes = () => {
 const NavBar = () => {
   const location = useLocation();
   // Ahora extraemos 'acronym' del contexto
-  const { token, role, logout, avatar, acronym } = useContext(AuthContext) as any; 
+  const { token, role, logout, avatar, acronym } = useContext(AuthContext) as AuthContextType;
 
   const isActive = (path: string) => location.pathname === path;
 

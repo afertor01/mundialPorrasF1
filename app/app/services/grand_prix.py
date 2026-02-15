@@ -11,8 +11,8 @@ from app.schemas.requests import GrandPrixCreateRequest
 from app.repositories.grand_prix import GrandPrixRepository
 from sqlmodel import Session, select
 
-
 GrandPrixRepositoryDep = Annotated[GrandPrixRepository, Depends()]
+
 
 class GrandPrixService:
     def __init__(self, gp_repository: GrandPrixRepositoryDep):

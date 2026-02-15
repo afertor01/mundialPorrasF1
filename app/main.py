@@ -74,6 +74,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def read_root():
     return {"message": "API Mundial F1 funcionando 🏎️"}

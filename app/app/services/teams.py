@@ -20,7 +20,7 @@ TeamsRepositoryDep = Annotated[TeamsRepository, Depends()]
 class TeamsService:
     def __init__(self, teams_repository: TeamsRepositoryDep):
         self.teams_repository = teams_repository
-    
+
     def get_my_team(self, current_user: Users) -> MyTeamResponse | None:
         """
         Devuelve la información de tu equipo actual en la temporada activa.
@@ -28,7 +28,9 @@ class TeamsService:
         """
         return self.teams_repository.get_my_team(current_user)
 
-    def create_team_player(self, team_data: TeamCreateRequest, current_user: Users) -> Dict[str, str]:
+    def create_team_player(
+        self, team_data: TeamCreateRequest, current_user: Users
+    ) -> Dict[str, str]:
         """
         Crea un equipo nuevo y asigna al creador como primer miembro.
         """

@@ -1,7 +1,14 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { jwtDecode } from "jwt-decode";
 import * as API from "../api/api";
+
+interface JwtPayload {
+  role?: string;
+  username?: string;
+  [key: string]: unknown;
+}
 
 export interface AuthContextType {
   token: string | null;
@@ -35,9 +42,9 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     const savedToken = localStorage.getItem("token");
     if (savedToken) {
       try {
-        const decoded: any = jwtDecode(savedToken);
-        return decoded.role;
-      } catch (e) { return null; }
+        const decoded = jwtDecode<JwtPayload>(savedToken);
+        return decoded.role ?? null;
+      } catch { return null; }
     }
     return null;
   });
@@ -66,17 +73,17 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             // Capitalizar la primera letra: "Febrero 2026"
             setCreatedAt(fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1));
         }
-    } catch (e) {
-        console.error("Error cargando perfil", e);
+    } catch {
+        console.error("Error cargando perfil");
     }
   };
 
   useEffect(() => {
     if (token) {
       try {
-        const decoded: any = jwtDecode(token);
-        setRole(decoded.role);
-      } catch (e) {
+        const decoded = jwtDecode<JwtPayload>(token);
+        setRole(decoded.role ?? null);
+      } catch {
         setRole(null);
       }
       fetchMe();
@@ -87,6 +94,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       setAcronym(null);
       setCreatedAt(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const login = (newToken: string) => {

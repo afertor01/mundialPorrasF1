@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import * as API from "../api/api";
 import { motion } from "framer-motion";
-import { Trophy, CheckCircle2, Hexagon, TrendingUp, Loader2, AlertTriangle, XCircle, MousePointerClick } from "lucide-react";
+import { Trophy, CheckCircle2, Hexagon, TrendingUp, Loader2, MousePointerClick } from "lucide-react";
 import { jwtDecode } from "jwt-decode"; 
 
 // LÍMITE DE SELECCIONES PARA EVITAR EL "ALL-IN"
@@ -178,7 +179,6 @@ const Bingo: React.FC = () => {
                             let cardStyle = "bg-white border-gray-100 hover:border-blue-300 hover:shadow-lg";
                             let badgeStyle = "text-blue-600 bg-blue-50 border-blue-100"; 
                             let textStyle = "text-gray-800";
-                            let checkColor = "text-white"; // Color del check dentro del círculo verde
                             let completedBadgeStyle = "bg-white text-green-600"; // Estilo del sticker "Completado"
 
                             // Rareza visual en los badges (solo afecta cuando no está completada/seleccionada)
@@ -196,7 +196,6 @@ const Bingo: React.FC = () => {
                                 // Badges en blanco puro con texto dorado oscuro
                                 badgeStyle = "bg-white border-transparent text-yellow-800 shadow-sm";
                                 completedBadgeStyle = "bg-white text-yellow-800 shadow-sm";
-                                checkColor = "text-white"; // Check blanco sobre círculo verde (o dorado)
                             } 
                             // B) Oportunidad Perdida (Verde): Completado pero NO seleccionado
                             else if (isCompleted) {
@@ -204,7 +203,6 @@ const Bingo: React.FC = () => {
                                 textStyle = "text-white";
                                 badgeStyle = "bg-white/20 border-transparent text-white";
                                 completedBadgeStyle = "bg-white text-green-700 shadow-sm";
-                                checkColor = "text-green-500";
                             } 
                             // C) Mi Apuesta (Negro): Seleccionado pero pendiente
                             else if (isSelected) {

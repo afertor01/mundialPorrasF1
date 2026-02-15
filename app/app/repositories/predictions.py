@@ -16,14 +16,13 @@ from sqlmodel import Session, delete, select
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
+
 class PredictionsRepository:
     def __init__(self, session: SessionDep):
         self.session = session
-    
+
     def update_prediction(
-        self,
-        prediction_data: UpdateRaceResultRequest,
-        current_user: Users
+        self, prediction_data: UpdateRaceResultRequest, current_user: Users
     ) -> Dict[str, str]:
         gp = self.session.get(GrandPrix, prediction_data.gp_id)
         if not gp:
@@ -34,14 +33,13 @@ class PredictionsRepository:
 
         query = select(Predictions).where(
             Predictions.user_id == current_user.id,
-            Predictions.gp_id == prediction_data.gp_id
+            Predictions.gp_id == prediction_data.gp_id,
         )
         prediction = self.session.exec(query).first()
 
         if not prediction:
             prediction = Predictions(
-                user_id=current_user.id,
-                gp_id=prediction_data.gp_id
+                user_id=current_user.id, gp_id=prediction_data.gp_id
             )
             self.session.add(prediction)
             self.session.flush()  # importante para tener prediction.id
@@ -59,36 +57,37 @@ class PredictionsRepository:
 
         # 🏁 Guardar posiciones
         for position in prediction_data.positions:
-            self.session.add(PredictionPositions(
-                prediction_id=prediction.id,
-                position=position.position,
-                driver_name=position.driver_code
-            ))
+            self.session.add(
+                PredictionPositions(
+                    prediction_id=prediction.id,
+                    position=position.position,
+                    driver_name=position.driver_code,
+                )
+            )
 
         # ⚡ Guardar eventos
         for event in prediction_data.events:
-            self.session.add(PredictionEvents(
-                prediction_id=prediction.id,
-                event_type=event.type,
-                value=event.description
-            ))
+            self.session.add(
+                PredictionEvents(
+                    prediction_id=prediction.id,
+                    event_type=event.type,
+                    value=event.description,
+                )
+            )
 
         self.session.commit()
 
         return {"message": "Predicción guardada"}
 
     def get_my_prediction(
-        self,
-        gp_id: int,
-        current_user: Users
+        self, gp_id: int, current_user: Users
     ) -> PredictionResponse | None:
         # Usamos options(joinedload(...)) para cargar las relaciones ANTES de cerrar la sesión
         query = select(Predictions).where(
-            Predictions.user_id == current_user.id,
-            Predictions.gp_id == gp_id
+            Predictions.user_id == current_user.id, Predictions.gp_id == gp_id
         )
         prediction = self.session.exec(query).first()
-    
+
         if not prediction:
             return None
 
@@ -96,31 +95,40 @@ class PredictionsRepository:
             username=prediction.user.username,
             points=prediction.points,
             multiplier=prediction.multiplier,
-            positions=[DriverPosition(position=p.position, driver_code=p.driver_name) for p in prediction.positions],
-            events=[RaceEvent(type=e.event_type, description=e.value) for e in prediction.events]
+            positions=[
+                DriverPosition(position=p.position, driver_code=p.driver_name)
+                for p in prediction.positions
+            ],
+            events=[
+                RaceEvent(type=e.event_type, description=e.value)
+                for e in prediction.events
+            ],
         )
 
-    def get_all_predictions_for_gp(
-        self,
-        gp_id: int
-    ) -> List[PredictionResponse]:        
+    def get_all_predictions_for_gp(self, gp_id: int) -> List[PredictionResponse]:
         # Obtenemos el GP para saber si la carrera ya empezó (opcional, por si quieres ocultar antes)
         # Por ahora lo dejamos abierto como pediste.
-        query = select(Predictions).where(
-            Predictions.gp_id == gp_id
-        )
+        query = select(Predictions).where(Predictions.gp_id == gp_id)
         predictions = self.session.exec(query).all()
-        
+
         results = []
         for prediction in predictions:
             # Construimos un diccionario limpio
-            results.append(PredictionResponse(
-                username=prediction.user.username,
-                points=prediction.points,
-                base_points=prediction.points_base,
-                multiplier=prediction.multiplier,
-                positions=[DriverPosition(position=p.position, driver_code=p.driver_name) for p in prediction.positions],
-                events=[RaceEvent(type=e.event_type, description=e.value) for e in prediction.events]
-            ))
-            
+            results.append(
+                PredictionResponse(
+                    username=prediction.user.username,
+                    points=prediction.points,
+                    base_points=prediction.points_base,
+                    multiplier=prediction.multiplier,
+                    positions=[
+                        DriverPosition(position=p.position, driver_code=p.driver_name)
+                        for p in prediction.positions
+                    ],
+                    events=[
+                        RaceEvent(type=e.event_type, description=e.value)
+                        for e in prediction.events
+                    ],
+                )
+            )
+
         return results

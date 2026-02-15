@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import * as API from "../api/api";
@@ -16,6 +17,7 @@ const Admin: React.FC = () => {
 
   useEffect(() => {
     loadSeasons();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadSeasons = async () => {
@@ -26,7 +28,7 @@ const Admin: React.FC = () => {
         const active = data.find((s: any) => s.is_active);
         setSelectedSeasonId(active ? active.id : data[0].id);
       }
-    } catch (e) { console.error(e); }
+    } catch { console.error("Error loading seasons"); }
   };
 
   // -------------------------------------------------------------------------
@@ -54,7 +56,7 @@ const Admin: React.FC = () => {
         await API.createSeason({ year, name, isActive: isActive });
         setName("");
         loadSeasons();
-      } catch (err: any) { alert("Error creando temporada"); }
+      } catch { alert("Error creando temporada"); }
     };
 
     return (
@@ -164,7 +166,7 @@ const Admin: React.FC = () => {
             setEditingUser(null);
             setEditPassword("");
             loadUsers();
-        } catch (err) { alert("Error actualizando usuario"); }
+        } catch { alert("Error actualizando usuario"); }
     };
 
     const openEditModal = (user: any) => {
@@ -257,6 +259,7 @@ const Admin: React.FC = () => {
     useEffect(() => {
       if(selectedSeasonId) loadTeams();
       API.getUsers().then(setUsers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedSeasonId]);
 
     const loadTeams = async () => {
@@ -291,7 +294,7 @@ const Admin: React.FC = () => {
                      loadTeams();
                 } else { alert("Falta endpoint kickTeamMemberAdmin"); }
             }
-        } catch (e) { alert("Error al procesar"); }
+        } catch { alert("Error al procesar"); }
     };
 
     return (
@@ -399,6 +402,7 @@ const Admin: React.FC = () => {
     const [syncResult, setSyncResult] = useState<{success: boolean, logs: string[]} | null>(null);
     const [showSyncModal, setShowSyncModal] = useState(false);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { if(selectedSeasonId) loadGps(); }, [selectedSeasonId]);
     
     const loadGps = () => { 
@@ -438,7 +442,7 @@ const Admin: React.FC = () => {
                     }));
                 }
             }
-        } catch (e) {}
+        } catch { /* result loading failed */ }
         setShowResultsModal(true);
     };
 
@@ -462,7 +466,7 @@ const Admin: React.FC = () => {
             alert("Horario actualizado 📅");
             setEditingGp(null);
             loadGps();
-        } catch(e) { alert("Error actualizando GP"); }
+        } catch { alert("Error actualizando GP"); }
     };
 
     // --- SINCRONIZACIÓN AUTOMÁTICA (CARRERA) ---
@@ -478,7 +482,7 @@ const Admin: React.FC = () => {
             const result = data && data.logs ? data : { success: data?.success, logs: ["✅ Operación completada, pero no se generaron logs detallados."] };
             setSyncResult(result);
             loadGps(); 
-        } catch (e) {
+        } catch {
             setSyncResult({
                 success: false,
                 logs: ["❌ Error de conexión con el servidor.", "Por favor revisa la consola del navegador."]
@@ -502,7 +506,7 @@ const Admin: React.FC = () => {
             const result = data && data.logs ? data : { success: data?.success, logs: ["✅ Operación completada, pero no se generaron logs detallados."] };
             setSyncResult(result);
             loadGps();
-        } catch (e) {
+        } catch {
              setSyncResult({
                 success: false,
                 logs: ["❌ Error de conexión al sincronizar Qualy.", "Revisa logs del servidor."]
@@ -743,6 +747,7 @@ const Admin: React.FC = () => {
     const [cName, setCName] = useState("");
     const [cColor, setCColor] = useState("#E10600");
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { if(selectedSeasonId) loadGrid(); }, [selectedSeasonId]);
     const loadGrid = () => API.getF1Grid(selectedSeasonId!).then(setConstructors);
 
@@ -797,7 +802,7 @@ const Admin: React.FC = () => {
         try {
             const data = await API.getBingoBoard();
             setTiles(data);
-        } catch (e) { console.error(e); }
+        } catch { console.error("Error loading bingo board"); }
     };
 
     const handleCreate = async () => {
@@ -807,7 +812,7 @@ const Admin: React.FC = () => {
             await API.createBingoTile(newDesc);
             setNewDesc("");
             loadTiles();
-        } catch (e) { alert("Error creando casilla"); }
+        } catch { alert("Error creando casilla"); }
         setLoading(false);
     };
 
@@ -815,7 +820,7 @@ const Admin: React.FC = () => {
         try {
             await API.updateBingoTile(tile.id, { isCompleted: !tile.is_completed });
             loadTiles();
-        } catch (e) { alert("Error actualizando estado"); }
+        } catch { alert("Error actualizando estado"); }
     };
 
     const handleDelete = async (id: number) => {
@@ -823,7 +828,7 @@ const Admin: React.FC = () => {
         try {
             await API.deleteBingoTile(id);
             loadTiles();
-        } catch (e) { alert("Error borrando"); }
+        } catch { alert("Error borrando"); }
     };
 
     return (
@@ -873,7 +878,7 @@ const Admin: React.FC = () => {
         await API.uploadAvatar(uploadFile);
         setUploadFile(null);
         loadAvatars();
-      } catch (e) { alert("Error al subir imagen"); }
+      } catch { alert("Error al subir imagen"); }
       setUploading(false);
     };
 
@@ -882,7 +887,7 @@ const Admin: React.FC = () => {
       try {
         await API.deleteAvatar(id);
         loadAvatars();
-      } catch (e) { alert("Error al borrar"); }
+      } catch { alert("Error al borrar"); }
     };
 
     return (

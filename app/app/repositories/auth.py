@@ -12,35 +12,41 @@ from sqlmodel import Session, select
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
+
 class AuthRepository:
     def __init__(self, session: SessionDep):
         self.session = session
-    
+
     def register(self, user: UserCreateRequest) -> Users:
         # 1. Validar que no exista email o username
         query = select(Users).where(
             or_(
-                Users.email == user.email, 
-                Users.username == user.username, 
-                Users.acronym == user.acronym.upper()
+                Users.email == user.email,
+                Users.username == user.username,
+                Users.acronym == user.acronym.upper(),
             )
         )
         existing_user = self.session.exec(query).first()
 
         if existing_user:
-            raise HTTPException(status_code=400, detail="El email, usuario o acrónimo ya está registrado")
-        
+            raise HTTPException(
+                status_code=400,
+                detail="El email, usuario o acrónimo ya está registrado",
+            )
+
         # 2. Validar acrónimo
         if len(user.acronym) > 3:
-            raise HTTPException(status_code=400, detail="El acrónimo debe tener máximo 3 letras")
+            raise HTTPException(
+                status_code=400, detail="El acrónimo debe tener máximo 3 letras"
+            )
 
         # 3. Crear usuario
         new_user = Users(
             email=user.email,
             username=user.username,
-            acronym=user.acronym.upper(), # Guardar siempre en mayúsculas
+            acronym=user.acronym.upper(),  # Guardar siempre en mayúsculas
             hashed_password=hash_password(user.password),
-            role="user" # Por defecto
+            role="user",  # Por defecto
         )
         self.session.add(new_user)
         self.session.commit()
@@ -52,21 +58,23 @@ class AuthRepository:
         query = select(Users).where(
             or_(
                 Users.email == form_data.username,
-                Users.acronym == form_data.username.upper()
+                Users.acronym == form_data.username.upper(),
             )
         )
         db_user = self.session.exec(query).first()
 
-        if not db_user or not verify_password(form_data.password, db_user.hashed_password):
+        if not db_user or not verify_password(
+            form_data.password, db_user.hashed_password
+        ):
             raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
-    # 3. Crear Token (Añadimos acrónimo para que el frontend lo use)
+        # 3. Crear Token (Añadimos acrónimo para que el frontend lo use)
         token_data = TokenData(
             sub=str(db_user.id),
             id=db_user.id,
             role=db_user.role,
             username=db_user.username,
-            acronym=db_user.acronym
+            acronym=db_user.acronym,
         )
         token = create_access_token(token_data)
 
@@ -77,12 +85,10 @@ class AuthRepository:
         return UserResponse(**current_user.model_dump())
 
     def update_profile(
-        self,
-        user_update: UserUpdateRequest,
-        current_user: Users
+        self, user_update: UserUpdateRequest, current_user: Users
     ) -> Dict[str, UserResponse | str]:
         user = self.session.get(Users, current_user.id)
-        
+
         # 1. Validar Username
         if user_update.username and user_update.username != user.username:
             query = select(Users).where(Users.username == user_update.username)
@@ -115,18 +121,18 @@ class AuthRepository:
             id=user.id,
             role=user.role,
             username=user.username,
-            acronym=user.acronym
+            acronym=user.acronym,
         )
         new_token = create_access_token(token_data)
-        
+
         # --- CORRECCIÓN CRÍTICA: SERIALIZACIÓN MANUAL ---
         # Convertimos el usuario a un diccionario simple antes de cerrar la DB
         # para evitar errores de "DetachedInstanceError" o fallos de JSON.
         user_response = UserResponse(**user.model_dump())
-        
+
         # Devolvemos el diccionario limpio Y el token
         return {
-            "user": user_response, 
+            "user": user_response,
             "access_token": new_token,
-            "token_type": "bearer"
+            "token_type": "bearer",
         }

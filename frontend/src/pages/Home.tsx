@@ -144,7 +144,15 @@ const Home: React.FC = () => {
   );
 };
 
-const MenuCard = ({ to, title, desc, icon, color }: any) => (
+interface MenuCardProps {
+  to: string;
+  title: string;
+  desc: string;
+  icon: React.ReactNode;
+  color: string;
+}
+
+const MenuCard = ({ to, title, desc, icon, color }: MenuCardProps) => (
   <Link to={to}>
     <motion.div 
       variants={{

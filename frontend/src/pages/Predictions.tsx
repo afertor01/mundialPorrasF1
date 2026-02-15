@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
 import * as API from "../api/api";
 import { motion, AnimatePresence } from "framer-motion";
@@ -149,7 +150,7 @@ const Predictions: React.FC = () => {
         alert("✅ Predicción guardada.");
         setExistingPreds(prev => ({ ...prev, [selectedGp.id]: true }));
         setSelectedGp(null);
-    } catch (err: any) { alert("❌ Error al guardar"); }
+    } catch { alert("❌ Error al guardar"); }
   };
 
   useEffect(() => {

@@ -13,6 +13,7 @@ from sqlmodel import Session, select, select
 
 SeasonsRepositoryDep = Annotated[SeasonsRepository, Depends()]
 
+
 class SeasonsService:
     def __init__(self, seasons_repository: SeasonsRepositoryDep):
         self.seasons_repository = seasons_repository
@@ -21,16 +22,16 @@ class SeasonsService:
         return self.seasons_repository.get_seasons()
 
     def get_season_teams(self, season_id: int) -> List[TeamResponse]:
-        """ 
+        """
         Equipos de JUGADORES (Team).
         Devuelve los nombres de los miembros como lista de strings.
         """
         return self.seasons_repository.get_season_teams(season_id)
 
     def get_season_constructors(self, season_id: int) -> List[Constructors]:
-        """ Parrilla F1 REAL (Constructor + Drivers) """
+        """Parrilla F1 REAL (Constructor + Drivers)"""
         return self.seasons_repository.get_season_constructors(season_id)
 
     def get_season_constructors(self, season_id: int) -> List[Constructors]:
-        """ Parrilla F1 REAL (Constructor + Drivers) """
+        """Parrilla F1 REAL (Constructor + Drivers)"""
         return self.seasons_repository.get_season_constructors(season_id)

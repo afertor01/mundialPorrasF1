@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useMemo } from "react";
 import * as API from "../api/api";
 import { AuthContext } from "../context/AuthContext";
 import { jwtDecode } from "jwt-decode";
@@ -64,7 +64,18 @@ interface StatCardProps {
 
 const Dashboard: React.FC = () => {
   const { token } = useContext(AuthContext);
-  const [username, setUsername] = useState<string>("");
+  
+  // Extraer username del token sin useState + useEffect
+  const username = useMemo(() => {
+    if (!token) return "";
+    try {
+      const decoded = jwtDecode<CustomJwtPayload>(token);
+      return decoded.username || "";
+    } catch (e) {
+      console.error("Error decodificando token", e);
+      return "";
+    }
+  }, [token]);
   
   // Estados de Configuración
   const [mode, setMode] = useState<"total" | "base" | "multiplier">("total");
@@ -82,25 +93,12 @@ const Dashboard: React.FC = () => {
   const [myTeam, setMyTeam] = useState<Team | null>(null);
   const [gps, setGps] = useState<Gp[]>([]); 
 
-  // 1. EXTRAER USUARIO
-  useEffect(() => {
-    if (token) {
-        try {
-            // Tipado genérico para jwtDecode
-            const decoded = jwtDecode<CustomJwtPayload>(token);
-            setUsername(decoded.username || ""); 
-        } catch (e) {
-            console.error("Error decodificando token", e);
-        }
-    }
-  }, [token]);
-
   // Carga de datos
   useEffect(() => {
     const fetchData = async () => {
         try {
             const seasons = await API.getSeasons();
-            const active = seasons.find((s: any) => s.is_active);
+            const active = seasons.find((s: ActiveSeason) => s.is_active);
             if (!active) return;
             setActiveSeason(active);
 
@@ -239,7 +237,7 @@ const Dashboard: React.FC = () => {
                     ].map((tab) => (
                         <button
                             key={tab.id}
-                            onClick={() => setMode(tab.id as any)}
+                            onClick={() => setMode(tab.id as "total" | "base" | "multiplier")}
                             className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase transition-all whitespace-nowrap ${
                                 mode === tab.id ? "bg-white text-gray-900 shadow-md" : "text-gray-400 hover:text-gray-600"
                             }`}

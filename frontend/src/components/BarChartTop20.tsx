@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { 
@@ -20,7 +21,7 @@ interface Props {
 
 const BarChartTop20: React.FC<Props> = ({ data, currentUser }) => {
   // 1. Lógica para asegurar Top 20 + Usuario actual
-  let displayData = data.slice(0, 20);
+  const displayData = data.slice(0, 20);
   
   const userInTop20 = displayData.find(d => d.name === currentUser);
   if (!userInTop20 && currentUser) {
