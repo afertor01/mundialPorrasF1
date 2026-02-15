@@ -152,7 +152,7 @@ export const getGPs = async (season_id: number) => {
 export const importGPs = async (season_id: number, file: File) => {
   const formData = new FormData();
   formData.append("file", file);
-  
+
   const res = await client.post(`/admin/seasons/${season_id}/import-gps`, formData, {
     headers: { "Content-Type": "multipart/form-data" }
   });
@@ -173,12 +173,12 @@ export const createGP = async (data: { name: string, race_datetime: string, seas
 
 // Editar
 export const updateGP = async (gpId: number, name: string, race_datetime: string, season_id: number) => {
-    // Tu backend actual: @router.put("/gps/{gp_id}") recibe parámetros sueltos (query), no un body Pydantic.
-    // Así que lo mandamos como params.
-    const res = await client.put(`/admin/gps/${gpId}`, null, {
-        params: { name, race_datetime, season_id }
-    });
-    return res.data;
+  // Tu backend actual: @router.put("/gps/{gp_id}") recibe parámetros sueltos (query), no un body Pydantic.
+  // Así que lo mandamos como params.
+  const res = await client.put(`/admin/gps/${gpId}`, null, {
+    params: { name, race_datetime, season_id }
+  });
+  return res.data;
 };
 
 // Borrar
@@ -192,30 +192,30 @@ export const deleteGP = async (gpId: number) => {
 // ==========================================
 
 export const getF1Grid = async (season_id: number) => {
-    const res = await client.get(`/seasons/${season_id}/constructors`);
-    return res.data; 
+  const res = await client.get(`/seasons/${season_id}/constructors`);
+  return res.data;
 };
 
 export const createConstructor = async (season_id: number, name: string, color: string) => {
-    const res = await client.post(`/admin/seasons/${season_id}/constructors`, null, {
-        params: { name, color }
-    });
-    return res.data;
+  const res = await client.post(`/admin/seasons/${season_id}/constructors`, null, {
+    params: { name, color }
+  });
+  return res.data;
 };
 
 export const createDriver = async (constructor_id: number, code: string, name: string) => {
-    const res = await client.post(`/admin/constructors/${constructor_id}/drivers`, null, {
-        params: { code, name }
-    });
-    return res.data;
+  const res = await client.post(`/admin/constructors/${constructor_id}/drivers`, null, {
+    params: { code, name }
+  });
+  return res.data;
 };
 
 export const deleteConstructor = async (id: number) => {
-    return await client.delete(`/admin/constructors/${id}`);
+  return await client.delete(`/admin/constructors/${id}`);
 };
 
 export const deleteDriver = async (id: number) => {
-    return await client.delete(`/admin/drivers/${id}`);
+  return await client.delete(`/admin/drivers/${id}`);
 };
 
 // ==========================================
@@ -223,8 +223,8 @@ export const deleteDriver = async (id: number) => {
 // ==========================================
 
 export const saveRaceResult = async (
-  gpId: number, 
-  positions: Record<number, string>, 
+  gpId: number,
+  positions: Record<number, string>,
   events: Record<string, string>
 ) => {
   // Enviamos positions y events en el body
@@ -238,13 +238,13 @@ export const getRaceResult = async (gpId: number) => {
 };
 
 export const syncRaceData = async (gpId: number) => {
-    const res = await client.post(`/admin/gps/${gpId}/sync`);
-    return res.data; // Devolverá { success: true, logs: [...] }
+  const res = await client.post(`/admin/gps/${gpId}/sync`);
+  return res.data; // Devolverá { success: true, logs: [...] }
 };
 
 export const syncQualyData = async (gpId: number) => {
-    const res = await client.post(`/admin/gps/${gpId}/sync-qualy`);
-    return res.data; // Devolverá { success: true, logs: [...] }
+  const res = await client.post(`/admin/gps/${gpId}/sync-qualy`);
+  return res.data; // Devolverá { success: true, logs: [...] }
 };
 
 // ==========================================
@@ -252,22 +252,22 @@ export const syncQualyData = async (gpId: number) => {
 // ==========================================
 
 export const getMyPrediction = async (gp_id: number) => {
-    try {
-      const res = await client.get(`/predictions/${gp_id}/me`);
-      return res.data; 
-    } catch (error) {
-      // Si devuelve 404 o null, simplemente retornamos null para que el frontend sepa que no hay predicción
-      return null;
-    }
-};
-  
-export const savePrediction = async (gp_id: number, positions: Record<number, string>, events: Record<string, string>) => {
-    // Enviamos un JSON Body
-    const res = await client.post(`/predictions/${gp_id}`, {
-        positions,
-        events
-    });
+  try {
+    const res = await client.get(`/predictions/${gp_id}/me`);
     return res.data;
+  } catch (error) {
+    // Si devuelve 404 o null, simplemente retornamos null para que el frontend sepa que no hay predicción
+    return null;
+  }
+};
+
+export const savePrediction = async (gp_id: number, positions: Record<number, string>, events: Record<string, string>) => {
+  // Enviamos un JSON Body
+  const res = await client.post(`/predictions/${gp_id}`, {
+    positions,
+    events
+  });
+  return res.data;
 };
 
 // ==========================================
@@ -298,41 +298,41 @@ export const getPublicRaceResult = async (gpId: number) => {
 // ==========================================
 
 export const getMyTeam = async () => {
-    try {
-        const res = await client.get("/teams/my-team");
-        return res.data;
-    } catch (e) {
-        // Si devuelve null o 404, retornamos null
-        return null;
-    }
+  try {
+    const res = await client.get("/teams/my-team");
+    return res.data;
+  } catch (e) {
+    // Si devuelve null o 404, retornamos null
+    return null;
+  }
 };
 
 export const createTeamPlayer = async (name: string) => {
-    // El backend espera 'name' como query param
-    const res = await client.post("/teams/create", null, { params: { name } });
-    return res.data;
+  // El backend espera 'name' como query param
+  const res = await client.post("/teams/create", null, { params: { name } });
+  return res.data;
 };
 
 export const joinTeamPlayer = async (code: string) => {
-    // El backend espera 'code' como query param
-    const res = await client.post("/teams/join", null, { params: { code } });
-    return res.data;
+  // El backend espera 'code' como query param
+  const res = await client.post("/teams/join", null, { params: { code } });
+  return res.data;
 };
 
 export const leaveTeamPlayer = async () => {
-    const res = await client.delete("/teams/leave");
-    return res.data;
+  const res = await client.delete("/teams/leave");
+  return res.data;
 };
 
 export const kickTeamMemberAdmin = async (teamId: number, userId: number) => {
-    // Usamos el endpoint genérico o creamos uno. 
-    // Como no tenemos endpoint específico de admin para kick en el backend que me pasaste,
-    // vamos a asumir que añadiste este endpoint en admin.py:
-    // @router.delete("/teams/{team_id}/members/{user_id}")
-    
-    // SI NO TIENES ESE ENDPOINT, avísame. 
-    // Por ahora, asumiré que usas esta ruta:
-    return client.delete(`/admin/teams/${teamId}/members/${userId}`);
+  // Usamos el endpoint genérico o creamos uno. 
+  // Como no tenemos endpoint específico de admin para kick en el backend que me pasaste,
+  // vamos a asumir que añadiste este endpoint en admin.py:
+  // @router.delete("/teams/{team_id}/members/{user_id}")
+
+  // SI NO TIENES ESE ENDPOINT, avísame. 
+  // Por ahora, asumiré que usas esta ruta:
+  return client.delete(`/admin/teams/${teamId}/members/${userId}`);
 };
 
 // ==========================================
@@ -395,7 +395,7 @@ export const updateMyAvatar = async (filename: string) => {
 export const uploadAvatar = async (file: File) => {
   const formData = new FormData();
   formData.append("file", file);
-  
+
   const res = await client.post("/avatars/upload", formData, {
     headers: { "Content-Type": "multipart/form-data" }
   });
@@ -413,15 +413,15 @@ export const deleteAvatar = async (avatarId: number) => {
 // ==========================================
 
 // Actualizar perfil (Username, Email, Password, Acrónimo)
-export const updateProfile = async (data: { 
-    username?: string; 
-    email?: string; 
-    acronym?: string; 
-    current_password?: string; 
-    new_password?: string; 
+export const updateProfile = async (data: {
+  username?: string;
+  email?: string;
+  acronym?: string;
+  current_password?: string;
+  new_password?: string;
 }) => {
-    const res = await client.patch("/auth/me", data);
-    return res.data;
+  const res = await client.patch("/auth/me", data);
+  return res.data;
 };
 
 // ==========================================
@@ -429,20 +429,20 @@ export const updateProfile = async (data: {
 // ==========================================
 
 export const getMyStats = async () => {
-    const res = await client.get("/stats/me");
-    return res.data;
+  const res = await client.get("/stats/me");
+  return res.data;
 };
 
 // Obtener lista ligera de usuarios para el buscador
 export const getUsersList = async () => {
-    const res = await client.get("/stats/users");
-    return res.data;
+  const res = await client.get("/stats/users");
+  return res.data;
 };
 
 // Obtener stats de OTRO usuario
 export const getUserStats = async (userId: number) => {
-    const res = await client.get(`/stats/user/${userId}`);
-    return res.data;
+  const res = await client.get(`/stats/user/${userId}`);
+  return res.data;
 };
 
 // ==========================================
@@ -450,9 +450,18 @@ export const getUserStats = async (userId: number) => {
 // ==========================================
 
 export const getAchievements = async (userId?: number) => {
-    const url = userId ? `/stats/achievements/${userId}` : `/achievements/`; // Ajusta la ruta base según dónde pusiste el endpoint
-    // Nota: Si pusiste el endpoint en stats.py como hice arriba, la ruta es /stats/achievements/user/{id}
-    // Si usas el router 'achievements', ajusta la URL.
-    const res = await client.get(url);
-    return res.data;
+  const url = userId ? `/stats/achievements/${userId}` : `/achievements/`; // Ajusta la ruta base según dónde pusiste el endpoint
+  // Nota: Si pusiste el endpoint en stats.py como hice arriba, la ruta es /stats/achievements/user/{id}
+  // Si usas el router 'achievements', ajusta la URL.
+  const res = await client.get(url);
+  return res.data;
+};
+
+// ==========================================
+// 🚨 PANIC
+// ==========================================
+
+export const rebuildAllAchievements = async () => {
+  const res = await client.post("/admin/panic/rebuild-achievements");
+  return res.data;
 };
