@@ -1,12 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from sqlalchemy.orm import Session
-import shutil
-import os
+from fastapi import APIRouter, Depends, UploadFile, File
 from typing import Annotated, Dict, List
 
-from app.db.session import SessionMaker
 from app.db.models.user import Users
-from app.db.models.avatar import Avatars
 from app.schemas.responses import AvatarResponse, UserResponse
 from app.services.avatars import AvatarsService
 from app.core.deps import get_current_user, require_admin

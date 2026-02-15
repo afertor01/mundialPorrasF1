@@ -1,18 +1,9 @@
-import secrets
-import string
 from typing import Annotated, Dict
 from app.db.models.user import Users
 from app.repositories.teams import TeamsRepository
 from app.schemas.requests import TeamCreateRequest
-from app.schemas.responses import MyTeamResponse, TeamResponse
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import joinedload
-from app.db.session import SessionMaker, get_session
-from app.db.models.team import Teams
-from app.db.models.team_member import TeamMembers
-from app.db.models.season import Seasons
-from app.core.deps import get_current_user, generate_join_code
-from sqlmodel import Session, select
+from app.schemas.responses import MyTeamResponse
+from fastapi import Depends
 
 TeamsRepositoryDep = Annotated[TeamsRepository, Depends()]
 

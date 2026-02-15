@@ -2,15 +2,8 @@
 from datetime import datetime
 from sqlalchemy import (
     Column,
-    Integer,
-    String,
-    ForeignKey,
     JSON,
-    Boolean,
-    Float,
-    DateTime,
 )
-from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
 

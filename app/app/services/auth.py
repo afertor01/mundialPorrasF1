@@ -1,6 +1,5 @@
 from typing import Annotated, Dict
 from fastapi import Depends
-from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.requests import UserCreateRequest, UserUpdateRequest, UserLoginRequest
 from app.schemas.responses import UserResponse
 from app.db.models.user import Users

@@ -1,19 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
-from typing import Annotated, Dict, List, Optional
-from pydantic import BaseModel
-from datetime import datetime, timezone
+from fastapi import Depends
+from typing import Annotated, Dict, List
 
 # Importaciones del proyecto
-from app.db.session import SessionMaker, get_session
-from app.core.deps import get_current_user, require_admin
 from app.db.models.user import Users
-from app.db.models.season import Seasons
-from app.db.models.bingo import BingoTiles, BingoSelections
 from app.schemas.requests import BingoTileCreate, BingoTileUpdate
 from app.schemas.responses import BingoTileResponse, BingoStandingsItem
-from app.db.models.grand_prix import GrandPrix
 from app.repositories.bingo import BingoRepository
-from sqlmodel import Session, select
 
 MAX_SELECTIONS = 20
 

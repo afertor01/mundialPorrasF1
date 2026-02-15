@@ -1,7 +1,6 @@
 from typing import Annotated, Dict
 from app.schemas.shared import TokenData
 from fastapi import HTTPException, Depends
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from app.schemas.requests import UserCreateRequest, UserUpdateRequest, UserLoginRequest
 from app.schemas.responses import UserResponse
 from app.db.session import get_session

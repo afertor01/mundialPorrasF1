@@ -1,45 +1,41 @@
 import random
 import string
-import sys
 from datetime import datetime, timedelta
-from sqlalchemy import func
 
 # ==============================================================================
 # 1. IMPORTS Y CONFIGURACIÓN
 # ==============================================================================
-from app.db.session import SessionLocal, engine, Base
+from app.db.session import get_session, create_tables, drop_tables
 from app.core.security import hash_password
 
 # Modelos
-from app.db.models.user import User
-from app.db.models.season import Season
+from app.db.models.user import Users
+from app.db.models.season import Seasons
 from app.db.models.grand_prix import GrandPrix
-from app.db.models.team import Team
-from app.db.models.team_member import TeamMember
-from app.db.models.multiplier_config import MultiplierConfig
-from app.db.models.constructor import Constructor
-from app.db.models.driver import Driver
-from app.db.models.user_stats import UserStats
+from app.db.models.team import Teams
+from app.db.models.team_member import TeamMembers
+from app.db.models.multiplier_config import MultiplierConfigs
+from app.db.models.constructor import Constructors
+from app.db.models.driver import Drivers
 from app.db.models.achievement import (
-    Achievement,
-    UserAchievement,
+    Achievements,
     AchievementRarity,
     AchievementType,
 )
-from app.db.models.prediction import Prediction
-from app.db.models.prediction_position import PredictionPosition
-from app.db.models.prediction_event import PredictionEvent
-from app.db.models.race_result import RaceResult
-from app.db.models.race_position import RacePosition
-from app.db.models.race_event import RaceEvent
-from app.db.models.bingo import BingoTile, BingoSelection
+from app.db.models.prediction import Predictions
+from app.db.models.prediction_position import PredictionPositions
+from app.db.models.prediction_event import PredictionEvents
+from app.db.models.race_result import RaceResults
+from app.db.models.race_position import RacePositions
+from app.db.models.race_event import RaceEvents
 
 # Servicios
-from app.services.scoring import calculate_prediction_score
+from app.utils.scoring import calculate_prediction_score
 from app.utils.achievements import (
     evaluate_race_achievements,
     evaluate_season_finale_achievements,
 )
+from sqlmodel import Session, select
 
 # Definiciones de logros
 ACHIEVEMENT_DEFINITIONS = [
@@ -298,16 +294,16 @@ GP_LIST = [
 # ==============================================================================
 
 
-def reset_db(db):
+def reset_db(session: Session):
     print("🧹 Limpiando BD...")
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-
+    drop_tables()
+    create_tables()
     print("🌱 Sembrando Logros...")
     for d in ACHIEVEMENT_DEFINITIONS:
-        if not db.query(Achievement).filter_by(slug=d["slug"]).first():
-            db.add(
-                Achievement(
+        query = select(Achievements).where(Achievements.slug == d["slug"])
+        if not session.exec(query).first():
+            session.add(
+                Achievements(
                     slug=d["slug"],
                     name=d["name"],
                     description=d["desc"],
@@ -316,17 +312,17 @@ def reset_db(db):
                     type=AchievementType(d["type"]),
                 )
             )
-    db.commit()
+    session.commit()
 
 
-def create_users(db):
+def create_users(session: Session):
     print(f"👥 Creando {NUM_USERS} usuarios...")
     users = []
     used_acronyms = set()
     skills = {}  # Diccionario ID -> Skill
 
     # 1. Admin
-    admin = User(
+    admin = Users(
         email="admin@admin.com",
         username="Admin",
         acronym="ADM",
@@ -334,14 +330,14 @@ def create_users(db):
         role="admin",
         created_at=datetime.utcnow(),
     )
-    db.add(admin)
-    db.flush()  # ⚠️ IMPORTANTE: Genera el ID inmediatamente
+    session.add(admin)
+    session.flush()  # ⚠️ IMPORTANTE: Genera el ID inmediatamente
     users.append(admin)
     used_acronyms.add("ADM")
     skills[admin.id] = 0.5  # Usamos el ID generado
 
     # 2. Tú
-    yo = User(
+    yo = Users(
         email="yo@test.com",
         username="Afertor",
         acronym="AFE",
@@ -349,8 +345,8 @@ def create_users(db):
         role="user",
         created_at=datetime.utcnow(),
     )
-    db.add(yo)
-    db.flush()  # ⚠️ IMPORTANTE
+    session.add(yo)
+    session.flush()  # ⚠️ IMPORTANTE
     users.append(yo)
     used_acronyms.add("AFE")
     skills[yo.id] = 0.95
@@ -387,7 +383,7 @@ def create_users(db):
                 used_acronyms.add(acr)
                 break
 
-        u = User(
+        u = Users(
             email=f"user{i}@test.com",
             username=name,
             acronym=acr,
@@ -395,23 +391,23 @@ def create_users(db):
             role="user",
             created_at=datetime.utcnow(),
         )
-        db.add(u)
-        db.flush()  # ⚠️ IMPORTANTE: Obtenemos ID antes de seguir
+        session.add(u)
+        session.flush()  # ⚠️ IMPORTANTE: Obtenemos ID antes de seguir
         users.append(u)
 
         # Asignar habilidad al ID
         skills[u.id] = random.triangular(0.2, 0.9, 0.5)
 
-    db.commit()
+    session.commit()
 
     # skills ya es un mapa {id: float}, no hace falta transformarlo
     return users, skills
 
 
-def setup_season_infrastructure(db, year, active=False):
+def setup_season_infrastructure(session: Session, year, active=False):
     print(f"🏗️  Preparando Temporada {year}...")
-    s = Season(year=year, name=f"F1 {year}", is_active=active)
-    db.add(s)
+    s = Seasons(year=year, name=f"F1 {year}", is_active=active)
+    session.add(s)
 
     # Multiplicadores
     configs = [
@@ -423,8 +419,8 @@ def setup_season_infrastructure(db, year, active=False):
         ("PODIUM_TOTAL", 1.5),
     ]
     for evt, val in configs:
-        db.add(MultiplierConfig(season=s, event_type=evt, multiplier=val))
-    db.commit()
+        session.add(MultiplierConfigs(season=s, event_type=evt, multiplier=val))
+    session.commit()
 
     # Constructores y Drivers
     teams_data = [
@@ -443,19 +439,19 @@ def setup_season_infrastructure(db, year, active=False):
     driver_objs = []
 
     for t_name, color, drivers in teams_data:
-        c = Constructor(name=t_name, color=color, season_id=s.id)
-        db.add(c)
-        db.commit()
+        c = Constructors(name=t_name, color=color, season_id=s.id)
+        session.add(c)
+        session.commit()
         for d_code in drivers:
-            d = Driver(code=d_code, name=d_code, constructor_id=c.id)
-            db.add(d)
+            d = Drivers(code=d_code, name=d_code, constructor_id=c.id)
+            session.add(d)
             driver_objs.append(d.code)
-    db.commit()
+    session.commit()
 
     return s, driver_objs
 
 
-def assign_teams_to_users(db, season, users):
+def assign_teams_to_users(session: Session, season, users):
     """Asigna equipos aleatorios de 2 personas para la temporada."""
     playing_users = [u for u in users if u.role != "admin"]
     random.shuffle(playing_users)
@@ -468,18 +464,18 @@ def assign_teams_to_users(db, season, users):
         u2 = playing_users[i + 1]
 
         t_name = f"Squad {season.year} {teams_created+1}"
-        t = Team(
+        t = Teams(
             name=t_name,
             season_id=season.id,
             join_code=f"S{season.year}-{teams_created}",
         )
-        db.add(t)
-        db.commit()
+        session.add(t)
+        session.commit()
 
-        db.add(TeamMember(user_id=u1.id, team_id=t.id, season_id=season.id))
-        db.add(TeamMember(user_id=u2.id, team_id=t.id, season_id=season.id))
+        session.add(TeamMembers(user_id=u1.id, team_id=t.id, season_id=season.id))
+        session.add(TeamMembers(user_id=u2.id, team_id=t.id, season_id=season.id))
         teams_created += 1
-    db.commit()
+    session.commit()
     print(f"🤝 {teams_created} Equipos formados para {season.year}.")
 
 
@@ -525,11 +521,11 @@ def generate_prediction(real_pos, real_evts, skill):
     return pred_pos, pred_evts
 
 
-def simulate_gp(db, season, gp_name, race_date, users, skill_map, drivers, multipliers):
+def simulate_gp(session: Session, season, gp_name, race_date, users, skill_map, drivers, multipliers):
     # Crear GP
     gp = GrandPrix(name=f"GP {gp_name}", race_datetime=race_date, season_id=season.id)
-    db.add(gp)
-    db.commit()
+    session.add(gp)
+    session.commit()
 
     # 1. Generar Resultado Real
     top_tier = ["VER", "NOR", "LEC", "HAM", "PIA"]
@@ -562,29 +558,29 @@ def simulate_gp(db, season, gp_name, race_date, users, skill_map, drivers, multi
     }
 
     # Guardar Resultado
-    res = RaceResult(gp_id=gp.id)
-    db.add(res)
-    db.commit()
+    res = RaceResults(gp_id=gp.id)
+    session.add(res)
+    session.commit()
     for i, d in enumerate(real_pos):
-        db.add(RacePosition(race_result_id=res.id, position=i + 1, driver_name=d))
+        session.add(RacePositions(race_result_id=res.id, position=i + 1, driver_name=d))
     for k, v in real_evts.items():
-        db.add(RaceEvent(race_result_id=res.id, event_type=k, value=str(v)))
+        session.add(RaceEvents(race_result_id=res.id, event_type=k, value=str(v)))
 
     # 2. Generar Predicciones
     for user in users:
         skill = skill_map[user.id]
         p_pos, p_evts = generate_prediction(real_pos, real_evts, skill)
 
-        pred = Prediction(user_id=user.id, gp_id=gp.id)
-        db.add(pred)
-        db.flush()
+        pred = Predictions(user_id=user.id, gp_id=gp.id)
+        session.add(pred)
+        session.flush()
 
         for i, d in enumerate(p_pos):
-            db.add(
-                PredictionPosition(prediction_id=pred.id, position=i + 1, driver_name=d)
+            session.add(
+                PredictionPositions(prediction_id=pred.id, position=i + 1, driver_name=d)
             )
         for k, v in p_evts.items():
-            db.add(PredictionEvent(prediction_id=pred.id, event_type=k, value=str(v)))
+            session.add(PredictionEvents(prediction_id=pred.id, event_type=k, value=str(v)))
 
         # Scoring Mock
         class M:
@@ -617,10 +613,10 @@ def simulate_gp(db, season, gp_name, race_date, users, skill_map, drivers, multi
         pred.points = score["final_points"]
         pred.points_base = score["base_points"]
 
-    db.commit()
+    session.commit()
 
     # 3. Evaluar Logros
-    evaluate_race_achievements(db, gp.id)
+    evaluate_race_achievements(session, gp.id)
     print(f"   🏁 {gp.name} simulado.")
 
 
@@ -629,57 +625,53 @@ def simulate_gp(db, season, gp_name, race_date, users, skill_map, drivers, multi
 # ==============================================================================
 
 
-def run_simulation():
-    db = SessionLocal()
-    reset_db(db)
+def run_simulation(session: Session):
+    reset_db(session)
 
     # 1. Crear Usuarios
-    users, skill_map = create_users(db)
+    users, skill_map = create_users(session)
 
     # ==========================
     # TEMPORADA 1: 2024 (Pasada)
     # ==========================
-    s1, d1 = setup_season_infrastructure(db, 2024, active=False)
-    assign_teams_to_users(db, s1, users)
-    multipliers1 = (
-        db.query(MultiplierConfig).filter(MultiplierConfig.season_id == s1.id).all()
-    )
+    s1, d1 = setup_season_infrastructure(session, 2024, active=False)
+    assign_teams_to_users(session, s1, users)
+    query = select(MultiplierConfigs).where(MultiplierConfigs.season_id == s1.id)
+    multipliers1 = session.exec(query).all()
 
     print("\n▶️  SIMULANDO TEMPORADA 2024 (Completa)...")
     start_date_24 = datetime(2024, 3, 1)
     for i, gp_name in enumerate(GP_LIST):
         race_date = start_date_24 + timedelta(weeks=i)
-        simulate_gp(db, s1, gp_name, race_date, users, skill_map, d1, multipliers1)
+        simulate_gp(session, s1, gp_name, race_date, users, skill_map, d1, multipliers1)
 
-    evaluate_season_finale_achievements(db, s1.id)
+    evaluate_season_finale_achievements(session, s1.id)
     print("🏆 Temporada 2024 cerrada.")
 
     # ==========================
     # TEMPORADA 2: 2025 (Pasada)
     # ==========================
-    s2, d2 = setup_season_infrastructure(db, 2025, active=False)
-    assign_teams_to_users(db, s2, users)
-    multipliers2 = (
-        db.query(MultiplierConfig).filter(MultiplierConfig.season_id == s2.id).all()
-    )
+    s2, d2 = setup_season_infrastructure(session, 2025, active=False)
+    assign_teams_to_users(session, s2, users)
+    query = select(MultiplierConfigs).where(MultiplierConfigs.season_id == s2.id)
+    multipliers2 = session.exec(query).all()
 
     print("\n▶️  SIMULANDO TEMPORADA 2025 (Completa)...")
     start_date_25 = datetime(2025, 3, 1)
     for i, gp_name in enumerate(GP_LIST):
         race_date = start_date_25 + timedelta(weeks=i)
-        simulate_gp(db, s2, gp_name, race_date, users, skill_map, d2, multipliers2)
+        simulate_gp(session, s2, gp_name, race_date, users, skill_map, d2, multipliers2)
 
-    evaluate_season_finale_achievements(db, s2.id)
+    evaluate_season_finale_achievements(session, s2.id)
     print("🏆 Temporada 2025 cerrada.")
 
     # ==========================
     # TEMPORADA 3: 2026 (Actual)
     # ==========================
-    s3, d3 = setup_season_infrastructure(db, 2026, active=True)
-    assign_teams_to_users(db, s3, users)
-    multipliers3 = (
-        db.query(MultiplierConfig).filter(MultiplierConfig.season_id == s3.id).all()
-    )
+    s3, d3 = setup_season_infrastructure(session, 2026, active=True)
+    assign_teams_to_users(session, s3, users)
+    query = select(MultiplierConfigs).where(MultiplierConfigs.season_id == s3.id)
+    multipliers3 = session.exec(query).all()
 
     print("\n▶️  SIMULANDO TEMPORADA 2026 (En Curso)...")
     start_date_26 = datetime(2026, 3, 1)
@@ -688,19 +680,17 @@ def run_simulation():
     for i in range(gps_played):
         gp_name = GP_LIST[i]
         race_date = start_date_26 + timedelta(weeks=i)
-        simulate_gp(db, s3, gp_name, race_date, users, skill_map, d3, multipliers3)
+        simulate_gp(session, s3, gp_name, race_date, users, skill_map, d3, multipliers3)
 
     print("📅 Agendando carreras futuras...")
     for i in range(gps_played, len(GP_LIST)):
         gp_name = GP_LIST[i]
         race_date = start_date_26 + timedelta(weeks=i)
         gp = GrandPrix(name=f"GP {gp_name}", race_datetime=race_date, season_id=s3.id)
-        db.add(gp)
-    db.commit()
+        session.add(gp)
+    session.commit()
 
     print("\n✅ SIMULACIÓN FINALIZADA.")
-    db.close()
-
 
 if __name__ == "__main__":
-    run_simulation()
+    run_simulation(get_session())

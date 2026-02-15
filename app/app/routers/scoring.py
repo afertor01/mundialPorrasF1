@@ -1,14 +1,8 @@
 from typing import Annotated, Dict
-from app.repositories.scoring import ScoringRepository
 from app.services.scoring import ScoringService
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 from app.db.session import get_session
-from app.db.models.prediction import Predictions
-from app.db.models.race_result import RaceResults
-from app.db.models.multiplier_config import MultiplierConfigs
-from app.utils.scoring import calculate_prediction_score
-from app.core.deps import get_current_user, require_admin
-from sqlmodel import Session, select
+from app.core.deps import require_admin
 
 ScoringServiceDep = Annotated[ScoringService, Depends(get_session)]
 

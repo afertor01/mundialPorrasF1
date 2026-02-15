@@ -1,15 +1,13 @@
 from typing import Annotated, Dict
-from app.schemas.responses import AdminRaceResultResponse, RaceResultResponse
+from app.schemas.responses import RaceResultResponse
 from app.schemas.shared import DriverPosition, RaceEvent
-from fastapi import APIRouter, HTTPException, Depends
-from app.db.session import SessionMaker, get_session
+from fastapi import HTTPException, Depends
+from app.db.session import get_session
 from app.db.models.race_result import RaceResults
 from app.db.models.race_position import RacePositions
 from app.db.models.race_event import RaceEvents
 from app.db.models.grand_prix import GrandPrix
 from app.schemas.requests import UpdateRaceResultRequest
-from app.core.deps import get_current_user
-from app.db.models.user import Users
 from app.utils.achievements import evaluate_race_achievements
 from sqlmodel import Session, delete, select
 

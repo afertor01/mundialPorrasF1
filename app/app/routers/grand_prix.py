@@ -1,6 +1,5 @@
 from typing import Annotated, List
 from app.schemas.requests import GrandPrixCreateRequest
-from app.schemas.responses import GrandPrixResponse
 from app.services.grand_prix import GrandPrixService
 from fastapi import APIRouter, Depends
 from app.core.deps import require_admin

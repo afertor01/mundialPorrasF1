@@ -1,21 +1,18 @@
 from sqlalchemy.orm import joinedload
 from sqlmodel import Session, select
-from sqlmodel import func, desc, and_, or_
-from typing import Set, List, Optional
+from sqlmodel import func, desc, and_
+from typing import Set, List
 
 # Modelos
 from app.db.models.achievement import Achievements, UserAchievements, AchievementType
-from app.db.models.prediction import Predictions, Predictions
-from app.db.models.prediction_position import PredictionPositions, PredictionPositions
-from app.db.models.prediction_event import PredictionEvents
+from app.db.models.prediction import Predictions
+from app.db.models.prediction_position import PredictionPositions
 from app.db.models.race_result import RaceResults
 from app.db.models.race_position import RacePositions
-from app.db.models.race_event import RaceEvents
 from app.db.models.grand_prix import GrandPrix
 from app.db.models.user import Users
 from app.db.models.driver import Drivers
-from app.db.models.constructor import Constructors
-from app.db.models.user_stats import UserStats, UserGpStats
+from app.db.models.user_stats import UserStats
 from app.db.models.team_member import TeamMembers
 
 # ==============================================================================
@@ -126,10 +123,10 @@ def recalculate_user_stats(
             joinedload(Predictions.positions),
             joinedload(Predictions.grand_prix)
             .joinedload(GrandPrix.race_result)
-            .joinedload(RaceResult.events),
+            .joinedload(RaceResults.events),
             joinedload(Predictions.grand_prix)
             .joinedload(GrandPrix.race_result)
-            .joinedload(RaceResult.positions),
+            .joinedload(RaceResults.positions),
         )
     )
     history = session.exec(query).all()

@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import List
-from app.db.models.user import Users
 from app.schemas.shared import CamelModel, DriverPosition, RaceEvent, SeasonBase
 from pydantic import EmailStr
 

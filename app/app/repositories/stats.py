@@ -1,17 +1,14 @@
 from typing import Annotated, Any, Dict, List
 from app.schemas.responses import AchievementResponse
-from fastapi import APIRouter, Query, HTTPException, Depends
+from fastapi import HTTPException, Depends
 from sqlalchemy import or_, func, desc
 from sqlalchemy.orm import joinedload
-from app.db.session import SessionMaker, get_session
-from app.core.deps import get_current_user
+from app.db.session import get_session
 from app.db.models.prediction import Predictions
 from app.db.models.grand_prix import GrandPrix
 from app.db.models.user import Users
 from app.db.models.team import Teams
 from app.db.models.race_result import RaceResults
-from app.db.models.race_position import RacePositions
-from app.db.models.race_event import RaceEvents
 from app.db.models.prediction_position import PredictionPositions
 from app.db.models.prediction_event import PredictionEvents
 from app.db.models.achievement import Achievements, UserAchievements

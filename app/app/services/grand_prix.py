@@ -1,15 +1,8 @@
 from typing import Annotated, List
-from app.db.models.user import Users
-from app.schemas.responses import GrandPrixResponse
-from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime
-from app.db.session import SessionMaker, get_session
+from fastapi import Depends
 from app.db.models.grand_prix import GrandPrix
-from app.db.models.season import Seasons
-from app.core.deps import get_current_user
 from app.schemas.requests import GrandPrixCreateRequest
 from app.repositories.grand_prix import GrandPrixRepository
-from sqlmodel import Session, select
 
 GrandPrixRepositoryDep = Annotated[GrandPrixRepository, Depends()]
 

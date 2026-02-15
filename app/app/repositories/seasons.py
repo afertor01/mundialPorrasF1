@@ -1,14 +1,11 @@
 from typing import Annotated, List
 from app.schemas.responses import SeasonResponse, TeamResponse
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import joinedload
-from app.db.session import SessionMaker, get_session
+from fastapi import Depends
+from app.db.session import get_session
 from app.db.models.season import Seasons
 from app.db.models.team import Teams
-from app.db.models.team_member import TeamMembers
 from app.db.models.constructor import Constructors
-from app.core.deps import get_current_user
-from sqlmodel import Session, select, select
+from sqlmodel import Session, select
 
 SessionDep = Annotated[Session, Depends(get_session)]
 

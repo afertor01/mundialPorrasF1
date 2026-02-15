@@ -1,11 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
-from typing import Annotated, Dict, List, Optional
-from pydantic import BaseModel
-from datetime import datetime, timezone
+from fastapi import Depends, HTTPException
+from typing import Annotated, Dict, List
 
 # Importaciones del proyecto
-from app.db.session import SessionMaker, get_session
-from app.core.deps import get_current_user, require_admin
+from app.db.session import get_session
 from app.db.models.user import Users
 from app.db.models.season import Seasons
 from app.db.models.bingo import BingoTiles, BingoSelections
@@ -52,7 +49,7 @@ class BingoRepository:
         return points
 
     def create_bingo_tile(self, tile: BingoTileCreate) -> BingoTileResponse:
-        query = select(Seasons).where(Seasons.is_active == True)
+        query = select(Seasons).where(Seasons.is_active)
         season = self.session.exec(query).first()
         if not season:
             raise HTTPException(status_code=400, detail="No hay temporada activa")
@@ -99,7 +96,7 @@ class BingoRepository:
         Devuelve el tablero completo con el estado actual de cada casilla.
         """
 
-        query = select(Seasons).where(Seasons.is_active == True)
+        query = select(Seasons).where(Seasons.is_active)
         season = self.session.exec(query).first()
         if not season:
             return []
@@ -152,7 +149,7 @@ class BingoRepository:
         """
         Marca o desmarca una casilla.
         """
-        query = select(Seasons).where(Seasons.is_active == True)
+        query = select(Seasons).where(Seasons.is_active)
         season = self.session.exec(query).first()
 
         if not season:
@@ -164,7 +161,6 @@ class BingoRepository:
             .where(GrandPrix.season_id == season.id)
             .order_by(GrandPrix.race_datetime)
         )
-        first_gp = self.session.exec(query).first()
 
         # if first_gp and datetime.now() > first_gp.race_datetime:
         #     raise HTTPException(status_code=403, detail="El Bingo está cerrado. La temporada ya ha comenzado.")
@@ -209,7 +205,7 @@ class BingoRepository:
         """
         Calcula la clasificación del Bingo incluyendo aciertos, fallos y puntos.
         """
-        query = select(Seasons).where(Seasons.is_active == True)
+        query = select(Seasons).where(Seasons.is_active)
 
         season = self.session.exec(query).first()
         if not season:

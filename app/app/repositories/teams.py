@@ -1,17 +1,15 @@
-import secrets
-import string
 from typing import Annotated, Dict
 from app.db.models.user import Users
 from app.schemas.requests import TeamCreateRequest
-from app.schemas.responses import MyTeamResponse, TeamResponse
+from app.schemas.responses import MyTeamResponse
 from app.utils.achievements import grant_achievements
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import joinedload
-from app.db.session import SessionMaker, get_session
+from app.db.session import get_session
 from app.db.models.team import Teams
 from app.db.models.team_member import TeamMembers
 from app.db.models.season import Seasons
-from app.core.deps import get_current_user, generate_join_code
+from app.core.deps import generate_join_code
 from sqlmodel import Session, select
 
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -27,7 +25,7 @@ class TeamsRepository:
         Incluye el código para invitar amigos.
         """
 
-        query = select(Seasons).where(Seasons.is_active == True)
+        query = select(Seasons).where(Seasons.is_active)
         # 1. Buscar temporada activa
         active_season = self.session.exec(query).first()
         if not active_season:
@@ -71,7 +69,7 @@ class TeamsRepository:
         """
         Crea un equipo nuevo y asigna al creador como primer miembro.
         """
-        query = select(Seasons).where(Seasons.is_active == True)
+        query = select(Seasons).where(Seasons.is_active)
         # 1. Validar temporada activa
         active_season = self.session.exec(query).first()
         if not active_season:
@@ -120,7 +118,7 @@ class TeamsRepository:
         """
         Unirse a un equipo usando el código de invitación.
         """
-        query = select(Seasons).where(Seasons.is_active == True)
+        query = select(Seasons).where(Seasons.is_active)
 
         # 1. Validar temporada
         active_season = self.session.exec(query).first()
@@ -173,7 +171,7 @@ class TeamsRepository:
         Salirse del equipo actual.
         Si el equipo queda vacío (0 miembros), SE BORRA automáticamente.
         """
-        query = select(Seasons).where(Seasons.is_active == True)
+        query = select(Seasons).where(Seasons.is_active)
         active_season = self.session.exec(query).first()
         if not active_season:
             raise HTTPException(400, "No hay temporada activa.")

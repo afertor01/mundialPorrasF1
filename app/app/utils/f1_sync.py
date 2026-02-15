@@ -1,6 +1,5 @@
 from app.db.models.season import Seasons
 import fastf1
-import pandas as pd
 import os
 from sqlmodel import delete, select
 
@@ -9,7 +8,6 @@ from app.db.models.grand_prix import GrandPrix
 from app.db.models.race_result import RaceResults
 from app.db.models.race_position import RacePositions
 from app.db.models.race_event import RaceEvents
-from app.db.models.driver import Drivers
 from app.utils.achievements import evaluate_race_achievements
 from sqlmodel import Session
 

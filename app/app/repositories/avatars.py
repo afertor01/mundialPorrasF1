@@ -1,13 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import Depends, HTTPException, UploadFile
 import shutil
 import os
 from typing import Annotated, Dict, List
 
-from app.db.session import SessionMaker, get_session
+from app.db.session import get_session
 from app.db.models.user import Users
 from app.db.models.avatar import Avatars
 from app.schemas.responses import AvatarResponse, UserResponse
-from app.core.deps import get_current_user, require_admin
 from sqlmodel import Session, select
 
 # CONFIGURACIÓN

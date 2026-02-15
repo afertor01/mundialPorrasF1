@@ -1,18 +1,9 @@
 from typing import Annotated, Dict, List
 from app.schemas.requests import UpdateRaceResultRequest
-from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime, timezone
-from sqlalchemy.orm import joinedload
-from app.db.session import SessionMaker
-from app.db.models.prediction import Predictions
-from app.db.models.prediction_position import PredictionPositions
-from app.db.models.prediction_event import PredictionEvents
-from app.db.models.grand_prix import GrandPrix
+from fastapi import Depends
 from app.db.models.user import Users
-from app.core.deps import get_current_user
 from app.repositories.predictions import PredictionsRepository
 from app.schemas.responses import PredictionResponse
-from sqlmodel import Session, delete, select
 
 PredictionsRepositoryDep = Annotated[PredictionsRepository, Depends()]
 

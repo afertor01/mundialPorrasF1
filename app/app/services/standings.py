@@ -5,15 +5,7 @@ from app.schemas.responses import (
     SeasonStandingResponse,
     TeamStandingResponse,
 )
-from fastapi import APIRouter, Depends
-from sqlalchemy import func
-from app.db.session import SessionMaker, get_session
-from app.db.models.user import Users
-from app.db.models.prediction import Predictions
-from app.db.models.grand_prix import GrandPrix
-from app.db.models.team import Teams
-from app.db.models.team_member import TeamMembers
-from sqlmodel import Session, select
+from fastapi import Depends
 
 StandingsRepositoryDep = Annotated[StandingsRepository, Depends()]
 

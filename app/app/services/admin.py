@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Dict, List
 from app.db.models.constructor import Constructors
 from app.db.models.driver import Drivers

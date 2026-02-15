@@ -1,16 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import Annotated, Dict, List, Optional
-from pydantic import BaseModel
-from datetime import datetime, timezone
+from fastapi import APIRouter, Depends
+from typing import Annotated, Dict, List
 
 # Importaciones del proyecto
-from app.db.session import SessionMaker
 from app.core.deps import get_current_user, require_admin
-from app.db.models.user import Users
-from app.db.models.season import Seasons
-from app.db.models.bingo import BingoTiles, BingoSelections
-from app.db.models.grand_prix import GrandPrix
 from app.services.bingo import BingoService
 from app.schemas.requests import BingoTileCreate, BingoTileUpdate
 from app.schemas.responses import BingoTileResponse, BingoStandingsItem

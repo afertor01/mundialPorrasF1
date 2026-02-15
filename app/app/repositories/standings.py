@@ -4,9 +4,9 @@ from app.schemas.responses import (
     SeasonStandingResponse,
     TeamStandingResponse,
 )
-from fastapi import APIRouter, Depends
+from fastapi import Depends
 from sqlalchemy import func
-from app.db.session import SessionMaker, get_session
+from app.db.session import get_session
 from app.db.models.user import Users
 from app.db.models.prediction import Predictions
 from app.db.models.grand_prix import GrandPrix

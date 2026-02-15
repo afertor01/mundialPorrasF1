@@ -14,21 +14,18 @@ from app.db.models.bingo import BingoTiles, BingoSelections
 from app.db.models.multiplier_config import MultiplierConfigs
 from app.db.models.constructor import Constructors
 from app.db.models.driver import Drivers
-from app.db.models.user_stats import UserStats
 from app.core.security import hash_password
 from app.db.session import get_session
 
-from app.db.session import drop_tables, create_tables, SessionMaker
+from app.db.session import drop_tables, create_tables
 
 # --- IMPORTANTE: Nuevos modelos para evitar que falten tablas ---
 from app.db.models.achievement import (
     Achievements,
-    UserAchievements,
     AchievementRarity,
     AchievementType,
 )
 from app.repositories.achievements import ACHIEVEMENT_DEFINITIONS
-from app.db.models.avatar import Avatars
 
 # Modelos necesarios para las relaciones de SQLAlchemy
 from app.db.models.prediction import Predictions
@@ -39,8 +36,7 @@ from app.db.models.race_position import RacePositions
 from app.db.models.race_event import RaceEvents
 
 from app.utils.scoring import calculate_prediction_score
-from fastapi import Depends
-from sqlmodel import SQLModel, Session, select
+from sqlmodel import Session, select
 
 # 👇👇👇 IMPORT CRÍTICO AÑADIDO 👇👇👇
 from app.utils.achievements import evaluate_race_achievements
@@ -588,7 +584,7 @@ def main(session: Session):
 
         print("\n✅ ¡Simulación MASIVA CON BINGO completada con éxito!")
         print(f"   Usuarios: {NUM_USERS}")
-        print(f"   Eventos Bingo: 50")
+        print("   Eventos Bingo: 50")
         print(f"   Carreras terminadas: {COMPLETED_GPS}")
 
     except Exception as e:

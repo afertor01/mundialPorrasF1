@@ -1,44 +1,41 @@
 import random
 import string
-import sys
-from datetime import datetime, timedelta
-from sqlalchemy import func, desc
+from datetime import datetime, timedelta, timezone
 
 # ==============================================================================
 # 1. IMPORTS Y SETUP
 # ==============================================================================
-from app.db.session import SessionLocal, engine, Base
+from app.db.session import get_session, drop_tables, create_tables
 
 # Importamos modelos en orden seguro
-from app.db.models.bingo import BingoTile, BingoSelection
-from app.db.models.user import User
-from app.db.models.season import Season
+from app.db.models.user import Users
+from app.db.models.season import Seasons
 from app.db.models.grand_prix import GrandPrix
-from app.db.models.team import Team
-from app.db.models.team_member import TeamMember
-from app.db.models.multiplier_config import MultiplierConfig
-from app.db.models.constructor import Constructor
-from app.db.models.driver import Driver
-from app.db.models.user_stats import UserStats
+from app.db.models.team import Teams
+from app.db.models.team_member import TeamMembers
+from app.db.models.multiplier_config import MultiplierConfigs
+from app.db.models.constructor import Constructors
+from app.db.models.driver import Drivers
 from app.db.models.achievement import (
-    Achievement,
-    UserAchievement,
+    Achievements,
+    UserAchievements,
     AchievementRarity,
     AchievementType,
 )
-from app.db.models.prediction import Prediction
-from app.db.models.prediction_position import PredictionPosition
-from app.db.models.prediction_event import PredictionEvent
-from app.db.models.race_result import RaceResult
-from app.db.models.race_position import RacePosition
-from app.db.models.race_event import RaceEvent
+from app.db.models.prediction import Predictions
+from app.db.models.prediction_position import PredictionPositions
+from app.db.models.prediction_event import PredictionEvents
+from app.db.models.race_result import RaceResults
+from app.db.models.race_position import RacePositions
+from app.db.models.race_event import RaceEvents
 from app.core.security import hash_password
 
-from app.services.scoring import calculate_prediction_score
+from app.utils.scoring import calculate_prediction_score
 from app.utils.achievements import (
     evaluate_race_achievements,
     evaluate_season_finale_achievements,
 )
+from sqlmodel import Session, select
 
 # LISTA PURGADA DE LOGROS
 ACHIEVEMENT_DEFINITIONS = [
@@ -268,16 +265,17 @@ ACHIEVEMENT_DEFINITIONS = [
 # ==============================================================================
 
 
-def reset_db(db):
+def reset_db(session: Session):
     print("🧹 Limpiando BD...")
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    drop_tables()
+    create_tables()
 
     print("🌱 Sembrando Logros Purgados...")
     for d in ACHIEVEMENT_DEFINITIONS:
-        if not db.query(Achievement).filter_by(slug=d["slug"]).first():
-            db.add(
-                Achievement(
+        query = select(Achievements).where(Achievements.slug == d["slug"])
+        if not session.exec(query).first():
+            session.add(
+                Achievements(
                     slug=d["slug"],
                     name=d["name"],
                     description=d["desc"],
@@ -286,13 +284,13 @@ def reset_db(db):
                     type=AchievementType(d["type"]),
                 )
             )
-    db.commit()
+    session.commit()
 
 
-def setup_base_world(db):
+def setup_base_world(session: Session):
     """Crea 1 Temporada y 22 Pilotos (11 Equipos)."""
-    season = Season(year=2025, name="Validation Season", is_active=True)
-    db.add(season)
+    season = Seasons(year=2025, name="Validation Season", is_active=True)
+    session.add(season)
 
     configs = [
         ("FASTEST_LAP", 1.0),
@@ -303,35 +301,36 @@ def setup_base_world(db):
         ("PODIUM_TOTAL", 2.0),
     ]
     for evt, val in configs:
-        db.add(MultiplierConfig(season=season, event_type=evt, multiplier=val))
-    db.commit()
+        session.add(MultiplierConfigs(season=season, event_type=evt, multiplier=val))
+    session.commit()
 
     # Crear 11 Equipos (22 Drivers) para asegurar que hay suficientes para GOD
     d_objs = []
     for i in range(11):
         team_char = string.ascii_uppercase[i]
-        c = Constructor(name=f"Team {team_char}", color="#000", season_id=season.id)
-        db.add(c)
-        db.commit()
+        c = Constructors(name=f"Team {team_char}", color="#000", season_id=season.id)
+        session.add(c)
+        session.commit()
 
         # Drivers D1_A, D2_A
-        d1 = Driver(
+        d1 = Drivers(
             code=f"D1_{team_char}", name=f"Driver 1 {team_char}", constructor_id=c.id
         )
-        d2 = Driver(
+        d2 = Drivers(
             code=f"D2_{team_char}", name=f"Driver 2 {team_char}", constructor_id=c.id
         )
-        db.add_all([d1, d2])
+        session.add_all([d1, d2])
         d_objs.extend([d1.code, d2.code])
 
-    db.commit()
+    session.commit()
 
     # Renombrar Equipos y Drivers clave para escenarios (Tifosi, Civil War)
-    ferrari = db.query(Constructor).filter(Constructor.name == "Team A").first()
+    query = select(Constructors).where(Constructors.name == "Team A")
+    ferrari = session.exec(query).first()
     if ferrari:
         ferrari.name = "Ferrari"
 
-    rb = db.query(Constructor).filter(Constructor.name == "Team B").first()
+    rb = session.exec(select(Constructors).where(Constructors.name == "Team B")).first()
     if rb:
         rb.name = "Red Bull"
 
@@ -339,62 +338,62 @@ def setup_base_world(db):
     key_mappings = {"D1_A": "LEC", "D1_B": "VER", "D2_B": "PER"}
 
     for old_code, new_code in key_mappings.items():
-        d = db.query(Driver).filter(Driver.code == old_code).first()
+        d = session.exec(select(Drivers).where(Drivers.code == old_code)).first()
         if d:
             d.code = new_code
             idx = d_objs.index(old_code)
             d_objs[idx] = new_code
 
-    db.commit()
+    session.commit()
     return season, d_objs
 
 
-def create_specialist_user(db, slug):
+def create_specialist_user(session: Session, slug):
     unique_acronym = "".join(random.choices(string.ascii_uppercase, k=3))
     safe_slug = slug.replace("event_", "").replace("career_", "")[:8]
-    u = User(
+    u = Users(
         email=f"{safe_slug}_{unique_acronym}@test.com",
         username=f"U_{safe_slug}_{unique_acronym}",
         acronym=unique_acronym,
         hashed_password=hash_password("1"),
         role="user",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(tz=timezone.utc),
     )
-    db.add(u)
-    db.commit()
+    session.add(u)
+    session.commit()
     return u
 
 
-def create_gp(db, season, name="GP Test", days_offset=0):
+def create_gp(session: Session, season, name="GP Test", days_offset=0):
     gp = GrandPrix(
         name=name,
-        race_datetime=datetime.utcnow() + timedelta(days=days_offset),
+        race_datetime=datetime.now(tz=timezone.utc) + timedelta(days=days_offset),
         season_id=season.id,
     )
-    db.add(gp)
-    db.commit()
+    session.add(gp)
+    session.commit()
     return gp
 
 
-def force_result_and_prediction(db, user, gp, scenario_func, driver_codes, multipliers):
+def force_result_and_prediction(session: Session, user, gp, scenario_func, driver_codes, multipliers):
     pred_pos, pred_evts, real_pos, real_evts = scenario_func(driver_codes)
 
     if not gp.race_result:
-        res = RaceResult(gp_id=gp.id)
-        db.add(res)
-        db.commit()
+        res = RaceResults(gp_id=gp.id)
+        session.add(res)
+        session.commit()
         for i, d in enumerate(real_pos):
-            db.add(RacePosition(race_result_id=res.id, position=i + 1, driver_name=d))
+            session.add(RacePositions(race_result_id=res.id, position=i + 1, driver_name=d))
         for k, v in real_evts.items():
-            db.add(RaceEvent(race_result_id=res.id, event_type=k, value=str(v)))
+            session.add(RaceEvents(race_result_id=res.id, event_type=k, value=str(v)))
 
-    pred = Prediction(user_id=user.id, gp_id=gp.id)
-    db.add(pred)
-    db.flush()
+    pred = Predictions(user_id=user.id, gp_id=gp.id)
+    session.add(pred)
+    session.flush()
     for i, d in enumerate(pred_pos):
-        db.add(PredictionPosition(prediction_id=pred.id, position=i + 1, driver_name=d))
+        session.add(PredictionPositions(prediction_id=pred.id, position=i + 1, driver_name=d))
     for k, v in pred_evts.items():
-        db.add(PredictionEvent(prediction_id=pred.id, event_type=k, value=str(v)))
+        session.add(PredictionEvents(prediction_id=pred.id, event_type=k, value=str(v)))
 
     # Mock Scoring para que la DB tenga puntos
     class M:
@@ -426,7 +425,7 @@ def force_result_and_prediction(db, user, gp, scenario_func, driver_codes, multi
     score = calculate_prediction_score(m_p, m_r, multipliers)
     pred.points = score["final_points"]
     pred.points_base = score["base_points"]
-    db.commit()
+    session.commit()
 
 
 # ==============================================================================
@@ -512,26 +511,25 @@ def sc_grand_chelem(drivers):
 # ==============================================================================
 
 
-def run_validation_suite():
-    db = SessionLocal()
-    reset_db(db)
-    season, drivers = setup_base_world(db)
-    multipliers = db.query(MultiplierConfig).all()
+def run_validation_suite(session: Session):
+    reset_db(session)
+    season, drivers = setup_base_world(session)
+    multipliers = session.exec(select(MultiplierConfigs)).all()
 
     # ============================
     # 🆕 CREAR ADMIN PARA PRUEBAS
     # ============================
     print("\n👮 Creando Usuario Admin...")
-    admin = User(
+    admin = Users(
         email="admin@admin.com",
         username="Admin",
         acronym="ADM",
         hashed_password=hash_password("123"),
         role="admin",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(tz=timezone.utc),
     )
-    db.add(admin)
-    db.commit()
+    session.add(admin)
+    session.commit()
     print("✅ Admin creado: admin@admin.com / 123")
 
     print("\n🧪 VALIDACIÓN FASE 1: EVENTOS INDIVIDUALES")
@@ -549,88 +547,78 @@ def run_validation_suite():
 
     for slug, func_sc, kw in tests:
         print(f"👉 Testing {slug}...", end=" ")
-        u = create_specialist_user(db, slug)
+        u = create_specialist_user(session, slug)
 
         if kw.get("team_check"):
-            t = Team(name="T", season_id=season.id, join_code="J")
-            db.add(t)
-            db.commit()
-            db.add(TeamMember(user_id=u.id, team_id=t.id, season_id=season.id))
-            db.commit()
+            t = Teams(name="T", season_id=season.id, join_code="J")
+            session.add(t)
+            session.commit()
+            session.add(TeamMembers(user_id=u.id, team_id=t.id, season_id=season.id))
+            session.commit()
 
-        gp = create_gp(db, season, kw.get("gp_name", f"GP {slug}"))
-        force_result_and_prediction(db, u, gp, func_sc, drivers, multipliers)
-        evaluate_race_achievements(db, gp.id)
+        gp = create_gp(session, season, kw.get("gp_name", f"GP {slug}"))
+        force_result_and_prediction(session, u, gp, func_sc, drivers, multipliers)
+        evaluate_race_achievements(session, gp.id)
 
-        has = (
-            db.query(UserAchievement)
-            .join(Achievement)
-            .filter(UserAchievement.user_id == u.id, Achievement.slug == slug)
-            .first()
+        query = select(UserAchievements).join(Achievements).where(
+            UserAchievements.user_id == u.id, Achievements.slug == slug
         )
-        print("✅ OK" if has else f"❌ FALLÓ")
+        has = session.exec(query).first()
+        print("✅ OK" if has else "❌ FALLÓ")
 
     print("\n🏋️  VALIDACIÓN FASE 2: GRINDER (Acumulativos)")
     print("-" * 50)
-    u_grind = create_specialist_user(db, "grind")
+    u_grind = create_specialist_user(session, "grind")
 
     for i in range(51):
-        gp = create_gp(db, season, f"GP Loop {i}", days_offset=i)
-        force_result_and_prediction(db, u_grind, gp, sc_perfect, drivers, multipliers)
+        gp = create_gp(session, season, f"GP Loop {i}", days_offset=i)
+        force_result_and_prediction(session, u_grind, gp, sc_perfect, drivers, multipliers)
         if i % 10 == 0:
             print(f"   ...GP {i}/50")
         if i == 50:
-            evaluate_race_achievements(db, gp.id)
+            evaluate_race_achievements(session, gp.id)
 
     checks = ["career_50_gps", "career_50_exact", "career_2500", "career_debut"]
     for c in checks:
-        has = (
-            db.query(UserAchievement)
-            .join(Achievement)
-            .filter(UserAchievement.user_id == u_grind.id, Achievement.slug == c)
-            .first()
+        query = select(UserAchievements).join(Achievements).where(
+            UserAchievements.user_id == u_grind.id, Achievements.slug == c
         )
+        has = session.exec(query).first()
         print(f"   {c}: {'✅' if has else '❌'}")
 
     print("\n🏆 VALIDACIÓN FASE 3: CAMPEÓN Y TEMPORADA")
     print("-" * 50)
 
-    s2 = Season(year=2030, name="Season Finale", is_active=True)
-    db.add(s2)
-    db.add(MultiplierConfig(season=s2, event_type="FASTEST_LAP", multiplier=1000.0))
-    db.commit()
+    s2 = Seasons(year=2030, name="Season Finale", is_active=True)
+    session.add(s2)
+    session.add(MultiplierConfigs(season=s2, event_type="FASTEST_LAP", multiplier=1000.0))
+    session.commit()
 
-    u_champ = create_specialist_user(db, "champ")
-    u_loser = create_specialist_user(db, "loser")
+    u_champ = create_specialist_user(session, "champ")
+    u_loser = create_specialist_user(session, "loser")
 
-    tm = Team(name="T_Champ", season_id=s2.id, join_code="CCC")
-    db.add(tm)
-    db.commit()
-    db.add(TeamMember(user_id=u_champ.id, team_id=tm.id, season_id=s2.id))
-    db.add(TeamMember(user_id=u_loser.id, team_id=tm.id, season_id=s2.id))
-    db.commit()
+    tm = Teams(name="T_Champ", season_id=s2.id, join_code="CCC")
+    session.add(tm)
+    session.commit()
+    session.add(TeamMembers(user_id=u_champ.id, team_id=tm.id, season_id=s2.id))
+    session.add(TeamMembers(user_id=u_loser.id, team_id=tm.id, season_id=s2.id))
+    session.commit()
 
-    gp_fin = create_gp(db, s2, "Finale")
+    gp_fin = create_gp(session, s2, "Finale")
 
-    force_result_and_prediction(db, u_champ, gp_fin, sc_perfect, drivers, multipliers)
-    force_result_and_prediction(db, u_loser, gp_fin, sc_maldonado, drivers, multipliers)
+    force_result_and_prediction(session, u_champ, gp_fin, sc_perfect, drivers, multipliers)
+    force_result_and_prediction(session, u_loser, gp_fin, sc_maldonado, drivers, multipliers)
 
-    evaluate_race_achievements(db, gp_fin.id)
-    evaluate_season_finale_achievements(db, s2.id)
+    evaluate_race_achievements(session, gp_fin.id)
+    evaluate_season_finale_achievements(session, s2.id)
 
     champ_ach = [
         a.slug
-        for a in db.query(Achievement)
-        .join(UserAchievement)
-        .filter(UserAchievement.user_id == u_champ.id)
-        .all()
+        for a in session.exec(select(Achievements).join(UserAchievements).where(UserAchievements.user_id == u_champ.id)).all()
     ]
     loser_ach = [
         a.slug
-        for a in db.query(Achievement)
-        .join(UserAchievement)
-        .filter(UserAchievement.user_id == u_loser.id)
-        .all()
+        for a in session.exec(select(Achievements).join(UserAchievements).where(UserAchievements.user_id == u_loser.id)).all()
     ]
 
     print(f"   Champion:    {'✅' if 'career_champion' in champ_ach else '❌'}")
@@ -639,8 +627,7 @@ def run_validation_suite():
     print(f"   Backpack:    {'✅' if 'season_backpack' in loser_ach else '❌'}")
 
     print("\n✅ VALIDACIÓN COMPLETADA.")
-    db.close()
 
 
 if __name__ == "__main__":
-    run_validation_suite()
+    run_validation_suite(get_session())

@@ -144,7 +144,7 @@ class AdminRepository:
         # Si is_active es True, desactivar otras temporadas (usamos season.is_active)
         if season.is_active:
             query = (
-                update(Seasons).where(Seasons.is_active == True).values(is_active=False)
+                update(Seasons).where(Seasons.is_active).values(is_active=False)
             )
             self.session.exec(query)
 

@@ -1,11 +1,10 @@
-from functools import wraps
 import secrets
 import string
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
 from app.core.security import SECRET_KEY, ALGORITHM
-from app.db.session import SessionMaker, get_session
+from app.db.session import get_session
 from app.db.models.user import Users
 from sqlmodel import Session
 
@@ -18,7 +17,7 @@ def get_current_user(
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = int(payload.get("sub"))
-    except:
+    except Exception:
         raise HTTPException(status_code=401, detail="Token inválido")
 
     user = session.get(Users, user_id)

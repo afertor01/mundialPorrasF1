@@ -1,11 +1,10 @@
 from typing import Annotated, Dict
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import HTTPException, Depends
 from app.db.session import get_session
 from app.db.models.prediction import Predictions
 from app.db.models.race_result import RaceResults
 from app.db.models.multiplier_config import MultiplierConfigs
 from app.utils.scoring import calculate_prediction_score
-from app.core.deps import get_current_user
 from sqlmodel import Session, select
 
 SessionDep = Annotated[Session, Depends(get_session)]

@@ -1,23 +1,18 @@
-from app.db.session import SessionMaker
-from app.db.models import _all
+from app.db.session import get_session
 from app.db.models.user import Users
 from app.core.security import hash_password
+from sqlmodel import Session, select
 
 
-def create_admin_user():
-    db = SessionMaker()
-
+def create_admin_user(session: Session):
     email = "administrador@example.com"
     username = "ADMINISTRADOR"
     password = "admin123"  # 👉 luego la cambias
 
     try:
         # Comprobar si ya existe
-        existing_user = (
-            db.query(Users)
-            .filter((Users.email == email) | (Users.username == username))
-            .first()
-        )
+        query = select(Users).where((Users.email == email) | (Users.username == username))
+        existing_user = session.exec(query).first()
 
         if existing_user:
             print("⚠️  Ya existe un usuario con ese email o username")
@@ -33,8 +28,8 @@ def create_admin_user():
             role="admin",
         )
 
-        db.add(admin_user)
-        db.commit()
+        session.add(admin_user)
+        session.commit()
 
         print("✅ Usuario administrador creado correctamente")
         print("➡️  Email:", email)
@@ -43,13 +38,9 @@ def create_admin_user():
         print("⚠️  Cambia la contraseña cuanto antes")
 
     except Exception as e:
-        db.rollback()
+        session.rollback()
         print("❌ Error creando el usuario administrador")
         print(e)
 
-    finally:
-        db.close()
-
-
 if __name__ == "__main__":
-    create_admin_user()
+    create_admin_user(get_session())
