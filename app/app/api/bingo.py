@@ -189,6 +189,58 @@ def get_my_bingo_board(current_user = Depends(get_current_user)):
     db.close()
     return response
 
+@router.get("/board/{target_user_id}", response_model=List[BingoTileResponse])
+def get_user_bingo_board(
+    target_user_id: int, 
+    current_user = Depends(get_current_user) # Necesario para autenticación, aunque no usemos sus datos
+):
+    """
+    Devuelve el tablero visto desde la perspectiva de otro usuario (target_user_id).
+    'is_selected_by_me' en la respuesta indicará si el target_user seleccionó la casilla.
+    """
+    db = SessionLocal()
+    
+    season = db.query(Season).filter(Season.is_active == True).first()
+    if not season: 
+        db.close()
+        return []
+
+    # 1. Obtener todas las casillas
+    tiles = db.query(BingoTile).filter(BingoTile.season_id == season.id).all()
+    
+    # 2. Obtener selecciones del USUARIO OBJETIVO
+    target_selections = db.query(BingoSelection).filter(
+        BingoSelection.user_id == target_user_id
+    ).all()
+    target_selected_ids = {s.bingo_tile_id for s in target_selections}
+
+    # 3. Métricas globales para calcular el valor de la casilla
+    total_participants = db.query(BingoSelection.user_id).distinct().count()
+    if total_participants == 0: total_participants = 1
+
+    all_selections = db.query(BingoSelection).all()
+    tile_counts = {}
+    for sel in all_selections:
+        tile_counts[sel.bingo_tile_id] = tile_counts.get(sel.bingo_tile_id, 0) + 1
+
+    response = []
+    for t in tiles:
+        count = tile_counts.get(t.id, 0)
+        val = calculate_tile_value(total_participants, count)
+        
+        response.append({
+            "id": t.id,
+            "description": t.description,
+            "is_completed": t.is_completed,
+            "selection_count": count,
+            "current_value": val,
+            # Aquí la "magia": is_selected_by_me será true si el target_user la eligió
+            "is_selected_by_me": t.id in target_selected_ids 
+        })
+    
+    db.close()
+    return response
+
 @router.post("/toggle/{tile_id}")
 def toggle_selection(
     tile_id: int, 

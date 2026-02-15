@@ -12,6 +12,9 @@ import {
 
   // Event icons
   Play, Users, DollarSign, Package, Hand, Eye, Mic, Sun, Maximize, Swords,
+  
+  // Bingo Icons (NUEVOS)
+  Hexagon, CheckCircle2,
 
   // Extra icons from your second import
   User, Settings, Image as ImageIcon, Save, Lock, Unlock, CheckCircle, Info,
@@ -36,9 +39,7 @@ const formatDate = (dateString: string | null | undefined) => {
 };
 
 // --- MAPEO SEGURO DE ICONOS ---
-// Usamos iconos genéricos para evitar crashes si faltan específicos en tu versión de librerías
 const ICON_MAP: any = {
-  // Básicos / Career / Achievement
   Trophy: <Trophy size={20} />,
   Star: <Star size={20} />,
   Award: <Award size={20} />,
@@ -55,17 +56,13 @@ const ICON_MAP: any = {
   Calendar: <Calendar size={20} />,
   Watch: <Watch size={20} />,
   Crosshair: <Crosshair size={20} />,
-  Target: <Crosshair size={20} />, // Mapeamos Target a Crosshair por seguridad
+  Target: <Crosshair size={20} />,
   Gauge: <Gauge size={20} />,
   AlertTriangle: <AlertTriangle size={20} />,
-
-  // Season
   Battery: <Battery size={20} />,
   BatteryCharging: <BatteryCharging size={20} />,
   UserCheck: <UserCheck size={20} />,
   ShoppingBag: <ShoppingBag size={20} />,
-
-  // Event
   Play: <Play size={20} />,
   Users: <Users size={20} />,
   DollarSign: <DollarSign size={20} />,
@@ -76,8 +73,6 @@ const ICON_MAP: any = {
   Sun: <Sun size={20} />,
   Maximize: <Maximize size={20} />,
   Swords: <Swords size={20} />,
-
-  // Extras del segundo import
   User: <User size={20} />,
   Settings: <Settings size={20} />,
   ImageIcon: <ImageIcon size={20} />,
@@ -95,11 +90,8 @@ const ICON_MAP: any = {
   RefreshCw: <RefreshCw size={20} />,
   PenTool: <PenTool size={20} />,
   Grid: <LayoutGrid size={20} />,
-
-  // Por defecto, si un icono no existe
   DEFAULT: <Star size={20} />
 };
-
 
 const RARITY_STYLES: any = {
     COMMON: { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-500", badge: "bg-gray-200 text-gray-600", label: "Común" },
@@ -115,7 +107,114 @@ const TYPE_LABELS: any = {
     EVENT: "Eventos y Hazañas"
 };
 
-// --- COMPONENTES AUXILIARES ---
+// --- COMPONENTE BINGO (NUEVO) ---
+const BingoTab = ({ targetUser }: { targetUser: any }) => {
+    const [tiles, setTiles] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        setLoading(true);
+        API.getUserBingoBoard(targetUser.id)
+            .then(setTiles)
+            .catch((err) => console.error("Error cargando bingo de usuario", err))
+            .finally(() => setLoading(false));
+    }, [targetUser.id]);
+
+    if (loading) return <div className="p-10 text-center animate-pulse text-gray-400 font-bold">Cargando tablero de Bingo...</div>;
+
+    const selectionsCount = tiles.filter(t => t.is_selected_by_me).length;
+    const points = tiles.filter(t => t.is_selected_by_me && t.is_completed).reduce((acc, curr) => acc + curr.current_value, 0);
+    const potentialPoints = tiles.filter(t => t.is_selected_by_me).reduce((acc, curr) => acc + curr.current_value, 0);
+
+    return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header Bingo */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-wrap gap-6 items-center justify-between">
+                <div>
+                    <h3 className="text-lg font-black uppercase italic tracking-tighter text-gray-900 flex items-center gap-2">
+                        <Hexagon className="text-f1-red fill-f1-red" size={20}/>
+                        Bingo {new Date().getFullYear()}
+                    </h3>
+                    <p className="text-xs text-gray-400 font-medium">Predicciones de temporada de {targetUser.username}</p>
+                </div>
+                <div className="flex gap-4">
+                     <div className="text-right">
+                        <div className="text-2xl font-black text-gray-900">{selectionsCount}</div>
+                        <div className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Picks</div>
+                    </div>
+                    <div className="text-right">
+                        <div className="text-2xl font-black text-f1-red">{points} <span className="text-gray-300 text-sm">/ {potentialPoints}</span></div>
+                        <div className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Puntos</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Grid Bingo */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {tiles.map((tile) => {
+                    const isSelected = tile.is_selected_by_me;
+                    const isCompleted = tile.is_completed;
+
+                    let cardStyle = "bg-white border-gray-100 opacity-60"; 
+                    let badgeStyle = "text-blue-600 bg-blue-50 border-blue-100";
+                    let textStyle = "text-gray-500";
+                    let completedBadgeStyle = "bg-white text-green-600";
+
+                    if (tile.current_value >= 50) badgeStyle = "text-orange-600 bg-orange-50 border-orange-100";
+                    if (tile.current_value >= 80) badgeStyle = "text-purple-600 bg-purple-50 border-purple-100";
+
+                    if (isCompleted && isSelected) {
+                        cardStyle = "bg-gradient-to-br from-yellow-300 via-yellow-400 to-yellow-500 border-yellow-400 shadow-lg ring-1 ring-yellow-200 opacity-100 transform scale-[1.02] z-10";
+                        textStyle = "text-yellow-950";
+                        badgeStyle = "bg-white border-transparent text-yellow-800 shadow-sm";
+                        completedBadgeStyle = "bg-white text-yellow-800 shadow-sm";
+                    } else if (isCompleted) {
+                        cardStyle = "bg-green-500 border-green-500 text-white opacity-100 shadow-md";
+                        textStyle = "text-white";
+                        badgeStyle = "bg-white/20 border-transparent text-white";
+                        completedBadgeStyle = "bg-white text-green-700 shadow-sm";
+                    } else if (isSelected) {
+                        cardStyle = "bg-gray-800 border-gray-800 text-white opacity-100 shadow-md";
+                        textStyle = "text-white";
+                        badgeStyle = "bg-white/20 border-transparent text-white";
+                    }
+
+                    return (
+                        <div key={tile.id} className={`relative rounded-2xl p-4 border-2 flex flex-col justify-between min-h-[140px] ${cardStyle}`}>
+                            <div className="flex justify-between items-start mb-2">
+                                <div className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter border ${badgeStyle}`}>
+                                    {tile.current_value} pts
+                                </div>
+                                <div>
+                                    {isCompleted ? (
+                                        isCompleted && isSelected ? (
+                                            <div className="bg-yellow-950 rounded-full p-0.5"><CheckCircle2 className="text-yellow-400" size={16}/></div>
+                                        ) : (
+                                            <CheckCircle2 className="text-white" size={18}/>
+                                        )
+                                    ) : (
+                                        isSelected && <div className="w-4 h-4 rounded-full border-2 border-f1-red bg-f1-red"/>
+                                    )}
+                                </div>
+                            </div>
+                            <p className={`text-xs font-bold leading-snug ${textStyle}`}>{tile.description}</p>
+                             <div className={`mt-3 pt-2 border-t flex justify-between items-center ${isCompleted && isSelected ? "border-yellow-600/20" : "border-white/10"}`}>
+                                <div className={`text-[8px] font-bold uppercase tracking-widest ${isSelected || isCompleted ? (isCompleted && isSelected ? "text-yellow-900/60" : "text-white/60") : "text-gray-400"}`}>
+                                    {tile.selection_count} picks
+                                </div>
+                                {isCompleted && (
+                                    <span className={`text-[8px] font-black px-1.5 py-0 rounded uppercase ${completedBadgeStyle}`}>OK</span>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+// --- OTROS COMPONENTES ---
 
 const UserSearch = ({ currentUser, onSelectUser, usersList }: any) => {
     const [query, setQuery] = useState("");
@@ -424,7 +523,6 @@ const StatsTab = ({ targetUser, isMe }: { targetUser: any, isMe: boolean }) => {
     );
 };
 
-// --- LOGROS ORGANIZADOS POR TIPO ---
 const AchievementsTab = ({ targetUser }: { targetUser: any }) => {
     const [list, setList] = useState<any[]>([]);
     
@@ -432,7 +530,6 @@ const AchievementsTab = ({ targetUser }: { targetUser: any }) => {
         API.getAchievements(targetUser.id).then(setList).catch(console.error);
     }, [targetUser.id]);
 
-    // Agrupar por tipo (Protección contra undefined)
     const grouped = {
         CAREER: (list || []).filter(a => a.type === 'CAREER'),
         SEASON: (list || []).filter(a => a.type === 'SEASON'),
@@ -465,7 +562,6 @@ const AchievementsTab = ({ targetUser }: { targetUser: any }) => {
                             {achievements.map((ach: any) => {
                                 const styles = RARITY_STYLES[ach.rarity] || RARITY_STYLES.COMMON;
                                 const isHidden = ach.rarity === 'HIDDEN' && !ach.unlocked;
-                                // Fallback a Star si el icono no existe
                                 const IconComponent = ICON_MAP[ach.icon] || <Star size={24}/>;
 
                                 return (
@@ -494,27 +590,22 @@ const AchievementsTab = ({ targetUser }: { targetUser: any }) => {
 
                                             {ach.unlocked && (
                                                 <div className="mt-3 pt-3 border-t border-black/5 flex flex-col gap-2">
-                                                    {/* FECHA */}
                                                     <div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
                                                         <Unlock size={10}/> 
-                                                        {/* Usamos tu helper formatDate si existe la fecha, o fallback */}
                                                         {ach.unlocked_at ? formatDate(ach.unlocked_at) : (ach.date ? formatDate(ach.date) : "Desbloqueado")}
                                                     </div>
 
-                                                    {/* CONTEXTO (GP y/o TEMPORADA) */}
                                                     {(ach.gp_name || ach.season_name) && (
                                                         <div className="flex flex-wrap items-center gap-1.5">
-                                                            {/* Si tiene GP, lo mostramos con el pin */}
                                                             {ach.gp_name && (
                                                                 <span className="flex items-center gap-1 text-[9px] font-black text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded uppercase tracking-wider border border-gray-200">
-                                                                    <MapPin size={10} /> {ach.gp_name}
+                                                                        <MapPin size={10} /> {ach.gp_name}
                                                                 </span>
                                                             )}
                                                             
-                                                            {/* Si tiene Temporada, lo mostramos con el calendario */}
                                                             {ach.season_name && (
                                                                 <span className="flex items-center gap-1 text-[9px] font-black text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded uppercase tracking-wider border border-gray-100">
-                                                                    <Calendar size={10} /> {ach.season_name}
+                                                                        <Calendar size={10} /> {ach.season_name}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -646,6 +737,13 @@ export default function Profile() {
                             <button onClick={() => setActiveTab('achievements')} className={`flex items-center gap-2 px-4 md:px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'achievements' ? "bg-white text-gray-900 shadow-md" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                                 <Trophy size={16} /> Logros
                             </button>
+                            
+                            {!isMe && (
+                                <button onClick={() => setActiveTab('bingo')} className={`flex items-center gap-2 px-4 md:px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'bingo' ? "bg-white text-gray-900 shadow-md" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                                    <Hexagon size={16} /> Bingo
+                                </button>
+                            )}
+
                             {isMe && (
                                 <button onClick={() => setActiveTab('settings')} className={`flex items-center gap-2 px-4 md:px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'settings' ? "bg-white text-gray-900 shadow-md" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                                     <Settings size={16} /> Ajustes
@@ -660,6 +758,7 @@ export default function Profile() {
                 <motion.div key={activeTab + displayedUser.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
                     {activeTab === 'stats' && <StatsTab targetUser={displayedUser} isMe={isMe} />}
                     {activeTab === 'achievements' && <AchievementsTab targetUser={displayedUser} />}
+                    {activeTab === 'bingo' && !isMe && <BingoTab targetUser={displayedUser} />}
                     {activeTab === 'settings' && isMe && <SettingsTab avatars={avatars} avatar={avatar} handleSelectAvatar={handleSelectAvatar} loadingAvatar={loadingAvatar} reloadUser={refreshProfile}/>}
                 </motion.div>
             </AnimatePresence>
