@@ -1,15 +1,17 @@
 import React, { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import * as API from "../api/api";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings, Calendar, Users, Shield, Flag, LayoutGrid,
-  Plus, Trash2, Edit2, CheckCircle, XCircle, Save, AlertTriangle, Upload, Trophy,
+  Plus, Trash2, Edit2, CheckCircle, XCircle, AlertTriangle, Upload, Trophy,
   Search, X, Image, RefreshCw, Terminal, Timer
 } from "lucide-react";
 
 const Admin: React.FC = () => {
-  const { token } = useContext(AuthContext);
+  const { } = useContext(AuthContext);
+  const { toast, showConfirm, showPrompt } = useToast();
   const [activeTab, setActiveTab] = useState<"seasons" | "users" | "teams" | "gps" | "grid" | "bingo" | "avatars" | "panic">("seasons");
   const [seasons, setSeasons] = useState<any[]>([]);
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null);
@@ -54,7 +56,7 @@ const Admin: React.FC = () => {
         await API.createSeason({ year, name, is_active: isActive });
         setName("");
         loadSeasons();
-      } catch (err: any) { alert("Error creando temporada"); }
+      } catch (err: any) { toast("Error creando temporada", "error"); }
     };
 
     return (
@@ -105,7 +107,11 @@ const Admin: React.FC = () => {
                     <button onClick={() => API.toggleSeason(s.id).then(loadSeasons)} className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors">
                       <Settings size={18} />
                     </button>
-                    <button onClick={() => API.deleteSeason(s.id).then(loadSeasons)} className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors">
+                    <button onClick={async () => {
+                      if (await showConfirm({ title: "Borrar Temporada", message: "¿Seguro que quieres borrar esta temporada? Se perderán todos los datos asociados.", danger: true })) {
+                        API.deleteSeason(s.id).then(loadSeasons);
+                      }
+                    }} className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors">
                       <Trash2 size={18} />
                     </button>
                   </td>
@@ -147,24 +153,24 @@ const Admin: React.FC = () => {
     );
 
     const handleCreateUser = async () => {
-      if (acronym.length !== 3) { alert("⚠️ El acrónimo debe tener 3 letras"); return; }
+      if (acronym.length !== 3) { toast("El acrónimo debe tener 3 letras", "warning"); return; }
       try {
         await API.createUser({ email, username, password, role, acronym });
-        alert("Usuario creado ✅");
+        toast("Usuario creado correctamente ✅", "success");
         setEmail(""); setUsername(""); setPassword(""); setAcronym(""); setRole("user");
         loadUsers();
-      } catch (err: any) { alert("Error: " + (err.response?.data?.detail || "Error desconocido")); }
+      } catch (err: any) { toast("Error: " + (err.response?.data?.detail || "Error desconocido"), "error"); }
     };
 
     const handleUpdateUser = async () => {
       if (!editingUser) return;
       try {
         await API.updateUser(editingUser.id, editRole, editPassword);
-        alert("Usuario actualizado ✅");
+        toast("Usuario actualizado correctamente ✅", "success");
         setEditingUser(null);
         setEditPassword("");
         loadUsers();
-      } catch (err) { alert("Error actualizando usuario"); }
+      } catch (err) { toast("Error actualizando usuario", "error"); }
     };
 
     const openEditModal = (user: any) => {
@@ -213,7 +219,14 @@ const Admin: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
                       <button onClick={() => openEditModal(u)} className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Edit2 size={18} /></button>
-                      <button onClick={() => { if (confirm("¿Borrar usuario?")) API.deleteUser(u.id).then(loadUsers) }} className="p-2 text-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18} /></button>
+                      <button onClick={async () => {
+                        const confirmed = await showConfirm({
+                          title: "Borrar Usuario",
+                          message: `¿Estás seguro de que quieres borrar a ${u.username}? Esta acción es irreversible.`,
+                          danger: true
+                        });
+                        if (confirmed) API.deleteUser(u.id).then(loadUsers);
+                      }} className="p-2 text-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18} /></button>
                     </td>
                   </tr>
                 ))
@@ -276,12 +289,23 @@ const Admin: React.FC = () => {
     });
 
     const handleRemoveMember = async (team: any, memberName: string) => {
-      if (!confirm(`¿Expulsar a ${memberName} de ${team.name}?`)) return;
+      const confirmed = await showConfirm({
+        title: "Expulsar Miembro",
+        message: `¿Expulsar a ${memberName} de ${team.name}?`,
+        danger: true
+      });
+      if (!confirmed) return;
+
       try {
         const user = users.find(u => u.username === memberName);
         if (!user) return;
         if (team.members.length <= 1) {
-          if (confirm(`${memberName} es el último. Se eliminará la escudería. ¿OK?`)) {
+          const finalConfirm = await showConfirm({
+            title: "Eliminar Escudería",
+            message: `${memberName} es el último miembro. Se eliminará la escudería por completo. ¿Continuar?`,
+            danger: true
+          });
+          if (finalConfirm) {
             await API.deleteTeam(team.id);
             loadTeams();
           }
@@ -289,9 +313,9 @@ const Admin: React.FC = () => {
           if ((API as any).kickTeamMemberAdmin) {
             await (API as any).kickTeamMemberAdmin(team.id, user.id);
             loadTeams();
-          } else { alert("Falta endpoint kickTeamMemberAdmin"); }
+          } else { toast("Falta endpoint kickTeamMemberAdmin", "error"); }
         }
-      } catch (e) { alert("Error al procesar"); }
+      } catch (e) { toast("Error al procesar la expulsión", "error"); }
     };
 
     return (
@@ -375,9 +399,6 @@ const Admin: React.FC = () => {
     const [syncResult, setSyncResult] = useState<{ success: boolean, logs: string[] } | null>(null);
     const [showSyncModal, setShowSyncModal] = useState(false);
 
-    // --- Error Modal State ---
-    const [errorPopup, setErrorPopup] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: "" });
-
     useEffect(() => { if (selectedSeasonId) loadGps(); }, [selectedSeasonId]);
 
     const loadGps = () => {
@@ -419,15 +440,20 @@ const Admin: React.FC = () => {
       if (!editingGp || !selectedSeasonId) return;
       try {
         await API.updateGP(editingGp.id, editingGp.name, newDate, selectedSeasonId);
-        alert("Horario actualizado 📅");
+        toast("Horario actualizado correctamente 📅", "success");
         setEditingGp(null);
         loadGps();
-      } catch (e) { alert("Error actualizando GP"); }
+      } catch (e) { toast("Error actualizando GP", "error"); }
     };
 
     // --- SINCRONIZACIÓN AUTOMÁTICA (CARRERA) ---
     const handleSync = async (gp: any) => {
-      if (!confirm(`¿Conectar con la FIA para descargar resultados de CARRERA de ${gp.name}?`)) return;
+      const confirmed = await showConfirm({
+        title: "Sincronizar Carrera",
+        message: `¿Conectar con la FIA para descargar resultados de CARRERA de ${gp.name}?`,
+        confirmText: "Sincronizar"
+      });
+      if (!confirmed) return;
 
       setSyncingId(gp.id);
       setSyncResult(null);
@@ -450,7 +476,12 @@ const Admin: React.FC = () => {
 
     // --- SINCRONIZACIÓN AUTOMÁTICA (QUALY) ---
     const handleSyncQualy = async (gp: any) => {
-      if (!confirm(`¿Conectar con la FIA para descargar resultados de CLASIFICACIÓN (Qualy) de ${gp.name}?`)) return;
+      const confirmed = await showConfirm({
+        title: "Sincronizar Clasificación",
+        message: `¿Conectar con la FIA para descargar resultados de CLASIFICACIÓN (Qualy) de ${gp.name}?`,
+        confirmText: "Sincronizar"
+      });
+      if (!confirmed) return;
 
       setSyncingQualyId(gp.id);
       setSyncResult(null);
@@ -491,7 +522,14 @@ const Admin: React.FC = () => {
                 {/* Botones Flotantes Editar/Borrar GP */}
                 <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                   <button onClick={() => handleEditGp(gp)} className="p-1.5 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-100"><Edit2 size={14} /></button>
-                  <button onClick={() => { if (confirm("¿Borrar GP?")) API.deleteGP(gp.id).then(loadGps) }} className="p-1.5 bg-red-50 text-red-400 rounded-lg hover:bg-red-100"><Trash2 size={14} /></button>
+                  <button onClick={async () => {
+                    const confirmed = await showConfirm({
+                      title: "Borrar GP",
+                      message: `¿Seguro que quieres borrar el GP de ${gp.name}?`,
+                      danger: true
+                    });
+                    if (confirmed) API.deleteGP(gp.id).then(loadGps);
+                  }} className="p-1.5 bg-red-50 text-red-400 rounded-lg hover:bg-red-100"><Trash2 size={14} /></button>
                 </div>
 
                 <div className="flex justify-between items-start mb-4"><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest border border-gray-100 px-2 py-1 rounded">{new Date(gp.race_datetime).toLocaleString()}</span></div>
@@ -617,10 +655,13 @@ const Admin: React.FC = () => {
                       </div>
                       <button onClick={() => {
                         API.saveRaceResult(resultGp.id, positions, events)
-                          .then(() => setShowResultsModal(false))
+                          .then(() => {
+                            setShowResultsModal(false);
+                            toast("Resultados guardados y puntos calculados ✅", "success");
+                          })
                           .catch((err: any) => {
                             const msg = err.response?.data?.detail || "Error al guardar resultados";
-                            setErrorPopup({ isOpen: true, message: msg });
+                            toast(msg, "error");
                           });
                       }} className="w-full py-4 bg-green-600 text-white font-black rounded-2xl shadow-lg shadow-green-100 hover:bg-green-700 transition-all uppercase italic tracking-tighter">Guardar y Calcular Puntos</button>
                     </div>
@@ -696,34 +737,6 @@ const Admin: React.FC = () => {
             </div>
           )}
         </AnimatePresence>
-
-        {/* MODAL ERROR (Generic) */}
-        <AnimatePresence>
-          {errorPopup.isOpen && (
-            <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border-2 border-red-500"
-              >
-                <div className="bg-red-50 p-6 flex flex-col items-center gap-4 text-center">
-                  <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-2">
-                    <AlertTriangle size={32} />
-                  </div>
-                  <h3 className="text-xl font-black text-gray-800 uppercase italic">¡Atención!</h3>
-                  <p className="text-gray-600 font-medium text-sm">{errorPopup.message}</p>
-                  <button
-                    onClick={() => setErrorPopup({ ...errorPopup, isOpen: false })}
-                    className="mt-4 px-8 py-3 bg-red-500 text-white font-black uppercase tracking-widest rounded-xl hover:bg-red-600 transition-all shadow-lg shadow-red-200"
-                  >
-                    Entendido
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
       </motion.div>
     );
   };
@@ -740,8 +753,19 @@ const Admin: React.FC = () => {
     const loadGrid = () => API.getF1Grid(selectedSeasonId!).then(setConstructors);
 
     const handleAddDriver = async (cId: number) => {
-      const code = prompt("Acrónimo (3 letras):");
-      const name = prompt("Nombre:");
+      const code = await showPrompt({
+        title: "Añadir Piloto",
+        message: "Introduce el acrónimo del piloto (3 letras):",
+        placeholder: "Ej: VER"
+      });
+      if (!code) return;
+
+      const name = await showPrompt({
+        title: "Nombre del Piloto",
+        message: "Introduce el nombre completo del piloto:",
+        placeholder: "Ej: Max Verstappen"
+      });
+
       if (code && name) API.createDriver(cId, code.toUpperCase(), name).then(loadGrid);
     };
 
@@ -784,23 +808,25 @@ const Admin: React.FC = () => {
     const [newDesc, setNewDesc] = useState("");
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => { loadTiles(); }, []);
+    useEffect(() => {
+      if (selectedSeasonId) loadTiles();
+    }, [selectedSeasonId]);
 
     const loadTiles = async () => {
       try {
-        const data = await API.getBingoBoard();
-        setTiles(data);
+        const data = await API.getBingoBoard(selectedSeasonId || undefined);
+        setTiles(data.tiles);
       } catch (e) { console.error(e); }
     };
 
     const handleCreate = async () => {
-      if (!newDesc.trim()) return;
+      if (!newDesc.trim() || !selectedSeasonId) return;
       setLoading(true);
       try {
-        await API.createBingoTile(newDesc);
+        await API.createBingoTile(newDesc, selectedSeasonId);
         setNewDesc("");
         loadTiles();
-      } catch (e) { alert("Error creando casilla"); }
+      } catch (e) { toast("Error creando casilla de bingo", "error"); }
       setLoading(false);
     };
 
@@ -808,42 +834,73 @@ const Admin: React.FC = () => {
       try {
         await API.updateBingoTile(tile.id, { is_completed: !tile.is_completed });
         loadTiles();
-      } catch (e) { alert("Error actualizando estado"); }
+      } catch (e) { toast("Error actualizando estado de casilla", "error"); }
     };
-
     const handleDelete = async (id: number) => {
-      if (!confirm("¿Borrar esta casilla del bingo?")) return;
+      const confirmed = await showConfirm({
+        title: "Borrar Casilla",
+        message: "¿Borrar esta casilla del bingo?",
+        danger: true
+      });
+      if (!confirmed) return;
       try {
         await API.deleteBingoTile(id);
         loadTiles();
-      } catch (e) { alert("Error borrando"); }
+      } catch (e) { toast("Error al borrar la casilla", "error"); }
+    };
+
+    const selectedSeason = seasons.find(s => s.id === selectedSeasonId);
+
+    const handleToggleManualBingo = async () => {
+      if (!selectedSeasonId) return;
+      try {
+        await API.toggleBingoManual(selectedSeasonId);
+        loadSeasons();
+      } catch (e) { toast("Error al cambiar estado del bingo", "error"); }
     };
 
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-        <Card title="Editor de Bingo" icon={<LayoutGrid size={18} className="text-purple-500" />}>
-          <div className="flex gap-4 items-end mb-6">
-            <div className="flex-1">
-              <label className="text-[10px] font-bold text-gray-400 uppercase">Descripción del Evento</label>
-              <input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Ej: Un Williams entra en Q3" className="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-bold text-gray-700" onKeyDown={e => e.key === 'Enter' && handleCreate()} />
-            </div>
-            <button onClick={handleCreate} disabled={loading} className="px-6 py-3 bg-purple-600 text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-200 disabled:opacity-50">{loading ? "..." : "Añadir"}</button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tiles.map(tile => (
-              <div key={tile.id} className={`p-4 rounded-xl border-2 transition-all flex flex-col justify-between gap-3 ${tile.is_completed ? "bg-green-50 border-green-200" : "bg-white border-gray-100"}`}>
-                <div className="flex justify-between items-start gap-2">
-                  <span className={`text-sm font-bold leading-tight ${tile.is_completed ? "text-green-800" : "text-gray-700"}`}>{tile.description}</span>
-                  <button onClick={() => handleDelete(tile.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100/50 mt-2">
-                  <div className="text-[10px] font-bold text-gray-400 uppercase">{tile.selection_count} Selecciones</div>
-                  <button onClick={() => toggleComplete(tile)} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${tile.is_completed ? "bg-green-500 text-white shadow-md shadow-green-200" : "bg-gray-100 text-gray-400 hover:bg-gray-200"}`}>{tile.is_completed ? <><CheckCircle size={12} /> Completado</> : "Pendiente"}</button>
-                </div>
+        <div className="flex flex-col md:flex-row gap-6">
+          <Card title="Estado del Bingo" icon={<Settings size={18} className="text-purple-500" />}>
+            <div className="flex items-center justify-between p-2 bg-purple-50 rounded-2xl border border-purple-100">
+              <div className="flex flex-col gap-1 pl-2">
+                <span className="text-xs font-black uppercase text-purple-900 tracking-wider">Apertura Manual</span>
+                <span className="text-[10px] font-medium text-purple-600 italic">Permitir cambios tras inicio temporada</span>
               </div>
-            ))}
-          </div>
-        </Card>
+              <button
+                onClick={handleToggleManualBingo}
+                className={`relative w-16 h-8 rounded-full transition-all duration-300 flex items-center px-1 ${selectedSeason?.bingo_manual_open ? "bg-purple-600" : "bg-gray-300"}`}
+              >
+                <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-300 ${selectedSeason?.bingo_manual_open ? "translate-x-8" : "translate-x-0"}`} />
+              </button>
+            </div>
+          </Card>
+
+          <Card title="Editor de Casillas" icon={<LayoutGrid size={18} className="text-purple-500" />}>
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Ej: Un Williams entra en Q3" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-bold text-gray-700" onKeyDown={e => e.key === 'Enter' && handleCreate()} />
+              </div>
+              <button onClick={handleCreate} disabled={loading} className="px-6 py-3 bg-purple-600 text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-200 disabled:opacity-50">{loading ? "..." : "Añadir"}</button>
+            </div>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {tiles.map(tile => (
+            <div key={tile.id} className={`p-4 rounded-xl border-2 transition-all flex flex-col justify-between gap-3 ${tile.is_completed ? "bg-green-50 border-green-200" : "bg-white border-gray-100"}`}>
+              <div className="flex justify-between items-start gap-2">
+                <span className={`text-sm font-bold leading-tight ${tile.is_completed ? "text-green-800" : "text-gray-700"}`}>{tile.description}</span>
+                <button onClick={() => handleDelete(tile.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100/50 mt-2">
+                <div className="text-[10px] font-bold text-gray-400 uppercase">{tile.selection_count} Selecciones</div>
+                <button onClick={() => toggleComplete(tile)} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${tile.is_completed ? "bg-green-500 text-white shadow-md shadow-green-200" : "bg-gray-100 text-gray-400 hover:bg-gray-200"}`}>{tile.is_completed ? <><CheckCircle size={12} /> Completado</> : "Pendiente"}</button>
+              </div>
+            </div>
+          ))}
+        </div>
       </motion.div>
     );
   };
@@ -866,16 +923,22 @@ const Admin: React.FC = () => {
         await API.uploadAvatar(uploadFile);
         setUploadFile(null);
         loadAvatars();
-      } catch (e) { alert("Error al subir imagen"); }
+        toast("Avatar subido correctamente", "success");
+      } catch (e) { toast("Error al subir imagen a la galería", "error"); }
       setUploading(false);
     };
 
     const handleDelete = async (id: number) => {
-      if (!confirm("¿Borrar este avatar de la galería?")) return;
+      const confirmed = await showConfirm({
+        title: "Borrar Avatar",
+        message: "¿Borrar este avatar de la galería?",
+        danger: true
+      });
+      if (!confirmed) return;
       try {
         await API.deleteAvatar(id);
         loadAvatars();
-      } catch (e) { alert("Error al borrar"); }
+      } catch (e) { toast("Error al borrar el avatar", "error"); }
     };
 
     return (

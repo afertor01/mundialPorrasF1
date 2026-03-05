@@ -1,17 +1,19 @@
 import React, { useEffect, useState, useContext } from "react";
 import * as API from "../api/api";
 import { AuthContext } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-    Users, Plus, LogOut, Copy, CheckCircle, Shield, 
+import {
+    Users, Plus, LogOut, Copy, CheckCircle, Shield,
     Search, Award, Zap, Loader2 // <--- AÑADE Loader2
 } from "lucide-react";
 
 const TeamHQ: React.FC = () => {
     const { token } = useContext(AuthContext);
+    const { toast, showConfirm } = useToast();
     const [team, setTeam] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    
+
     // Estado para bloquear botones mientras carga
     const [isSubmitting, setIsSubmitting] = useState(false); // <--- NUEVO
 
@@ -40,7 +42,7 @@ const TeamHQ: React.FC = () => {
         if (!createName.trim() || isSubmitting) return; // Bloqueo doble clic
         setIsSubmitting(true);
         setErrorMsg("");
-        
+
         try {
             await API.createTeamPlayer(createName);
             setCreateName(""); // Limpiar input
@@ -69,7 +71,13 @@ const TeamHQ: React.FC = () => {
     };
 
     const handleLeave = async () => {
-        if (!confirm("¿Seguro que quieres romper tu contrato con la escudería?")) return;
+        const confirmed = await showConfirm({
+            title: "Romper Contrato",
+            message: "¿Seguro que quieres romper tu contrato con la escudería?",
+            confirmText: "Si, romper",
+            danger: true
+        });
+        if (!confirmed) return;
         if (isSubmitting) return;
         setIsSubmitting(true);
 
@@ -78,7 +86,7 @@ const TeamHQ: React.FC = () => {
             setTeam(null); // Borrar equipo de la vista localmente
             await loadMyTeam(); // Verificar con backend
         } catch (err) {
-            alert("Error al salir del equipo");
+            toast("Error al salir del equipo", "error");
         } finally {
             setIsSubmitting(false);
         }
@@ -87,14 +95,13 @@ const TeamHQ: React.FC = () => {
     const copyToClipboard = () => {
         if (team?.join_code) {
             navigator.clipboard.writeText(team.join_code);
-            // Podrías poner un toast aquí, pero el alert funciona
-            alert("Código copiado: " + team.join_code);
+            toast("Código copiado al portapapeles", "success");
         }
     };
 
     if (loading) return (
         <div className="min-h-screen flex flex-col items-center justify-center text-gray-400 gap-4">
-            <Loader2 className="animate-spin" size={40}/>
+            <Loader2 className="animate-spin" size={40} />
             <p className="text-sm font-bold uppercase tracking-widest">Contactando con la FIA...</p>
         </div>
     );
@@ -102,7 +109,7 @@ const TeamHQ: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 p-4 md:p-10 flex items-center justify-center">
             <div className="max-w-4xl w-full">
-                
+
                 <header className="mb-10 text-center">
                     <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase italic mb-2">
                         Team <span className="text-f1-red">Headquarters</span>
@@ -113,7 +120,7 @@ const TeamHQ: React.FC = () => {
                 <AnimatePresence mode="wait">
                     {/* CASO 1: TIENE EQUIPO */}
                     {team ? (
-                        <motion.div 
+                        <motion.div
                             key="has-team"
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -130,13 +137,13 @@ const TeamHQ: React.FC = () => {
                                         <h2 className="text-3xl font-black italic tracking-tighter uppercase">{team.name}</h2>
                                     </div>
                                 </div>
-                                <button 
-                                    onClick={handleLeave} 
+                                <button
+                                    onClick={handleLeave}
                                     disabled={isSubmitting}
-                                    className="p-3 bg-white/10 hover:bg-red-500/20 text-white/50 hover:text-red-400 rounded-xl transition-all disabled:opacity-50" 
+                                    className="p-3 bg-white/10 hover:bg-red-500/20 text-white/50 hover:text-red-400 rounded-xl transition-all disabled:opacity-50"
                                     title="Salir del equipo"
                                 >
-                                    {isSubmitting ? <Loader2 className="animate-spin" size={20}/> : <LogOut size={20} />}
+                                    {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <LogOut size={20} />}
                                 </button>
                             </div>
 
@@ -165,10 +172,10 @@ const TeamHQ: React.FC = () => {
                                 {/* TARJETA DE INVITACIÓN */}
                                 <div className="bg-f1-dark rounded-[2rem] p-8 text-white relative overflow-hidden">
                                     <div className="absolute top-0 right-0 p-32 bg-f1-red/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-                                    
+
                                     <h3 className="text-lg font-black uppercase italic mb-1 z-10 relative">Código de Acceso</h3>
                                     <p className="text-white/60 text-xs mb-6 z-10 relative">Comparte este código con tu compañero para que se una.</p>
-                                    
+
                                     <div className="flex items-center gap-2 bg-white/10 p-4 rounded-xl border border-white/10 z-10 relative backdrop-blur-sm">
                                         <code className="text-2xl font-mono font-black tracking-widest text-f1-red flex-1 text-center select-all">
                                             {team.join_code}
@@ -182,7 +189,7 @@ const TeamHQ: React.FC = () => {
                         </motion.div>
                     ) : (
                         /* CASO 2: AGENTE LIBRE (SIN EQUIPO) */
-                        <motion.div 
+                        <motion.div
                             key="no-team"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -192,26 +199,26 @@ const TeamHQ: React.FC = () => {
                             {/* CREAR EQUIPO */}
                             <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-100 hover:border-blue-200 transition-colors group">
                                 <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                    <Award size={24}/>
+                                    <Award size={24} />
                                 </div>
                                 <h3 className="text-2xl font-black uppercase italic tracking-tighter mb-2 text-gray-900">Fundar Escudería</h3>
                                 <p className="text-gray-400 text-sm mb-6">Crea tu propio equipo y conviértete en el Jefe de Equipo.</p>
-                                
+
                                 <div className="space-y-3">
-                                    <input 
-                                        type="text" 
-                                        placeholder="Nombre del Equipo (Ej: Audi F1)" 
+                                    <input
+                                        type="text"
+                                        placeholder="Nombre del Equipo (Ej: Audi F1)"
                                         value={createName}
                                         onChange={e => setCreateName(e.target.value)}
                                         disabled={isSubmitting}
                                         className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                                     />
-                                    <button 
+                                    <button
                                         onClick={handleCreate}
                                         disabled={!createName || isSubmitting}
                                         className="w-full bg-gray-900 text-white font-black py-3 rounded-xl uppercase italic tracking-widest hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                     >
-                                        {isSubmitting ? <Loader2 className="animate-spin" size={16}/> : <Plus size={16}/>}
+                                        {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
                                         {isSubmitting ? "Creando..." : "Crear"}
                                     </button>
                                 </div>
@@ -220,26 +227,26 @@ const TeamHQ: React.FC = () => {
                             {/* UNIRSE A EQUIPO */}
                             <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-100 hover:border-f1-red transition-colors group">
                                 <div className="w-12 h-12 bg-red-100 text-f1-red rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                    <Zap size={24}/>
+                                    <Zap size={24} />
                                 </div>
                                 <h3 className="text-2xl font-black uppercase italic tracking-tighter mb-2 text-gray-900">Fichar por Equipo</h3>
                                 <p className="text-gray-400 text-sm mb-6">Introduce el código que te ha pasado tu compañero.</p>
-                                
+
                                 <div className="space-y-3">
-                                    <input 
-                                        type="text" 
-                                        placeholder="Código (Ej: X9A-2B1)" 
+                                    <input
+                                        type="text"
+                                        placeholder="Código (Ej: X9A-2B1)"
                                         value={joinCode}
                                         onChange={e => setJoinCode(e.target.value.toUpperCase())}
                                         disabled={isSubmitting}
                                         className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 font-mono font-bold text-gray-800 focus:ring-2 focus:ring-f1-red text-center tracking-widest disabled:opacity-50"
                                     />
-                                    <button 
+                                    <button
                                         onClick={handleJoin}
                                         disabled={joinCode.length < 6 || isSubmitting}
                                         className="w-full bg-gray-900 text-white font-black py-3 rounded-xl uppercase italic tracking-widest hover:bg-f1-red transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                     >
-                                        {isSubmitting ? <Loader2 className="animate-spin" size={16}/> : <CheckCircle size={16}/>}
+                                        {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle size={16} />}
                                         {isSubmitting ? "Uniendo..." : "Unirse"}
                                     </button>
                                 </div>
@@ -249,7 +256,7 @@ const TeamHQ: React.FC = () => {
                 </AnimatePresence>
 
                 {errorMsg && (
-                    <motion.div initial={{opacity:0, y: 10}} animate={{opacity:1, y:0}} className="mt-6 p-4 bg-red-50 text-red-600 text-sm font-bold text-center rounded-xl border border-red-100">
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 p-4 bg-red-50 text-red-600 text-sm font-bold text-center rounded-xl border border-red-100">
                         🚨 {errorMsg}
                         <button onClick={() => setErrorMsg("")} className="ml-4 underline">Cerrar</button>
                     </motion.div>

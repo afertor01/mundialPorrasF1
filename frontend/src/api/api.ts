@@ -81,6 +81,11 @@ export const deleteSeason = async (id: number) => {
   return res.data;
 };
 
+export const toggleBingoManual = async (id: number) => {
+  const res = await client.patch(`/admin/seasons/${id}/toggle-bingo`);
+  return res.data;
+};
+
 // ==========================================
 // ⚙️ ADMIN - USUARIOS
 // ==========================================
@@ -339,8 +344,8 @@ export const kickTeamMemberAdmin = async (teamId: number, userId: number) => {
 // 🎲 BINGO F1
 // ==========================================
 
-export const createBingoTile = async (description: string) => {
-  const res = await client.post("/bingo/tile", { description });
+export const createBingoTile = async (description: string, season_id?: number) => {
+  const res = await client.post("/bingo/tile", { description, season_id });
   return res.data;
 };
 
@@ -354,8 +359,9 @@ export const deleteBingoTile = async (id: number) => {
   return res.data;
 };
 
-export const getBingoBoard = async () => {
-  const res = await client.get("/bingo/board");
+export const getBingoBoard = async (season_id?: number) => {
+  const params = season_id ? { season_id } : {};
+  const res = await client.get("/bingo/board", { params });
   return res.data;
 };
 
@@ -364,15 +370,16 @@ export const toggleBingoTile = async (id: number) => {
   return res.data;
 };
 
-export const getBingoStandings = async () => {
-  const res = await client.get("/bingo/standings");
+export const getBingoStandings = async (season_id?: number) => {
+  const params = season_id ? { season_id } : {};
+  const res = await client.get("/bingo/standings", { params });
   return res.data;
 };
 
 export const getUserBingoBoard = async (userId: number) => {
-    // Asumiendo que usas axios configurado
-    const res = await client.get(`/bingo/board/${userId}`);
-    return res.data;
+  // Asumiendo que usas axios configurado
+  const res = await client.get(`/bingo/board/${userId}`);
+  return res.data;
 };
 
 // ==========================================

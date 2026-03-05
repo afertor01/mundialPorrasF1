@@ -21,6 +21,7 @@ MAX_SELECTIONS = 20  # Límite duro del backend para evitar trampas
 
 class BingoTileCreate(BaseModel):
     description: str
+    season_id: Optional[int] = None
 
 class BingoTileUpdate(BaseModel):
     description: Optional[str] = None
@@ -44,6 +45,11 @@ class BingoStandingsItem(BaseModel):
     hits: int
     missed: int           # <--- NUEVO
     total_points: int
+
+class BingoBoardResponse(BaseModel):
+    tiles: List[BingoTileResponse]
+    is_open: bool
+    status: str # "preseason", "closed", "admin_force_open"
 
 # --- UTILIDAD DE PUNTUACIÓN ---
 def calculate_tile_value(total_participants: int, selections_count: int) -> int:
@@ -80,12 +86,15 @@ def create_bingo_tile(
 ):
     db = SessionLocal()
     
-    season = db.query(Season).filter(Season.is_active == True).first()
-    if not season: 
-        db.close()
-        raise HTTPException(status_code=400, detail="No hay temporada activa")
+    s_id = tile.season_id
+    if not s_id:
+        season = db.query(Season).filter(Season.is_active == True).first()
+        if not season: 
+            db.close()
+            raise HTTPException(status_code=400, detail="No hay temporada activa ni season_id proporcionado")
+        s_id = season.id
 
-    new_tile = BingoTile(description=tile.description, season_id=season.id)
+    new_tile = BingoTile(description=tile.description, season_id=s_id)
     db.add(new_tile)
     db.commit()
     db.refresh(new_tile)
@@ -139,35 +148,65 @@ def delete_bingo_tile(
 # ENDPOINTS USUARIO (Tablero y Selección)
 # ------------------------------------------------------------------
 
-@router.get("/board", response_model=List[BingoTileResponse])
-def get_my_bingo_board(current_user = Depends(get_current_user)):
+@router.get("/board", response_model=BingoBoardResponse)
+def get_my_bingo_board(
+    season_id: Optional[int] = None,
+    current_user = Depends(get_current_user)
+):
     """
     Devuelve el tablero completo con el estado actual de cada casilla.
     """
     db = SessionLocal()
     
-    season = db.query(Season).filter(Season.is_active == True).first()
-    if not season: 
-        db.close()
-        return []
+    s_id = season_id
+    if not s_id:
+        season = db.query(Season).filter(Season.is_active == True).first()
+        if not season: 
+            db.close()
+            return {"tiles": [], "is_open": False, "status": "closed"}
+        s_id = season.id
+    else:
+        season = db.query(Season).get(s_id)
+        if not season:
+            db.close()
+            return {"tiles": [], "is_open": False, "status": "closed"}
 
-    # 1. Obtener todas las casillas de la temporada
-    tiles = db.query(BingoTile).filter(BingoTile.season_id == season.id).all()
+    # 0. Calcular Estado del Bingo
+    first_gp = (
+        db.query(GrandPrix)
+        .filter(GrandPrix.season_id == s_id)
+        .order_by(GrandPrix.race_datetime)
+        .first()
+    )
     
-    # 2. Obtener mis selecciones
-    my_selections = db.query(BingoSelection).filter(
-        BingoSelection.user_id == current_user.id
+    is_preseason = True
+    if first_gp and datetime.utcnow() > first_gp.race_datetime:
+        is_preseason = False
+    
+    is_open = is_preseason or season.bingo_manual_open
+    status = "closed"
+    if is_preseason: status = "preseason"
+    elif season.bingo_manual_open: status = "admin_force_open"
+    tiles = db.query(BingoTile).filter(BingoTile.season_id == s_id).all()
+    
+    # 2. Obtener mis selecciones (Las selecciones son globales pero vinculadas a casillas de una temporada)
+    my_selections = db.query(BingoSelection).join(BingoTile).filter(
+        BingoSelection.user_id == current_user.id,
+        BingoTile.season_id == s_id
     ).all()
     my_selected_ids = {s.bingo_tile_id for s in my_selections}
 
-    # 3. Calcular métricas globales para la rareza
-    # Contamos usuarios únicos que han jugado al bingo
-    total_participants = db.query(BingoSelection.user_id).distinct().count()
+    # 3. Calcular métricas locales para la rareza de esta temporada
+    # Contamos usuarios únicos que han participado en el bingo de ESTA temporada
+    total_participants = db.query(BingoSelection.user_id).join(BingoTile).filter(
+        BingoTile.season_id == s_id
+    ).distinct().count()
     if total_participants == 0: total_participants = 1
 
-    # Optimizamos contando todas las selecciones de golpe
-    # Esto evita hacer N queries dentro del bucle
-    all_selections = db.query(BingoSelection).all()
+    # Optimizamos contando las selecciones de esta temporada
+    all_selections = db.query(BingoSelection).join(BingoTile).filter(
+        BingoTile.season_id == s_id
+    ).all()
     tile_counts = {}
     for sel in all_selections:
         tile_counts[sel.bingo_tile_id] = tile_counts.get(sel.bingo_tile_id, 0) + 1
@@ -187,11 +226,16 @@ def get_my_bingo_board(current_user = Depends(get_current_user)):
         })
     
     db.close()
-    return response
+    return {
+        "tiles": response,
+        "is_open": is_open,
+        "status": status
+    }
 
-@router.get("/board/{target_user_id}", response_model=List[BingoTileResponse])
+@router.get("/board/{target_user_id}", response_model=BingoBoardResponse)
 def get_user_bingo_board(
     target_user_id: int, 
+    season_id: Optional[int] = None,
     current_user = Depends(get_current_user) # Necesario para autenticación, aunque no usemos sus datos
 ):
     """
@@ -200,25 +244,54 @@ def get_user_bingo_board(
     """
     db = SessionLocal()
     
-    season = db.query(Season).filter(Season.is_active == True).first()
-    if not season: 
-        db.close()
-        return []
+    s_id = season_id
+    if not s_id:
+        season = db.query(Season).filter(Season.is_active == True).first()
+        if not season: 
+            db.close()
+            return {"tiles": [], "is_open": False, "status": "closed"}
+        s_id = season.id
+    else:
+        season = db.query(Season).get(s_id)
+        if not season:
+            db.close()
+            return {"tiles": [], "is_open": False, "status": "closed"}
+
+    # 0. Calcular Estado
+    first_gp = (
+        db.query(GrandPrix)
+        .filter(GrandPrix.season_id == s_id)
+        .order_by(GrandPrix.race_datetime)
+        .first()
+    )
+    is_preseason = True
+    if first_gp and datetime.utcnow() > first_gp.race_datetime:
+        is_preseason = False
+    
+    is_open = is_preseason or season.bingo_manual_open
+    status = "closed"
+    if is_preseason: status = "preseason"
+    elif season.bingo_manual_open: status = "admin_force_open"
 
     # 1. Obtener todas las casillas
-    tiles = db.query(BingoTile).filter(BingoTile.season_id == season.id).all()
+    tiles = db.query(BingoTile).filter(BingoTile.season_id == s_id).all()
     
     # 2. Obtener selecciones del USUARIO OBJETIVO
-    target_selections = db.query(BingoSelection).filter(
-        BingoSelection.user_id == target_user_id
+    target_selections = db.query(BingoSelection).join(BingoTile).filter(
+        BingoSelection.user_id == target_user_id,
+        BingoTile.season_id == s_id
     ).all()
     target_selected_ids = {s.bingo_tile_id for s in target_selections}
 
-    # 3. Métricas globales para calcular el valor de la casilla
-    total_participants = db.query(BingoSelection.user_id).distinct().count()
+    # 3. Métricas locales de la temporada para calcular el valor de la casilla
+    total_participants = db.query(BingoSelection.user_id).join(BingoTile).filter(
+        BingoTile.season_id == s_id
+    ).distinct().count()
     if total_participants == 0: total_participants = 1
 
-    all_selections = db.query(BingoSelection).all()
+    all_selections = db.query(BingoSelection).join(BingoTile).filter(
+        BingoTile.season_id == s_id
+    ).all()
     tile_counts = {}
     for sel in all_selections:
         tile_counts[sel.bingo_tile_id] = tile_counts.get(sel.bingo_tile_id, 0) + 1
@@ -239,7 +312,11 @@ def get_user_bingo_board(
         })
     
     db.close()
-    return response
+    return {
+        "tiles": response,
+        "is_open": is_open,
+        "status": status
+    }
 
 @router.post("/toggle/{tile_id}")
 def toggle_selection(
@@ -265,10 +342,17 @@ def toggle_selection(
     )
     
     if first_gp and datetime.utcnow() > first_gp.race_datetime:
-        db.close()
-        raise HTTPException(status_code=403, detail="⛔ El Bingo está cerrado. La temporada ya ha comenzado.")
+        # Si la temporada ha empezado, SOLO permitimos si el admin lo ha habilitado manualmente
+        if not season.bingo_manual_open:
+            db.close()
+            raise HTTPException(status_code=403, detail="⛔ El Bingo está cerrado. La temporada ya ha comenzado.")
 
     # --- LÓGICA DE TOGGLE ---
+    target_tile = db.query(BingoTile).get(tile_id)
+    if not target_tile:
+        db.close()
+        raise HTTPException(404, "Casilla no encontrada.")
+
     existing = db.query(BingoSelection).filter(
         BingoSelection.user_id == current_user.id,
         BingoSelection.bingo_tile_id == tile_id
@@ -282,13 +366,15 @@ def toggle_selection(
         return {"status": "removed", "msg": "Casilla desmarcada"}
     else:
         # Si no existe, verificamos el LÍMITE antes de añadir
-        current_count = db.query(BingoSelection).filter(
-            BingoSelection.user_id == current_user.id
+        # El límite de 20 es por TEMPORADA
+        current_count = db.query(BingoSelection).join(BingoTile).filter(
+            BingoSelection.user_id == current_user.id,
+            BingoTile.season_id == target_tile.season_id
         ).count()
 
         if current_count >= MAX_SELECTIONS:
             db.close()
-            raise HTTPException(status_code=400, detail=f"Has alcanzado el límite de {MAX_SELECTIONS} selecciones.")
+            raise HTTPException(status_code=400, detail=f"Has alcanzado el límite de {MAX_SELECTIONS} selecciones para esta temporada.")
 
         new_sel = BingoSelection(user_id=current_user.id, bingo_tile_id=tile_id)
         db.add(new_sel)
@@ -301,20 +387,25 @@ def toggle_selection(
 # ------------------------------------------------------------------
 
 @router.get("/standings", response_model=List[BingoStandingsItem])
-def get_bingo_standings():
+def get_bingo_standings(season_id: Optional[int] = None):
     """
     Calcula la clasificación del Bingo incluyendo aciertos, fallos y puntos.
     """
     db = SessionLocal()
     
-    season = db.query(Season).filter(Season.is_active == True).first()
-    if not season: 
-        db.close()
-        return []
+    s_id = season_id
+    if not s_id:
+        season = db.query(Season).filter(Season.is_active == True).first()
+        if not season: 
+            db.close()
+            return []
+        s_id = season.id
 
-    # 1. Obtener Datos Base
-    tiles = db.query(BingoTile).filter(BingoTile.season_id == season.id).all()
-    all_selections = db.query(BingoSelection).all()
+    # 1. Obtener Datos Base de la temporada
+    tiles = db.query(BingoTile).filter(BingoTile.season_id == s_id).all()
+    all_selections = db.query(BingoSelection).join(BingoTile).filter(
+        BingoTile.season_id == s_id
+    ).all()
     users = db.query(User).all()
 
     # 2. Calcular cuántas tiles están completadas en total
@@ -322,8 +413,10 @@ def get_bingo_standings():
     completed_tiles_ids = {t.id for t in tiles if t.is_completed}
     total_completed_count = len(completed_tiles_ids)
 
-    # 3. Calcular valores de rareza (Puntos)
-    total_participants = db.query(BingoSelection.user_id).distinct().count()
+    # 3. Calcular valores de rareza (Puntos) de la temporada
+    total_participants = db.query(BingoSelection.user_id).join(BingoTile).filter(
+        BingoTile.season_id == s_id
+    ).distinct().count()
     if total_participants == 0: total_participants = 1
     
     tile_counts = {}

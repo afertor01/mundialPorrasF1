@@ -17,6 +17,7 @@ class Season(Base):
     year: Mapped[int] = mapped_column(Integer, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    bingo_manual_open: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Relaciones existentes...
     teams: Mapped[List["Team"]] = relationship("Team", back_populates="season")

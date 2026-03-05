@@ -1,7 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
+import os
 
-DATABASE_URL = "sqlite:///./dev.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dev.db")
+# Render/Heroku a veces usan 'postgres://', pero SQLAlchemy necesita 'postgresql://'
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 engine = create_engine(
     DATABASE_URL,

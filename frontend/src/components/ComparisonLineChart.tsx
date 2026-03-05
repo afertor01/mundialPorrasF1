@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useToast } from "../context/ToastContext";
 import {
     LineChart,
     Line,
@@ -29,6 +30,7 @@ const stringToColor = (str: string) => {
 
 const ComparisonLineChart: React.FC<Props> = ({ fullData, currentUser, gps, isLogarithmic = false }) => {
     const allUsers = Object.keys(fullData);
+    const { toast } = useToast();
 
     // --- 1. LÓGICA DE GESTIÓN DE USUARIOS ---
     const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -84,7 +86,10 @@ const ComparisonLineChart: React.FC<Props> = ({ fullData, currentUser, gps, isLo
         if (selectedUsers.includes(user)) {
             setSelectedUsers(selectedUsers.filter(u => u !== user));
         } else {
-            if (selectedUsers.length >= 10) return alert("Máximo 10 líneas a la vez");
+            if (selectedUsers.length >= 10) {
+                toast("Máximo 10 líneas a la vez", "warning");
+                return;
+            }
             setSelectedUsers([...selectedUsers, user]);
         }
     }
@@ -241,10 +246,10 @@ const ComparisonLineChart: React.FC<Props> = ({ fullData, currentUser, gps, isLo
                             width={40}
                             allowDecimals={isLogarithmic}
                             tickFormatter={(value) => {
-                                if (isLogarithmic && value >= 1000) {
-                                    return value.toExponential(0);
+                                if (isLogarithmic && value >= 100_000) {
+                                    return value.toExponential(0); // For ticks, 0 decimals is usually better as space is limited
                                 }
-                                return value.toString();
+                                return value.toLocaleString();
                             }}
                         />
 
@@ -253,6 +258,15 @@ const ComparisonLineChart: React.FC<Props> = ({ fullData, currentUser, gps, isLo
                             contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
                             itemStyle={{ fontSize: "12px", fontWeight: "bold" }}
                             labelStyle={{ color: "#9ca3af", fontSize: "10px", textTransform: "uppercase", marginBottom: "5px" }}
+                            formatter={(value: any) => {
+                                const val = Number(value);
+                                if (isNaN(val)) return "---";
+                                if (isLogarithmic) {
+                                    if (val >= 100_000) return "x" + val.toExponential(2);
+                                    return "x" + val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+                                }
+                                return val.toLocaleString();
+                            }}
                         />
 
                         <Legend wrapperStyle={{ paddingTop: "10px", fontSize: "12px" }} iconType="circle" />

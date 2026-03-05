@@ -205,6 +205,23 @@ def toggle_season_active(season_id: int, current_user = Depends(require_admin)):
     
     return season
 
+@router.patch("/seasons/{season_id}/toggle-bingo")
+def toggle_bingo_manual_open(season_id: int, current_user = Depends(require_admin)):
+    db = SessionLocal()
+    season = db.query(Season).get(season_id)
+    
+    if not season:
+        db.close()
+        raise HTTPException(404, "Temporada no encontrada")
+
+    season.bingo_manual_open = not season.bingo_manual_open
+    
+    db.commit()
+    db.refresh(season)
+    db.close()
+    
+    return season
+
 # -----------------------
 # Gran Premio
 # -----------------------

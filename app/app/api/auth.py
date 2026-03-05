@@ -79,7 +79,7 @@ def update_profile(
     # 1. Validar Username
     if user_update.username and user_update.username != user.username:
         if db.query(User).filter(User.username == user_update.username).first():
-            raise HTTPException(400, "Ese nombre de usuario ya está cogido")
+            raise HTTPException(400, "El nombre de usuario ya está ocupado")
         user.username = user_update.username
 
     # 2. Validar Acrónimo
@@ -87,7 +87,7 @@ def update_profile(
         if len(user_update.acronym) > 3:
             raise HTTPException(400, "El acrónimo debe tener máximo 3 letras")
         if db.query(User).filter(User.acronym == user_update.acronym.upper()).first():
-            raise HTTPException(400, "Ese acrónimo ya existe")
+            raise HTTPException(400, "El acrónimo ya está ocupado")
         user.acronym = user_update.acronym.upper()
 
     # 3. Password

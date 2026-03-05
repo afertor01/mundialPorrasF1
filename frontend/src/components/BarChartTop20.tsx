@@ -61,7 +61,15 @@ const BarChartTop20: React.FC<Props> = ({ data, currentUser, isLogarithmic = fal
       tooltip: {
         callbacks: {
           // Aseguramos que en el tooltip siempre salga el nombre completo
-          title: (context: any) => displayData[context[0].dataIndex].name
+          title: (context: any) => displayData[context[0].dataIndex].name,
+          label: (context: any) => {
+            const val = context.parsed.y;
+            if (isLogarithmic) {
+              if (val >= 100_000) return `Puntos: x${val.toExponential(2)}`;
+              return `Puntos: x${val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+            }
+            return `Puntos: ${val.toLocaleString()}`;
+          }
         }
       }
     },
@@ -84,7 +92,16 @@ const BarChartTop20: React.FC<Props> = ({ data, currentUser, isLogarithmic = fal
         // Configuración específica para escala logarítmica si es necesaria
         ...(isLogarithmic && {
           min: 1, // Evitar 0 o valores negativos en log scale
-        })
+        }),
+        ticks: {
+          callback: function (value: any) {
+            if (isLogarithmic) {
+              if (value >= 100_000) return value.toExponential(0);
+              return value.toLocaleString();
+            }
+            return value.toLocaleString();
+          }
+        }
       },
       x: {
         grid: {

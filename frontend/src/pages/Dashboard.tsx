@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import * as API from "../api/api";
 import { AuthContext } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { jwtDecode } from "jwt-decode";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -63,6 +64,7 @@ interface StatCardProps {
 
 const Dashboard: React.FC = () => {
     const { token } = useContext(AuthContext);
+    const { toast } = useToast();
     const [username, setUsername] = useState<string>("");
 
     // Estados de Configuración
@@ -160,11 +162,11 @@ const Dashboard: React.FC = () => {
     // --- MANEJADOR DEL BUSCADOR DE RANGO ---
     const handleRangeSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Formato esperado "1-30", "10-50", etc.
         const parts = rangeInput.split('-');
         if (parts.length !== 2) {
-            alert("⚠️ Formato incorrecto. Usa 'Inicio-Fin' (ej: 1-20)");
+            toast("Formato incorrecto. Usa 'Inicio-Fin' (ej: 1-20)", "warning");
             return;
         }
 
@@ -172,23 +174,23 @@ const Dashboard: React.FC = () => {
         const end = parseInt(parts[1].trim());
 
         if (isNaN(start) || isNaN(end)) {
-            alert("⚠️ Por favor introduce números válidos.");
+            toast("Por favor introduce números válidos.", "warning");
             return;
         }
 
         if (start < 1) {
-            alert("⚠️ El rango debe empezar mínimo en 1.");
+            toast("El rango debe empezar mínimo en 1.", "warning");
             return;
         }
 
         if (start > end) {
-            alert("⚠️ El número inicial no puede ser mayor que el final.");
+            toast("El número inicial no puede ser mayor que el final.", "warning");
             return;
         }
 
         const diff = end - start + 1;
         if (diff > 50) {
-            alert(`⚠️ Límite excedido. Estás intentando mostrar ${diff} filas (Máximo 50).`);
+            toast(`Límite excedido. Estás intentando mostrar ${diff} filas (Máximo 50).`, "warning");
             return;
         }
 
@@ -210,7 +212,7 @@ const Dashboard: React.FC = () => {
     const formatPoints = (points: number) => {
         if (points === undefined || points === null) return "---";
         if (mode === 'multiplier') {
-            if (points > 100_000_000) return "x" + points.toExponential(2);
+            if (points > 100_000) return "x" + points.toExponential(2);
             return "x" + points.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
         }
         return points.toLocaleString();
@@ -251,7 +253,7 @@ const Dashboard: React.FC = () => {
 
         // 2. Comportamiento por defecto (Top 20 + Usuario si está fuera)
         const top20 = tableData.slice(0, 20);
-        
+
         if (!currentTargetName) return top20;
 
         const isTargetInTop20 = top20.some(r => r.name === currentTargetName);
@@ -354,10 +356,10 @@ const Dashboard: React.FC = () => {
                     >
                         {/* 1. SECCIÓN TABLA CLASIFICACIÓN */}
                         <section className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col">
-                            
+
                             {/* HEADER DE LA TABLA + BUSCADOR */}
                             <div className="p-6 md:p-8 border-b border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50/30">
-                                
+
                                 {/* Título y Etiqueta */}
                                 <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
                                     <h3 className="text-lg font-black uppercase italic tracking-tighter">
@@ -372,24 +374,24 @@ const Dashboard: React.FC = () => {
                                 <form onSubmit={handleRangeSubmit} className="flex items-center gap-2 w-full md:w-auto">
                                     <div className="relative w-full md:w-48 group">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-f1-red transition-colors" size={14} />
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             placeholder="Rango (ej: 1-20)"
                                             value={rangeInput}
                                             onChange={(e) => setRangeInput(e.target.value)}
                                             className="w-full bg-white border border-gray-200 rounded-xl py-2 pl-9 pr-4 text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-f1-red/20 transition-all placeholder:text-gray-300"
                                         />
                                     </div>
-                                    <button 
+                                    <button
                                         type="submit"
                                         className="bg-gray-900 hover:bg-f1-red text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-colors"
                                     >
                                         Ver
                                     </button>
-                                    
+
                                     {/* Botón de Reset solo si hay rango activo */}
                                     {customRange && (
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={handleResetRange}
                                             className="bg-gray-200 hover:bg-gray-300 text-gray-600 px-3 py-2 rounded-xl transition-colors"
@@ -462,7 +464,7 @@ const Dashboard: React.FC = () => {
                                                         </td>
                                                         {showDiff && (
                                                             <td className="px-4 py-4 text-right font-mono text-sm">
-                                                                +{formatPoints(row.gp_points)}
+                                                                {mode === 'multiplier' ? formatPoints(row.gp_points) : `+${formatPoints(row.gp_points)}`}
                                                             </td>
                                                         )}
                                                         <td className="px-6 py-4 text-right font-black text-gray-900 tabular-nums">
