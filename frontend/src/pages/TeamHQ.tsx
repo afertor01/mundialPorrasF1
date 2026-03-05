@@ -4,8 +4,8 @@ import { AuthContext } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Users, Plus, LogOut, Copy, CheckCircle, Shield,
-    Search, Award, Zap, Loader2 // <--- AÑADE Loader2
+    Plus, LogOut, Copy, CheckCircle, Shield,
+    Award, Zap, Loader2 // <--- AÑADE Loader2
 } from "lucide-react";
 
 const TeamHQ: React.FC = () => {
