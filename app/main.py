@@ -4,10 +4,10 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 # IMPORTANTE: Importar Base y Engine para que funcione la creación de tablas
-from app.db.session import engine, Base 
+from app.db.session import engine, Base, SessionLocal 
+from app.api.avatars import sync_avatars_from_disk
 
 # Importar modelos para que SQLAlchemy los "vea" antes de crear las tablas
-# El nombre _all suele ser un truco para importar todo a la vez
 from app.db.models import _all 
 
 # Importar las rutas (los routers)
@@ -33,11 +33,17 @@ app = FastAPI(
 os.makedirs("app/static/avatars", exist_ok=True)
 
 # 👇 MONTAR LA CARPETA ESTÁTICA
-# Esto hace que http://localhost:8000/static/avatars/foto.png sea accesible
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Creamos las tablas en la base de datos
 Base.metadata.create_all(bind=engine)
+
+# 👇 SINCRONIZAR AVATARES DESDE DISCO AL INICIO
+db = SessionLocal()
+try:
+    sync_avatars_from_disk(db)
+finally:
+    db.close()
 
 # Conectamos las piezas (routers)
 app.include_router(auth_router)

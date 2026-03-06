@@ -22,12 +22,39 @@ def get_db():
     finally:
         db.close()
 
+def sync_avatars_from_disk(db: Session):
+    """Escanea el directorio de avatares y los añade a la BD si no existen."""
+    if not os.path.exists(UPLOAD_DIR):
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        return
+
+    files = [f for f in os.listdir(UPLOAD_DIR) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp'))]
+    
+    # 1. Añadir los que están en disco pero no en BD
+    for filename in files:
+        if filename == "default.png":
+            continue
+        exists = db.query(Avatar).filter(Avatar.filename == filename).first()
+        if not exists:
+            print(f"📦 Sincronizando nuevo avatar desde disco: {filename}")
+            new_avatar = Avatar(filename=filename)
+            db.add(new_avatar)
+    
+    db.commit()
+
 # 1. VER GALERÍA (Público/Usuarios)
 @router.get("/", response_model=List[AvatarSchema])
 def get_all_avatars(request: Request, db: Session = Depends(get_db)):
+    # Sincronizar antes de listar (opcional, pero asegura que esté al día)
+    sync_avatars_from_disk(db)
+    
     base_url = str(request.base_url).rstrip("/")
     avatars = db.query(Avatar).all()
     results = []
+    
+    # El avatar por defecto siempre debería estar disponible aunque no esté en la tabla Avatar
+    # pero para simplificar, si no está en la tabla, lo añadimos virtualmente o el front ya lo maneja.
+    
     for av in avatars:
         results.append({
             "id": av.id,
@@ -43,10 +70,11 @@ def select_avatar(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # 1. Validar que el avatar existe en la galería (o es default)
-    exists = db.query(Avatar).filter(Avatar.filename == avatar_filename).first()
-    if not exists and avatar_filename != "default.png":
-        raise HTTPException(status_code=404, detail="Ese avatar no existe en la galería")
+    # Validar que el archivo existe físicamente
+    if avatar_filename != "default.png":
+        file_path = os.path.join(UPLOAD_DIR, avatar_filename)
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="El archivo de avatar no existe en el servidor")
     
     user_to_update = db.query(User).filter(User.id == current_user.id).first()
     if not user_to_update:
@@ -66,7 +94,7 @@ def upload_avatar(
     admin: User = Depends(require_admin)
 ):
     os.makedirs(UPLOAD_DIR, exist_ok=True)
-    file_location = f"{UPLOAD_DIR}/{file.filename}"
+    file_location = os.path.join(UPLOAD_DIR, file.filename)
     
     with open(file_location, "wb+") as file_object:
         shutil.copyfileobj(file.file, file_object)
@@ -109,7 +137,7 @@ def delete_avatar(
         user.avatar = "default.png"
     
     try:
-        file_path = f"{UPLOAD_DIR}/{filename}"
+        file_path = os.path.join(UPLOAD_DIR, filename)
         if os.path.exists(file_path):
             os.remove(file_path)
     except Exception as e:
