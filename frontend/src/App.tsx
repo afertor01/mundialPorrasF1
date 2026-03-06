@@ -15,6 +15,8 @@ import {
   User // <--- Importamos User para el fallback del avatar
 } from "lucide-react";
 
+import { BASE_URL } from "./api/api";
+
 // Importamos las páginas
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
@@ -72,7 +74,7 @@ const NavBar = () => {
   const getAvatarUrl = (filename: string | null) => {
     if (!filename) return null;
     if (filename.startsWith("http")) return filename;
-    return `http://127.0.0.1:8000/static/avatars/${filename}`;
+    return `${BASE_URL}/static/avatars/${filename}`;
   };
 
   const avatarUrl = getAvatarUrl(avatar);

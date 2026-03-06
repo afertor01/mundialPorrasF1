@@ -1,14 +1,31 @@
 import random
 import string
 import sys
+import os
 from datetime import datetime, timedelta
 from sqlalchemy import func
 
 # ==============================================================================
 # 1. IMPORTS Y CONFIGURACIÓN
 # ==============================================================================
-from app.db.session import SessionLocal, engine, Base
+import pandas as pd
+from sqlalchemy import create_engine as sqlalchemy_create_engine
+from sqlalchemy.orm import sessionmaker
+from app.db.session import SessionLocal as RemoteSessionLocal, engine as remote_engine, Base, DATABASE_URL
 from app.core.security import hash_password
+
+# ==============================================================================
+# CONFIGURACIÓN DE MODO HÍBRIDO (ACELERA X100 EL CLOUD)
+# ==============================================================================
+# Si la DB es remota, simularemos en SQLite local y luego subiremos todo de golpe.
+IS_REMOTE = not DATABASE_URL.startswith("sqlite")
+LOCAL_DB_URL = "sqlite:///seed_temp.db"
+local_engine = sqlalchemy_create_engine(LOCAL_DB_URL, connect_args={"check_same_thread": False})
+LocalSessionLocal = sessionmaker(bind=local_engine)
+
+# Reemplazamos las variables globales para que el script use la local por defecto
+engine = local_engine if IS_REMOTE else remote_engine
+SessionLocal = LocalSessionLocal if IS_REMOTE else RemoteSessionLocal
 
 # Modelos
 from app.db.models.user import User
@@ -500,8 +517,80 @@ def run_simulation():
         db.add(gp)
     db.commit()
     
-    print("\n✅ SIMULACIÓN FINALIZADA.")
+    print("\n✅ SIMULACIÓN FINALIZADA LOCALMENTE.")
     db.close()
 
+def sync_local_to_remote():
+    """Exporta los datos de la DB SQLite local a la DB remota de forma masiva."""
+    from sqlalchemy import text
+    import os
+    import json
+    
+    print(f"\n☁️  SUBIENDO DATOS A LA NUBE (Neon/Postgres)...")
+    print("   Esta operación es masiva y mucho más rápida que una simulación directa.")
+    
+    # 1. Limpiar base de datos remota
+    Base.metadata.drop_all(bind=remote_engine)
+    Base.metadata.create_all(bind=remote_engine)
+    
+    # 2. Copiar tablas en orden de dependencia
+    tables_to_sync = [
+        "users", "seasons", "multiplier_configs", "constructors", "drivers", 
+        "teams", "team_members", "grand_prix", "race_results", "race_positions", 
+        "race_events", "predictions", "prediction_positions", "prediction_events",
+        "bingo_tiles", "bingo_selections", "achievements", "user_achievements", 
+        "user_stats", "user_gp_stats"
+    ]
+    
+    for table_name in tables_to_sync:
+        print(f"   ⬆️  Sincronizando tabla: {table_name}...", end="", flush=True)
+        try:
+            df = pd.read_sql_table(table_name, local_engine)
+            if not df.empty:
+                # CORRECCIÓN: Convertir objetos Python (dict/list) a strings JSON para que Postgres los acepte
+                for col in df.columns:
+                    sample_series = df[col].dropna()
+                    if not sample_series.empty:
+                        sample_val = sample_series.iloc[0]
+                        if isinstance(sample_val, (dict, list)):
+                            df[col] = df[col].apply(lambda x: json.dumps(x) if x is not None else None)
+
+                df.to_sql(table_name, remote_engine, if_exists='append', index=False, method='multi', chunksize=1000)
+                print(f" OK ({len(df)} filas)")
+            else:
+                print(" Vacía (Skip)")
+        except ValueError as e:
+            from sqlalchemy import inspect
+            inspector = inspect(local_engine)
+            existing_tables = inspector.get_table_names()
+            print(f" ERROR: Tabla '{table_name}' no encontrada en SQLite local.")
+            print(f"   Tablas disponibles en local: {existing_tables}")
+            raise e
+    
+    # 3. Reiniciar Secuencias de Postgres
+    print("   🔄 Reiniciando secuencias de Postgres...")
+    with remote_engine.connect() as conn:
+        for table_name in tables_to_sync:
+            try:
+                conn.execute(text(f"SELECT setval(pg_get_serial_sequence('\"{table_name}\"', 'id'), (SELECT MAX(id) FROM \"{table_name}\"));"))
+            except Exception:
+                pass
+        conn.commit()
+    
+    print("\n🚀 DATOS CARGADOS EN NEON EXITOSAMENTE.")
+    
+    # Limpieza local opcional
+    if os.path.exists("seed_temp.db"):
+        print("   🧹 Borrando DB temporal local...")
+        os.remove("seed_temp.db")
+
 if __name__ == "__main__":
-    run_simulation()
+    if len(sys.argv) > 1 and sys.argv[1] == "--sync-only":
+        if not os.path.exists("seed_temp.db"):
+            print("❌ Error: No existe 'seed_temp.db'. Tienes que ejecutar una simulación completa primero.")
+            sys.exit(1)
+        sync_local_to_remote()
+    else:
+        run_simulation()
+        if IS_REMOTE:
+            sync_local_to_remote()
