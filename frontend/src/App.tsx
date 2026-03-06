@@ -15,7 +15,7 @@ import {
   User // <--- Importamos User para el fallback del avatar
 } from "lucide-react";
 
-import { BASE_URL } from "./api/api";
+import { getAvatarFullUrl } from "./api/api";
 
 // Importamos las páginas
 import Home from "./pages/Home";
@@ -71,11 +71,7 @@ const NavBar = () => {
 
   // ... (función linkClass y getAvatarUrl se mantienen igual) ...
   const linkClass = (path: string) => `flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all duration-200 whitespace-nowrap ${isActive(path) ? "bg-f1-red text-white shadow-md shadow-red-200" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`;
-  const getAvatarUrl = (filename: string | null) => {
-    if (!filename) return null;
-    if (filename.startsWith("http")) return filename;
-    return `${BASE_URL}/static/avatars/${filename}`;
-  };
+  const getAvatarUrl = getAvatarFullUrl;
 
   const avatarUrl = getAvatarUrl(avatar);
 

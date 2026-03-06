@@ -1,6 +1,13 @@
 import axios from "axios";
 
-export const BASE_URL = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+export const BASE_URL = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").trim().replace(/\/$/, "");
+
+export const getAvatarFullUrl = (filename: string | null | undefined) => {
+  if (!filename) return `${BASE_URL}/static/avatars/default.png`.replace(/(^|[^:])\/\//g, "$1/");
+  if (filename.startsWith("http")) return filename;
+  // Ensure we don't have double slashes in the path part, even at the beginning
+  return `${BASE_URL}/static/avatars/${filename}`.replace(/(^|[^:])\/\//g, "$1/");
+};
 
 // ✅ Configuración de AXIOS
 const client = axios.create({

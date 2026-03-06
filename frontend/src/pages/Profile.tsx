@@ -288,7 +288,7 @@ const UserSearch = ({ currentUser, onSelectUser, usersList }: any) => {
                                 className="w-full text-left px-4 py-2.5 hover:bg-white/5 flex items-center gap-3 transition-colors group border-b border-gray-800/50 last:border-0"
                             >
                                 <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-800 border border-gray-700 group-hover:border-gray-500">
-                                    <img src={`${API.BASE_URL}/static/avatars/${u.avatar}`} className="w-full h-full object-cover" alt={u.acronym} />
+                                    <img src={API.getAvatarFullUrl(u.avatar)} className="w-full h-full object-cover" alt={u.acronym} />
                                 </div>
                                 <div>
                                     <div className="text-xs font-bold text-gray-200 group-hover:text-white">{u.username}</div>
@@ -701,11 +701,7 @@ export default function Profile() {
         setLoadingAvatar(false);
     };
 
-    const getAvatarUrl = (filename: string) => {
-        if (!filename) return `${API.BASE_URL}/static/avatars/default.png`;
-        if (filename.startsWith("http")) return filename;
-        return `${API.BASE_URL}/static/avatars/${filename}`;
-    };
+    const getAvatarUrl = API.getAvatarFullUrl;
 
     if (isLoadingInit || !displayedUser) return <div className="p-10 text-center animate-pulse text-gray-400 font-black uppercase tracking-widest">Cargando perfil...</div>;
 
