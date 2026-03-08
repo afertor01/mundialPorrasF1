@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, and_, or_
 from typing import Set, List, Optional
+from collections import defaultdict
 
 # Modelos
 from app.db.models.achievement import Achievement, UserAchievement, AchievementType
@@ -190,34 +191,36 @@ def update_stats_incremental(db: Session, user_id: int, gp: GrandPrix) -> UserSt
     gp_stats.dnf_count_hit = new["dnf_count_hit"]
     gp_stats.dnf_driver_hit = new["dnf_driver_hit"]
 
-    db.commit()
+    # db.commit() <- REMOVIDO PARA BATCH
     return stats
 
 # ==============================================================================
 # 2. CALCULADORA DE LOGROS (CHECKERS)
 # ==============================================================================
 
-def check_event_achievements(db: Session, user_id: int, gp: GrandPrix) -> Set[str]:
+def check_event_achievements(
+    db: Session, 
+    user_id: int, 
+    gp: GrandPrix, 
+    prediction: Optional[Prediction] = None,
+    context: Optional[dict] = None
+) -> Set[str]:
     """Verifica logros tipo EVENT basándose ÚNICAMENTE en el GP actual."""
     unlocks = set()
     
-    pred = db.query(Prediction).filter(Prediction.user_id == user_id, Prediction.gp_id == gp.id).first()
+    pred = prediction or db.query(Prediction).filter(Prediction.user_id == user_id, Prediction.gp_id == gp.id).first()
     if not pred or not gp.race_result: return unlocks
     
-    # Reutilizamos la lógica de métricas para no repetir código
     m = calculate_gp_metrics(pred, gp.race_result)
-    
-    # --- PUNTOS ---
     points = m["points"]
     if points > 0: unlocks.add("event_first")
     if points > 25: unlocks.add("event_25pts")
     if points > 50: unlocks.add("event_50pts")
-    if points > 75: unlocks.add("event_diamante") # Nuevo
+    if points > 75: unlocks.add("event_diamante")
     if points == 0: unlocks.add("event_maldonado")
 
-    # --- HISTOS EXACTOS ---
     if m["exact_podium_hit"]: unlocks.add("event_nostradamus")
-    if m["exact_top5_hit"]: unlocks.add("event_el_profesor") # Nuevo
+    if m["exact_top5_hit"]: unlocks.add("event_el_profesor")
 
     hits = m["exact_positions"]
     if hits >= 5: unlocks.add("event_high_five")
@@ -392,16 +395,11 @@ def check_career_season_achievements(db: Session, user_id: int, stats: UserStats
     
     return unlocks
 
-def check_season_finale_achievements(db: Session, user_id: int, season_id: int) -> Set[str]:
+def check_season_finale_achievements(db: Session, user_id: int, season_id: int, stats_all: List[UserStats]) -> Set[str]:
     """
     Logros que SOLO se dan al cerrar la temporada (Campeón, Mochila).
     """
     unlocks = set()
-    
-    stats_all = db.query(UserStats)\
-        .filter(UserStats.last_gp_played_id.isnot(None))\
-        .order_by(desc(UserStats.current_season_points))\
-        .all()
     
     rank = next((i+1 for i, s in enumerate(stats_all) if s.user_id == user_id), 999)
     if rank == 1: unlocks.add("career_champion")
@@ -428,28 +426,29 @@ def check_season_finale_achievements(db: Session, user_id: int, season_id: int) 
 # ==============================================================================
 
 def verify_historical_validity(db: Session, user_id: int, slug: str) -> bool:
-    # Mantenemos esta función para el sistema de revocación
-    # aunque ahora con UserGpStats es menos crítico, sigue siendo útil
-    # para auditorías.
-    def _has_gp_with_exact_hits(n):
-        preds = db.query(Prediction).filter(Prediction.user_id == user_id).all()
-        for p in preds:
-            rr = db.query(RaceResult).filter(RaceResult.gp_id == p.gp_id).first()
-            if not rr: continue
-            # Usamos el helper nuevo
-            m = calculate_gp_metrics(p, rr)
-            if m["exact_positions"] >= n: return True
-        return False
+    """Verifica si el usuario CUMPLE el criterio en CUALQUIER GP pasado usando UserGpStats."""
+    if slug == "event_join_team":
+        return db.query(TeamMember).filter(TeamMember.user_id == user_id).first() is not None
+    if slug == "event_first":
+        return db.query(UserGpStats).filter(UserGpStats.user_id == user_id).first() is not None
 
-    if slug == "event_25pts": return db.query(Prediction).filter(Prediction.user_id==user_id, Prediction.points > 25).first() is not None
-    if slug == "event_50pts": return db.query(Prediction).filter(Prediction.user_id==user_id, Prediction.points > 50).first() is not None
-    if slug == "event_maldonado": return db.query(Prediction).filter(Prediction.user_id==user_id, Prediction.points == 0).first() is not None
-    if slug == "event_high_five": return _has_gp_with_exact_hits(5)
-    if slug == "event_la_decima": return _has_gp_with_exact_hits(10)
-    if slug == "event_join_team": return db.query(TeamMember).filter(TeamMember.user_id == user_id).first() is not None
-    if slug == "event_first": return db.query(Prediction).filter(Prediction.user_id == user_id).count() >= 1
+    query = db.query(UserGpStats).filter(UserGpStats.user_id == user_id)
+    if slug == "event_25pts": query = query.filter(UserGpStats.points > 25)
+    elif slug == "event_50pts": query = query.filter(UserGpStats.points > 50)
+    elif slug == "event_diamante": query = query.filter(UserGpStats.points > 75)
+    elif slug == "event_maldonado": query = query.filter(UserGpStats.points == 0)
+    elif slug == "event_nostradamus": query = query.filter(UserGpStats.exact_podium_hit == True)
+    elif slug == "event_high_five": query = query.filter(UserGpStats.exact_positions >= 5)
+    elif slug == "event_la_decima": query = query.filter(UserGpStats.exact_positions >= 10)
+    elif slug == "event_mc" or slug == "event_el_narrador":
+        query = query.filter(UserGpStats.fastest_lap_hit == True, UserGpStats.safety_car_hit == True, 
+                             UserGpStats.dnf_count_hit == True, UserGpStats.dnf_driver_hit == True)
+    else:
+        # Para logros complejos (Civil War, Wall, etc), recurrimos a la lógica antigua solo si es necesario
+        # pero por ahora, la mayoría de dynamic slugs 'EVENT' son capturables en UserGpStats o son 'SEASON/CAREER'
+        return True 
 
-    return True
+    return query.first() is not None
 
 # ==============================================================================
 # 4. ORQUESTADOR PRINCIPAL
@@ -460,34 +459,33 @@ def grant_achievements(
     user_id: int, 
     slugs: List[str], 
     season_id: int = None, 
-    gp_id: int = None
+    gp_id: int = None,
+    context: Optional[dict] = None
 ):
-    existing_rows = db.query(UserAchievement).filter(UserAchievement.user_id == user_id).all()
-    
-    for slug in slugs:
-        ach = db.query(Achievement).filter_by(slug=slug).first()
-        if not ach: continue
-
-        already_has = any(r.achievement_id == ach.id for r in existing_rows)
-
-        if not already_has:
+    new_achs = []
+    # Usar contexto para batch o query individual para normal/legacy
+    if context:
+        user_existing = context["user_achievements"].get(user_id, set())
+        for slug in slugs:
+            ach = context["achievements"].get(slug)
+            if not ach or ach.id in user_existing: continue
+            
             print(f"🏆 DESBLOQUEADO: {slug}")
-            save_season = season_id
-            save_gp = None
+            save_gp = gp_id if ach.type in [AchievementType.EVENT, AchievementType.CAREER] else None
+            db.add(UserAchievement(user_id=user_id, achievement_id=ach.id, season_id=season_id, gp_id=save_gp))
+            user_existing.add(ach.id)
+    else:
+        existing_rows = db.query(UserAchievement).filter(UserAchievement.user_id == user_id).all()
+        already_has_ids = {r.achievement_id for r in existing_rows}
+        for slug in slugs:
+            ach = db.query(Achievement).filter_by(slug=slug).first()
+            if not ach or ach.id in already_has_ids: continue
             
-            if ach.type == AchievementType.EVENT:
-                save_gp = gp_id
-            elif ach.type == AchievementType.CAREER:
-                save_gp = gp_id 
-            
-            db.add(UserAchievement(
-                user_id=user_id, 
-                achievement_id=ach.id, 
-                season_id=save_season,
-                gp_id=save_gp
-            ))
-            
-    db.commit()
+            print(f"🏆 DESBLOQUEADO (individual): {slug}")
+            save_gp = gp_id if ach.type in [AchievementType.EVENT, AchievementType.CAREER] else None
+            db.add(UserAchievement(user_id=user_id, achievement_id=ach.id, season_id=season_id, gp_id=save_gp))
+            already_has_ids.add(ach.id)
+        db.commit()
 
 
 def sync_achievements(db: Session, user_id: int, current_gp: GrandPrix):
@@ -537,10 +535,74 @@ def sync_achievements(db: Session, user_id: int, current_gp: GrandPrix):
 
 # Entry Points
 def evaluate_race_achievements(db: Session, gp_id: int):
-    gp = db.query(GrandPrix).get(gp_id)
+    """Orquestador BATCH: Procesa todos los usuarios de un GP en una sola transacción."""
+    gp = db.query(GrandPrix).options(
+        joinedload(GrandPrix.race_result).joinedload(RaceResult.positions),
+        joinedload(GrandPrix.race_result).joinedload(RaceResult.events)
+    ).get(gp_id)
     if not gp: return
-    users = [u[0] for u in db.query(Prediction.user_id).filter(Prediction.gp_id == gp_id).distinct().all()]
-    for uid in users: sync_achievements(db, uid, gp)
+
+    preds = db.query(Prediction).options(joinedload(Prediction.positions), joinedload(Prediction.events))\
+        .filter(Prediction.gp_id == gp_id).all()
+    uids = [p.user_id for p in preds]
+    
+    # 1. Cargas masivas iniciales
+    ach_defs = {a.slug: a for a in db.query(Achievement).all()}
+    stats_map = {s.user_id: s for s in db.query(UserStats).filter(UserStats.user_id.in_(uids)).all()}
+    for uid in uids:
+        if uid not in stats_map:
+            stats_map[uid] = UserStats(user_id=uid); db.add(stats_map[uid])
+
+    user_ach_rows = db.query(UserAchievement).options(joinedload(UserAchievement.achievement))\
+        .filter(UserAchievement.user_id.in_(uids)).all()
+    user_ach_map = defaultdict(set)
+    for row in user_ach_rows: user_ach_map[row.user_id].add(row.achievement_id)
+
+    # 2. Contexto global
+    max_gp_points = max((p.points for p in preds), default=0)
+    leader_stat = db.query(UserStats).order_by(desc(UserStats.current_season_points)).first()
+    leader_gp_points = 0
+    if leader_stat:
+        lp = next((p for p in preds if p.user_id == leader_stat.user_id), None)
+        leader_gp_points = lp.points if lp else 0
+
+    ctx = {
+        "achievements": ach_defs,
+        "user_achievements": user_ach_map,
+        "drivers": {d.code: d for d in db.query(Driver).all()},
+        "team_members": {tm.user_id: tm for tm in db.query(TeamMember).filter(TeamMember.user_id.in_(uids), TeamMember.season_id == gp.season_id).all()},
+        "max_gp_points": max_gp_points,
+        "leader_gp_points": leader_gp_points
+    }
+
+    # 3. Procesar Usuarios
+    for pred in preds:
+        uid = pred.user_id
+        stats = update_stats_incremental(db, uid, gp)
+        
+        should_have = check_career_season_achievements(db, uid, stats)
+        should_have.update(check_event_achievements(db, uid, gp, prediction=pred, context=ctx))
+        
+        # Grant
+        grant_achievements(db, uid, list(should_have), season_id=gp.season_id, gp_id=gp.id, context=ctx)
+        
+        # Revoke (Simplified batch)
+        # Solo verificamos revocación si el logro es dinámico
+        dynamic_slugs = get_dynamic_slugs()
+        user_rows = [r for r in user_ach_rows if r.user_id == uid]
+        for ua in user_rows:
+            ach = ach_defs.get(ua.achievement.slug) if hasattr(ua, 'achievement') else db.query(Achievement).get(ua.achievement_id)
+            slug = ach.slug
+            if slug not in dynamic_slugs: continue
+            if slug not in should_have:
+                if ach.type == AchievementType.EVENT:
+                    if not verify_historical_validity(db, uid, slug):
+                        db.delete(ua)
+                else:
+                    db.delete(ua)
+
+    db.commit()
+    print(f"✅ Proceso batch completado para GP {gp_id}")
 
 def evaluate_season_finale_achievements(db: Session, season_id: int):
     """
@@ -579,15 +641,28 @@ def evaluate_season_finale_achievements(db: Session, season_id: int):
     # ya tiene los UserStats al día.
     
     all_users = db.query(User).all()
+    uids = [u.id for u in all_users]
+    ach_defs = {a.slug: a for a in db.query(Achievement).all()}
     
+    # Pre-cargar logros actuales para el context
+    user_ach_rows = db.query(UserAchievement).filter(UserAchievement.user_id.in_(uids)).all()
+    user_ach_map = defaultdict(set)
+    for row in user_ach_rows: user_ach_map[row.user_id].add(row.achievement_id)
+
+    ctx = {"achievements": ach_defs, "user_achievements": user_ach_map}
+
+    # Cargar y ordenar stats una sola vez para el check de finale
+    stats_all = db.query(UserStats)\
+        .filter(UserStats.last_gp_played_id.isnot(None))\
+        .order_by(desc(UserStats.current_season_points))\
+        .all()
+
     for user in all_users:
-        # Checkeamos qué merece el usuario con los datos actuales
-        slugs = check_season_finale_achievements(db, user.id, season_id)
-        
+        slugs = check_season_finale_achievements(db, user.id, season_id, stats_all)
         if slugs: 
-            # Grant achievements se encarga de no duplicar, pero como acabamos de borrar,
-            # los insertará limpios.
-            grant_achievements(db, user.id, list(slugs), season_id=season_id, gp_id=None)
+            grant_achievements(db, user.id, list(slugs), season_id=season_id, gp_id=None, context=ctx)
+
+    db.commit()
 
     print(f"✅ Evaluación de temporada {season_id} completada.")
     
@@ -635,8 +710,7 @@ def rebuild_all_achievements(db: Session):
         print(f"   ⟳ Procesando GP: {gp.name} (Season {gp.season_id})...")
         
         # Sincronizar (Stats + Event Achievements)
-        for uid in user_ids:
-            sync_achievements(db, uid, gp)
+        evaluate_race_achievements(db, gp.id)
             
         # Check if this is the last GP of the season (that has happened so far)
         # O si es la última carrera programada de la temporada.

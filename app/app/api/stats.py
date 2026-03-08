@@ -318,16 +318,9 @@ def normalize_score(value, min_val, max_val, reverse=False):
 
 # --- LÓGICA CORE (REUTILIZABLE) ---
 def _calculate_stats(db: Session, target_user_id: int):
-    """Calcula las estadísticas completas para un usuario específico comparado con el global."""
+    """Calcula las estadísticas completas para un usuario específico comparado con el global (Optimizada)."""
     
-    # ... (Parte 1 y 2 idénticas: Datos globales y Bucle Araña) ...
-    # Para ahorrar espacio, asumo que las líneas 1 a 95 del bloque anterior están bien.
-    # El error estaba en la PARTE 3. Aquí tienes la función CORREGIDA desde la parte 3:
-
-    # (Asegúrate de mantener la parte 1 y 2 que te di antes, si las has borrado dímelo)
-    # Aquí retomo desde el cálculo del usuario target:
-
-    # 1. DATOS PRELIMINARES GLOBALES (Re-incluido para contexto, asegura tener los imports)
+    # 1. DATOS PRELIMINARES GLOBALES
     all_users = db.query(User).all()
     gps_data = {gp.id: gp for gp in db.query(GrandPrix).all()}
     gps_dates = {gp.id: gp.race_datetime.replace(tzinfo=timezone.utc) if gp.race_datetime.tzinfo is None else gp.race_datetime for gp in gps_data.values()}
@@ -335,7 +328,7 @@ def _calculate_stats(db: Session, target_user_id: int):
     part_counts = db.query(Prediction.gp_id, func.count(Prediction.user_id)).group_by(Prediction.gp_id).all()
     gp_participation_map = {gp_id: count for gp_id, count in part_counts}
 
-    race_results_db = db.query(RaceResult).all()
+    race_results_db = db.query(RaceResult).options(joinedload(RaceResult.positions), joinedload(RaceResult.events)).all()
     official_results = {}
     for rr in race_results_db:
         official_results[rr.gp_id] = {
@@ -343,10 +336,27 @@ def _calculate_stats(db: Session, target_user_id: int):
             "events": {e.event_type: e.value for e in rr.events}
         }
 
+    # === OPTIMIZACIÓN DE N+1 ===
+    # En lugar de consultar las predicciones, posiciones y eventos usuario por usuario y gp por gp,
+    # bajamos todo de golpe y agrupamos en memoria.
+    all_preds_db = db.query(Prediction).options(
+        joinedload(Prediction.positions),
+        joinedload(Prediction.events)
+    ).all()
+    
+    preds_by_user = {}
+    for p in all_preds_db:
+        preds_by_user.setdefault(p.user_id, []).append(p)
+        
+    preds_by_gp = {}
+    for p in all_preds_db:
+        preds_by_gp.setdefault(p.gp_id, []).append(p)
+    # ============================
+
     # 2. BUCLE GLOBAL (ARAÑA)
     metrics_raw = []
     for u in all_users:
-        u_preds = db.query(Prediction).filter(Prediction.user_id == u.id).all()
+        u_preds = preds_by_user.get(u.id, [])
         if not u_preds: continue
 
         points_list = [p.points for p in u_preds]
@@ -385,8 +395,8 @@ def _calculate_stats(db: Session, target_user_id: int):
             "ant": anticipation_raw, "pod": podium_raw, "vid": vidente_raw
         })
 
-    # 3. DATOS DEL USUARIO TARGET (AQUÍ ESTABA EL ERROR)
-    target_preds = db.query(Prediction).filter(Prediction.user_id == target_user_id).all()
+    # 3. DATOS DEL USUARIO TARGET
+    target_preds = preds_by_user.get(target_user_id, [])
     # Ordenar
     target_preds_sorted = sorted(target_preds, key=lambda p: gps_dates.get(p.gp_id, datetime.min))
     
@@ -396,35 +406,42 @@ def _calculate_stats(db: Session, target_user_id: int):
 
     trophies = {"gold": 0, "silver": 0, "bronze": 0}
     for p in target_preds:
-        better = db.query(func.count(Prediction.id)).filter(Prediction.gp_id == p.gp_id, Prediction.points > p.points).scalar()
+        better = sum(1 for other_p in preds_by_gp.get(p.gp_id, []) if other_p.points > p.points)
         if better == 0: trophies["gold"] += 1
         elif better == 1: trophies["silver"] += 1
         elif better == 2: trophies["bronze"] += 1
     
-    # CORRECCIÓN AQUÍ: Definimos la variable correctamente
     podium_ratio_percent = int(((trophies["gold"]+trophies["silver"]+trophies["bronze"]) / races_played * 100)) if races_played > 0 else 0
 
     # 4. INSIGHTS
     insights = {"hero": None, "villain": None, "best_race": None, "momentum": 0}
     if races_played > 0:
-        # Hero
-        hero = (db.query(PredictionPosition.driver_name, func.count(PredictionPosition.driver_name).label('c'))
-                .join(Prediction).filter(Prediction.user_id == target_user_id, PredictionPosition.position <= 3)
-                .group_by(PredictionPosition.driver_name).order_by(desc('c')).first())
-        if hero: insights["hero"] = {"code": hero[0], "count": hero[1]}
+        # Hero (Calculado en memoria)
+        hero_counts = {}
+        for p in target_preds:
+            for pp in p.positions:
+                if pp.position <= 3:
+                    hero_counts[pp.driver_name] = hero_counts.get(pp.driver_name, 0) + 1
+        if hero_counts:
+            hero_code = max(hero_counts, key=hero_counts.get)
+            insights["hero"] = {"code": hero_code, "count": hero_counts[hero_code]}
         
-        # Villain
-        villain = (db.query(PredictionEvent.value, func.count(PredictionEvent.value).label('c'))
-                   .join(Prediction).filter(Prediction.user_id == target_user_id, PredictionEvent.event_type == "DNF_DRIVER")
-                   .group_by(PredictionEvent.value).order_by(desc('c')).first())
-        if villain: insights["villain"] = {"code": villain[0], "count": villain[1]}
+        # Villain (Calculado en memoria)
+        villain_counts = {}
+        for p in target_preds:
+            for pe in p.events:
+                if pe.event_type == "DNF_DRIVER":
+                    villain_counts[pe.value] = villain_counts.get(pe.value, 0) + 1
+        if villain_counts:
+            villain_code = max(villain_counts, key=villain_counts.get)
+            insights["villain"] = {"code": villain_code, "count": villain_counts[villain_code]}
 
         # Best Race
         best_p = max(target_preds, key=lambda p: p.points)
         bgp = gps_data.get(best_p.gp_id)
         if bgp:
             total_in_race = gp_participation_map.get(best_p.gp_id, 1)
-            worse = db.query(func.count(Prediction.id)).filter(Prediction.gp_id == best_p.gp_id, Prediction.points < best_p.points).scalar()
+            worse = sum(1 for other_p in preds_by_gp.get(best_p.gp_id, []) if other_p.points < best_p.points)
             perc = 100
             if total_in_race > 1:
                 perc = 100 - int((worse / (total_in_race - 1)) * 100)
@@ -459,7 +476,7 @@ def _calculate_stats(db: Session, target_user_id: int):
 
     return {
         "total_points": total_points, "avg_points": avg_points, "races_played": races_played,
-        "podium_ratio_percent": podium_ratio_percent, # Ahora sí existe la variable
+        "podium_ratio_percent": podium_ratio_percent,
         "trophies": trophies,
         "radar": radar_data, "insights": insights
     }
