@@ -31,6 +31,7 @@ from app.services.achievements_service import evaluate_race_achievements, rebuil
 from app.services.f1_sync import sync_race_data_manual, sync_qualy_results
 from app.core.deps import require_admin
 from app.core.security import hash_password
+from app.core.utils import generate_join_code
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -612,7 +613,13 @@ def list_teams(season_id: int, current_user = Depends(require_admin)):
 @router.post("/seasons/{season_id}/teams")
 def create_team(season_id: int, name: str, current_user = Depends(require_admin)):
     db = SessionLocal()
-    team = Team(name=name, season_id=season_id)
+    
+    # Generar un código de unión aleatorio y único
+    code = generate_join_code()
+    while db.query(Team).filter(Team.join_code == code).first():
+        code = generate_join_code()
+        
+    team = Team(name=name, season_id=season_id, join_code=code)
     db.add(team)
     db.commit()
     db.refresh(team)

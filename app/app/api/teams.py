@@ -8,15 +8,9 @@ from app.db.models.team_member import TeamMember
 from app.db.models.season import Season
 from app.core.deps import get_current_user
 from app.services.achievements_service import grant_achievements
+from app.core.utils import generate_join_code
 
 router = APIRouter(prefix="/teams", tags=["Player Teams"])
-
-def generate_join_code():
-    """Genera un código aleatorio de 6 caracteres (Ej: A7X-9Y2)"""
-    chars = string.ascii_uppercase + string.digits
-    part1 = ''.join(secrets.choice(chars) for _ in range(3))
-    part2 = ''.join(secrets.choice(chars) for _ in range(3))
-    return f"{part1}-{part2}"
 
 @router.get("/my-team")
 def get_my_team(current_user = Depends(get_current_user)):
