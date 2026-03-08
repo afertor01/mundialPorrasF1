@@ -91,29 +91,34 @@ def create_team_player(name: str, current_user = Depends(get_current_user)):
     while db.query(Team).filter(Team.join_code == code).first():
         code = generate_join_code() # Reintentar si hay colisión (muy raro)
 
-    # 4. Crear Equipo
-    new_team = Team(
-        name=name,
-        season_id=active_season.id,
-        join_code=code
-    )
-    db.add(new_team)
-    db.flush() # Para obtener el ID del equipo
+    try:
+        # 4. Crear Equipo
+        new_team = Team(
+            name=name,
+            season_id=active_season.id,
+            join_code=code
+        )
+        db.add(new_team)
+        db.flush() # Para obtener el ID del equipo
 
-    # 5. Añadir al usuario como miembro
-    membership = TeamMember(
-        team_id=new_team.id,
-        user_id=current_user.id,
-        season_id=active_season.id
-    )
-    db.add(membership)
-    
-    db.commit()
-    db.refresh(new_team)
-    grant_achievements(db, current_user.id, ["event_founder","event_join_team"])
-    db.close()
-    
-    return {"message": "Escudería creada con éxito", "code": code}
+        # 5. Añadir al usuario como miembro
+        membership = TeamMember(
+            team_id=new_team.id,
+            user_id=current_user.id,
+            season_id=active_season.id
+        )
+        db.add(membership)
+        
+        db.commit()
+        db.refresh(new_team)
+        grant_achievements(db, current_user.id, ["event_founder","event_join_team"], season_id=active_season.id)
+        
+        return {"message": "Escudería creada con éxito", "code": code}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
 
 @router.post("/join")
 def join_team_player(code: str, current_user = Depends(get_current_user)):
@@ -154,25 +159,28 @@ def join_team_player(code: str, current_user = Depends(get_current_user)):
         db.close()
         raise HTTPException(400, "La escudería está completa (Max 2 pilotos).")
 
-    # 5. Crear la unión
-    new_member = TeamMember(
-        team_id=team.id,
-        user_id=current_user.id,
-        season_id=active_season.id
-    )
-    db.add(new_member)
-    
-    # -------------------------------------------------------
-    # 🔧 CORRECCIÓN: Guardar el nombre ANTES de cerrar nada
-    # -------------------------------------------------------
-    team_name = team.name 
-    
-    db.commit()
-    grant_achievements(db, current_user.id, ["event_join_team"])
-    db.close()
+    try:
+        # 5. Crear la unión
+        new_member = TeamMember(
+            team_id=team.id,
+            user_id=current_user.id,
+            season_id=active_season.id
+        )
+        db.add(new_member)
+        
+        # 🔧 CORRECCIÓN: Guardar el nombre ANTES de cerrar nada
+        team_name = team.name 
+        
+        db.commit()
+        grant_achievements(db, current_user.id, ["event_join_team"], season_id=active_season.id)
 
-    # Usamos la variable team_name, no team.name (que podría dar error de 'DetachedInstance')
-    return {"message": f"Te has unido a {team_name} correctamente."}
+        # Usamos la variable team_name, no team.name (que podría dar error de 'DetachedInstance')
+        return {"message": f"Te has unido a {team_name} correctamente."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
 
 @router.delete("/leave")
 def leave_team_player(current_user = Depends(get_current_user)):

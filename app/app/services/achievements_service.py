@@ -22,30 +22,30 @@ from app.db.models.team_member import TeamMember
 # ==============================================================================
 
 def get_dynamic_slugs() -> Set[str]:
+    """
+    Retorna la lista de logros cuya validez se comprueba dinámicamente.
+    Si un logro NO está aquí, una vez concedido se considera PERMANENTE.
+    """
     return {
-        # Career Stats
-        "career_debut", "career_500", "career_1000", "career_2500", 
-        "career_50_gps", "career_50_exact", 
-        "career_goat", "career_100_exact", "career_10_full_podium",
-        "career_5_fl", "career_10_fl",
-        "career_5_sc", "career_10_sc",
-        "career_5_dnf_count", "career_10_dnf_count",
-        "career_5_dnf_driver", "career_10_dnf_driver",
-        # Season Stats (Puntos)
+        # Career Stats (Solo los basados en contadores acumulativos que podrían bajar)
+        "career_500", "career_1000", "career_2500", 
+        "career_50_gps", "career_50_exact", "career_goat",
+        "career_100_exact", "career_10_full_podium",
+        "career_5_fl", "career_10_fl", "career_5_sc", "career_10_sc",
+        "career_5_dnf_count", "career_10_dnf_count", "career_5_dnf_driver", "career_10_dnf_driver",
+        
+        # Season Stats (Basados en puntos de la temporada actual)
         "season_100", "season_300", "season_500",
-        # Eventos
-        "event_first", "event_join_team", "event_25pts", "event_50pts", 
-        "event_nostradamus", "event_high_five", "event_la_decima", 
-        "event_oracle", "event_mc", "event_god", "event_grand_chelem", 
-        "event_civil_war", "event_chaos", "event_maldonado",
-        # NUEVOS
-        "event_el_profesor", "event_sexto_sentido", "event_7_maravillas",
-        "event_bola_8", "event_nube_9", "event_el_narrador",
-        "event_casi_dios", "event_diamante", "event_el_optimista",
-        "event_la_escoba", "event_el_muro", "event_francotirador_p10",
-        "event_la_maldicion", "event_podio_invertido",
+        
+        # Eventos (Basados en el rendimiento de un GP específico)
+        "event_25pts", "event_50pts", "event_diamante",
+        "event_nostradamus", "event_el_profesor", "event_high_five", "event_sexto_sentido",
+        "event_7_maravillas", "event_bola_8", "event_nube_9", "event_la_decima",
+        "event_oracle", "event_mc", "event_el_narrador", "event_god", "event_casi_dios",
+        "event_grand_chelem", "event_civil_war", "event_el_muro", "event_chaos",
+        "event_francotirador_p10", "event_la_maldicion", "event_podio_invertido",
         "event_el_elegido", "event_el_sandwich", "event_lobo_solitario",
-        "event_david_goliath"
+        "event_david_goliath", "event_el_optimista", "event_la_escoba", "event_maldonado"
     }
 
 # ==============================================================================

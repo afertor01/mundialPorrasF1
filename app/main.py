@@ -38,10 +38,16 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # Creamos las tablas en la base de datos
 Base.metadata.create_all(bind=engine)
 
-# 👇 SINCRONIZAR AVATARES DESDE DISCO AL INICIO
+# 👇 SINCRONIZAR AVATARES Y LOGROS DESDE DISCO AL INICIO
+from app.api.achievements import seed_achievements
+from app.api.avatars import sync_avatars_from_disk
+from app.db.db_utils import sync_all_sequences
+
 db = SessionLocal()
 try:
+    sync_all_sequences(db)
     sync_avatars_from_disk(db)
+    seed_achievements(db)
 finally:
     db.close()
 
