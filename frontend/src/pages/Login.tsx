@@ -1,26 +1,53 @@
 import React, { useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { login as apiLogin } from "../api/api";
+import { login as apiLogin, resendVerification } from "../api/api";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { LogIn, Lock, User } from "lucide-react";
+import { LogIn, Lock, User, MailCheck } from "lucide-react";
+import { useToast } from "../context/ToastContext";
 
 const Login: React.FC = () => {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const { login } = useContext(AuthContext) as any;
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [error, setError] = useState("");
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
+  const [isResending, setIsResending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setNeedsVerification(false);
     try {
       const res = await apiLogin(identifier, password);
       login(res.access_token);
       navigate("/dashboard");
-    } catch (err) {
-      setError("Credenciales incorrectas. Inténtalo de nuevo.");
+    } catch (err: any) {
+      if (err.response?.status === 403 && err.response?.data?.detail?.needs_verification) {
+        setNeedsVerification(true);
+        setUnverifiedEmail(err.response.data.detail.email);
+        setError(err.response.data.detail.message);
+      } else {
+        const detail = err.response?.data?.detail;
+        setError(typeof detail === 'string' ? detail : "Credenciales incorrectas. Inténtalo de nuevo.");
+      }
+    }
+  };
+
+  const handleResend = async () => {
+    setIsResending(true);
+    try {
+      await resendVerification(unverifiedEmail);
+      toast("Se ha mandado un nuevo correo de verificación a " + unverifiedEmail, "success");
+      setNeedsVerification(false);
+      setError("");
+    } catch (err: any) {
+        toast(err.response?.data?.detail || "Error al reenviar el correo", "error");
+    } finally {
+        setIsResending(false);
     }
   };
 
@@ -41,8 +68,19 @@ const Login: React.FC = () => {
         </div>
 
         {error && (
-          <motion.div initial={{ x: -10 }} animate={{ x: 0 }} className="bg-red-50 text-f1-red p-3 rounded-lg mb-4 text-sm font-medium border border-red-100">
-            {error}
+          <motion.div initial={{ x: -10 }} animate={{ x: 0 }} className="bg-red-50 text-f1-red p-3 rounded-lg mb-4 text-sm font-medium border border-red-100 flex flex-col gap-2 relative">
+            <span>{error}</span>
+            {needsVerification && (
+                <button 
+                  onClick={handleResend}
+                  disabled={isResending}
+                  className="bg-f1-red text-white py-1.5 px-3 rounded-md text-xs font-bold hover:bg-red-700 transition flex items-center justify-center gap-2 mt-1 disabled:opacity-50"
+                  type="button"
+                >
+                  <MailCheck size={14} />
+                  {isResending ? "Enviando..." : "Reenviar correo de verificación"}
+                </button>
+            )}
           </motion.div>
         )}
 

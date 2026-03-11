@@ -1,5 +1,5 @@
 from app.db.models import _all
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from fastapi import UploadFile, File # <--- Importante para subir archivos
 import json
 from datetime import datetime
@@ -30,8 +30,9 @@ from app.services.scoring import calculate_prediction_score
 from app.services.achievements_service import evaluate_race_achievements, rebuild_all_achievements
 from app.services.f1_sync import sync_race_data_manual, sync_qualy_results
 from app.core.deps import require_admin
-from app.core.security import hash_password
+from app.core.security import hash_password, create_verification_token
 from app.core.utils import generate_join_code
+from app.services.email import send_verification_email_sync
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -54,6 +55,7 @@ def create_user(
     password: str, 
     role: str, 
     acronym: str, # <--- AÑADIR ESTE ARGUMENTO
+    background_tasks: BackgroundTasks,
     current_user = Depends(require_admin)
 ):
     db = SessionLocal()
@@ -73,17 +75,23 @@ def create_user(
         raise HTTPException(400, "El acrónimo debe ser de máx 3 letras")
 
     # 3. Crear usuario
+    token = create_verification_token()
     user = User(
         email=email, 
         username=username, 
         hashed_password=hash_password(password), 
         role=role,
-        acronym=acronym.upper() # <--- GUARDARLO (Siempre mayúsculas)
+        acronym=acronym.upper(), # <--- GUARDARLO (Siempre mayúsculas)
+        is_verified=False,
+        verification_token=token
     )
     db.add(user)
     db.commit()
     db.refresh(user)
     db.close()
+    
+    background_tasks.add_task(send_verification_email_sync, user.email, token, user.username)
+    
     return user
 
 @router.delete("/users/{user_id}")

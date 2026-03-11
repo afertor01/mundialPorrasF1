@@ -148,7 +148,7 @@ def create_users(db):
     skills = {} # Diccionario ID -> Skill
     
     # 1. Admin
-    admin = User(email="admin@admin.com", username="Admin", acronym="ADM", hashed_password=hash_password("123"), role="admin", created_at=datetime.utcnow())
+    admin = User(email="admin@admin.com", username="Admin", acronym="ADM", hashed_password=hash_password("123"), role="admin", created_at=datetime.utcnow(), is_verified=True)
     db.add(admin)
     db.flush() # ⚠️ IMPORTANTE: Genera el ID inmediatamente
     users.append(admin)
@@ -156,7 +156,7 @@ def create_users(db):
     skills[admin.id] = 0.5 # Usamos el ID generado
     
     # 2. Tú
-    yo = User(email="yo@test.com", username="Afertor", acronym="AFE", hashed_password=hash_password("123"), role="user", created_at=datetime.utcnow())
+    yo = User(email="yo@test.com", username="Afertor", acronym="AFE", hashed_password=hash_password("123"), role="user", created_at=datetime.utcnow(), is_verified=True)
     db.add(yo)
     db.flush() # ⚠️ IMPORTANTE
     users.append(yo)
@@ -175,7 +175,7 @@ def create_users(db):
                 used_acronyms.add(acr)
                 break
         
-        u = User(email=f"user{i}@test.com", username=name, acronym=acr, hashed_password=hash_password("123"), role="user", created_at=datetime.utcnow())
+        u = User(email=f"user{i}@test.com", username=name, acronym=acr, hashed_password=hash_password("123"), role="user", created_at=datetime.utcnow(), is_verified=True)
         db.add(u)
         db.flush() # ⚠️ IMPORTANTE: Obtenemos ID antes de seguir
         users.append(u)
