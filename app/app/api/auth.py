@@ -11,7 +11,7 @@ from sqlalchemy import or_
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/register")
-def register(user: UserCreate, background_tasks: BackgroundTasks):
+def register(user: UserCreate):
     db = SessionLocal()
 
     # 1. Validar que no exista email o username
@@ -43,7 +43,7 @@ def register(user: UserCreate, background_tasks: BackgroundTasks):
     db.refresh(new_user)
     db.close()
 
-    background_tasks.add_task(send_verification_email_sync, new_user.email, token, new_user.username)
+    send_verification_email_sync(new_user.email, token, new_user.username)
 
     return {"message": "Usuario creado exitosamente. Por favor verifica tu correo."}
 
@@ -102,7 +102,7 @@ class ResendVerification(BaseModel):
     email: str
 
 @router.post("/resend-verification")
-def resend_verification(data: ResendVerification, background_tasks: BackgroundTasks):
+def resend_verification(data: ResendVerification):
     db = SessionLocal()
     user = db.query(User).filter(User.email == data.email).first()
     if not user:
@@ -120,7 +120,7 @@ def resend_verification(data: ResendVerification, background_tasks: BackgroundTa
     db.refresh(user)
     db.close()
     
-    background_tasks.add_task(send_verification_email_sync, user.email, token, user.username)
+    send_verification_email_sync(user.email, token, user.username)
     return {"message": "Se ha enviado un nuevo enlace de verificación a tu correo."}
 
 @router.get("/me", response_model=UserOut)
