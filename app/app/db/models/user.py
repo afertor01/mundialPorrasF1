@@ -21,8 +21,10 @@ class User(Base):
     role: Mapped[str] = mapped_column(String, default="user")
     avatar: Mapped[str] = mapped_column(String, default="default.png", nullable=True)
     
-    # --- NUEVO CAMPO ---
+    # --- NUEVOS CAMPOS ---
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    is_verified: Mapped[bool] = mapped_column(default=False)
+    verification_token: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Relaciones existentes
     predictions: Mapped[List["Prediction"]] = relationship("Prediction", back_populates="user")

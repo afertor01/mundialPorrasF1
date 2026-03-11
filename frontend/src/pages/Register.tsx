@@ -19,7 +19,7 @@ const Register: React.FC = () => {
     try {
       // ✅ CORREGIDO: Pasamos un objeto como espera tu api.ts
       await apiRegister({ email, username, password, acronym });
-      toast("Usuario registrado correctamente. ¡Ahora inicia sesión!", "success");
+      toast("Se ha mandado un correo de verificación a " + email + ". Revisa tu bandeja de entrada o spam.", "success");
       navigate("/login");
     } catch (err: any) {
       console.error(err);

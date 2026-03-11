@@ -41,6 +41,16 @@ export const login = async (identifier: string, password: string) => {
   return res.data;
 };
 
+export const verifyEmail = async (token: string) => {
+  const res = await client.post(`/auth/verify-email`, { token });
+  return res.data;
+};
+
+export const resendVerification = async (email: string) => {
+  const res = await client.post(`/auth/resend-verification`, { email });
+  return res.data;
+};
+
 // ==========================================
 // 📊 ESTADÍSTICAS (Dashboard)
 // ==========================================

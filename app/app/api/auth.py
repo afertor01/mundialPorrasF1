@@ -1,16 +1,17 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from app.schemas.user import UserCreate, UserLogin, UserOut, UserUpdate
 from app.db.session import SessionLocal
 from app.db.models.user import User
-from app.core.security import hash_password, verify_password, create_access_token
+from app.core.security import hash_password, verify_password, create_access_token, create_verification_token
 from app.core.deps import get_current_user
+from app.services.email import send_verification_email_sync
 from datetime import timedelta
 from sqlalchemy import or_
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/register")
-def register(user: UserCreate):
+def register(user: UserCreate, background_tasks: BackgroundTasks):
     db = SessionLocal()
 
     # 1. Validar que no exista email o username
@@ -27,19 +28,24 @@ def register(user: UserCreate):
         raise HTTPException(status_code=400, detail="El acrónimo debe tener máximo 3 letras")
 
     # 3. Crear usuario
+    token = create_verification_token()
     new_user = User(
         email=user.email,
         username=user.username,
         acronym=user.acronym.upper(), # Guardar siempre en mayúsculas
         hashed_password=hash_password(user.password),
-        role="user" # Por defecto
+        role="user", # Por defecto
+        is_verified=False,
+        verification_token=token
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     db.close()
 
-    return {"message": "Usuario creado exitosamente"}
+    background_tasks.add_task(send_verification_email_sync, new_user.email, token, new_user.username)
+
+    return {"message": "Usuario creado exitosamente. Por favor verifica tu correo."}
 
 @router.post("/login")
 def login(user: UserLogin):
@@ -50,6 +56,16 @@ def login(user: UserLogin):
     ).first()
     if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+
+    if not db_user.is_verified:
+        raise HTTPException(
+            status_code=403, 
+            detail={
+                "message": "Tu correo sigue pendiente de validación", 
+                "needs_verification": True,
+                "email": db_user.email
+            }
+        )
 
 # 3. Crear Token (Añadimos acrónimo para que el frontend lo use)
     token = create_access_token({
@@ -62,6 +78,50 @@ def login(user: UserLogin):
     db.close()
 
     return {"access_token": token, "token_type": "bearer"}
+
+from pydantic import BaseModel
+
+class VerifyToken(BaseModel):
+    token: str
+
+@router.post("/verify-email")
+def verify_email(data: VerifyToken):
+    db = SessionLocal()
+    user = db.query(User).filter(User.verification_token == data.token).first()
+    if not user:
+        db.close()
+        raise HTTPException(status_code=400, detail="Token inválido o expirado.")
+    
+    user.is_verified = True
+    user.verification_token = None
+    db.commit()
+    db.close()
+    return {"message": "Correo verificado exitosamente. Ya puedes iniciar sesión."}
+
+class ResendVerification(BaseModel):
+    email: str
+
+@router.post("/resend-verification")
+def resend_verification(data: ResendVerification, background_tasks: BackgroundTasks):
+    db = SessionLocal()
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
+        db.close()
+        # No revelamos si el correo existe o no al usuario por seguridad
+        return {"message": "Si tu correo estaba registrado, se ha enviado un nuevo enlace de verificación."}
+    
+    if user.is_verified:
+        db.close()
+        raise HTTPException(status_code=400, detail="El correo ya está verificado.")
+    
+    token = create_verification_token()
+    user.verification_token = token
+    db.commit()
+    db.refresh(user)
+    db.close()
+    
+    background_tasks.add_task(send_verification_email_sync, user.email, token, user.username)
+    return {"message": "Se ha enviado un nuevo enlace de verificación a tu correo."}
 
 @router.get("/me", response_model=UserOut)
 def get_current_user_data(current_user: User = Depends(get_current_user)):
