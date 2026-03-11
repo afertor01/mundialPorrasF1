@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { register as apiRegister } from "../api/api"; // Importación correcta
+import { register as apiRegister } from "../api/api";
 import { useToast } from "../context/ToastContext";
 import { motion } from "framer-motion";
 import { UserPlus, Mail, Lock, User, Hash, ChevronLeft } from "lucide-react";
 
 const Register: React.FC = () => {
-  // --- LÓGICA (Mantenemos la tuya intacta) ---
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [acronym, setAcronym] = useState("");
@@ -17,9 +16,8 @@ const Register: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // ✅ CORREGIDO: Pasamos un objeto como espera tu api.ts
       await apiRegister({ email, username, password, acronym });
-      toast("Se ha mandado un correo de verificación a " + email + ". Revisa tu bandeja de entrada o spam.", "success");
+      toast("¡Registro completado! Ya puedes iniciar sesión.", "success");
       navigate("/login");
     } catch (err: any) {
       console.error(err);
@@ -27,7 +25,6 @@ const Register: React.FC = () => {
     }
   };
 
-  // --- RENDERIZADO VISUAL (Estilo F1) ---
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 relative overflow-hidden py-10 px-4">
 
@@ -78,7 +75,7 @@ const Register: React.FC = () => {
               value={username}
               onChange={e => setUsername(e.target.value)}
               required
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-f1-red focus:border-transparent transition-all placeholder-gray-400 text-gray-800"
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-f1-red focus:border-transparent transition-all placeholder-gray-400 text-gray-800"
             />
           </div>
 
@@ -94,7 +91,7 @@ const Register: React.FC = () => {
               value={acronym}
               onChange={e => setAcronym(e.target.value.toUpperCase())}
               required
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-f1-red focus:border-transparent transition-all placeholder-gray-400 text-gray-800 font-mono uppercase tracking-wider"
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-f1-red focus:border-transparent transition-all placeholder-gray-400 text-gray-800 font-mono uppercase tracking-wider"
             />
             <span className="absolute right-3 top-3.5 text-xs text-gray-400 font-mono">
               {acronym.length}/3
@@ -112,7 +109,7 @@ const Register: React.FC = () => {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-f1-red focus:border-transparent transition-all placeholder-gray-400 text-gray-800"
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-f1-red focus:border-transparent transition-all placeholder-gray-400 text-gray-800"
             />
           </div>
 

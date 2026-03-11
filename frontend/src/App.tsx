@@ -27,8 +27,7 @@ import Predictions from "./pages/Predictions";
 import RaceControl from "./pages/RaceControl";
 import TeamHQ from "./pages/TeamHQ";
 import Bingo from "./pages/Bingo";
-import Profile from "./pages/Profile"; // <--- Importamos Profile
-import VerifyEmail from "./pages/VerifyEmail"; // <--- Importamos VerifyEmail
+import Profile from "./pages/Profile";
 
 // --- PROTECTOR DE RUTAS PRIVADAS ---
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -45,7 +44,6 @@ const AppRoutes = () => {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
 
       {/* RUTAS PROTEGIDAS */}
       <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />

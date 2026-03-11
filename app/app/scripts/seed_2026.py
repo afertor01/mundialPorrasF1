@@ -129,7 +129,7 @@ def create_admin(db):
         email="admin@admin.com", 
         username="Admin", 
         acronym="ADM", 
-        hashed_password=hash_password("123"), 
+        hashed_password=hash_password(os.getenv("ADMIN_PWD")), 
         role="admin", 
         created_at=datetime.utcnow(), 
         is_verified=True

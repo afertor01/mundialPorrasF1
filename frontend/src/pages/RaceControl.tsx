@@ -186,22 +186,22 @@ const RaceControl: React.FC = () => {
         }
 
         return (
-            <div className={`flex items-center gap-3 p-2 rounded-lg border transition-colors mb-1 last:mb-0 ${status === "exact" ? 'bg-green-50 border-green-200' : status === "close" ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-100'}`}>
-                <span className={`w-6 h-6 flex items-center justify-center rounded text-xs font-black ${status === "exact" ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>{pos}</span>
-                <span className={`text-sm font-bold truncate ${status === "exact" ? 'text-green-800' : 'text-gray-800'}`}>{driver}</span>
-                {status === "exact" && <CheckCircle2 size={14} className="text-green-500 ml-auto" />}
+            <div className={`flex items-center gap-2 md:gap-3 p-1.5 md:p-2 rounded-lg border transition-colors mb-0.5 last:mb-0 ${status === "exact" ? 'bg-green-50 border-green-200' : status === "close" ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-100'}`}>
+                <span className={`w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded text-[10px] md:text-xs font-black ${status === "exact" ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>{pos}</span>
+                <span className={`text-[11px] md:text-sm font-bold truncate ${status === "exact" ? 'text-green-800' : 'text-gray-800'}`}>{driver}</span>
+                {status === "exact" && <CheckCircle2 size={12} className="text-green-500 ml-auto flex-shrink-0" />}
             </div>
         );
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
-            <div className="max-w-[1600px] mx-auto space-y-6">
+        <div className="min-h-screen bg-gray-50 p-3 md:p-8 font-sans">
+            <div className="max-w-[1600px] mx-auto space-y-4 md:space-y-6">
 
                 {/* HEADER PRINCIPAL */}
-                <header className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
-                    <div className="flex items-center gap-6">
-                        <div className="bg-gray-900 text-white w-28 h-28 rounded-3xl flex items-center justify-center overflow-hidden border-2 border-gray-700 p-1 shadow-2xl shadow-gray-400/50">
+                <header className="bg-white p-4 md:p-6 rounded-2xl md:rounded-[2rem] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6">
+                    <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto">
+                        <div className="bg-gray-900 text-white w-20 h-20 md:w-28 md:h-28 rounded-2xl md:rounded-3xl flex items-center justify-center overflow-hidden border-2 border-gray-700 p-1 shadow-xl md:shadow-2xl shadow-gray-400/50 shrink-0">
                             {selectedGpObj ? (
                                 <img
                                     src={getTrackImage(selectedGpObj.name)}
@@ -209,18 +209,18 @@ const RaceControl: React.FC = () => {
                                     alt="Track"
                                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                 />
-                            ) : <Flag size={48} />}
+                            ) : <Flag size={32} className="md:w-12 md:h-12" />}
                         </div>
-                        <div>
-                            <h1 className="text-4xl font-black uppercase italic tracking-tighter text-gray-900">Race Control</h1>
-                            <div className="flex items-center gap-3 text-sm font-bold text-gray-400 uppercase tracking-widest mt-2">
-                                <MapPin size={16} /> <span className="text-gray-600">{selectedGpObj?.name || "Selecciona GP"}</span>
-                                <span className="mx-1">•</span>
-                                <Calendar size={16} /> <span>{selectedGpObj ? new Date(selectedGpObj.race_datetime).toLocaleDateString() : "--/--"}</span>
+                        <div className="min-w-0">
+                            <h1 className="text-2xl md:text-4xl font-black uppercase italic tracking-tighter text-gray-900 truncate">Race Control</h1>
+                            <div className="flex flex-wrap items-center gap-2 md:gap-3 text-[10px] md:text-sm font-bold text-gray-400 uppercase tracking-widest mt-1">
+                                <MapPin size={12} className="md:w-4 md:h-4" /> <span className="text-gray-600 truncate max-w-[120px] md:max-w-none">{selectedGpObj?.name || "Selecciona GP"}</span>
+                                <span className="mx-0.5">•</span>
+                                <Calendar size={12} className="md:w-4 md:h-4" /> <span>{selectedGpObj ? new Date(selectedGpObj.race_datetime).toLocaleDateString() : "--/--"}</span>
                             </div>
                         </div>
                     </div>
-                    <div className="relative min-w-[300px]">
+                    <div className="relative w-full md:min-w-[300px]">
                         <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-2">Seleccionar Gran Premio</label>
                         <select
                             className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-900 font-bold text-sm py-3 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-f1-red/20 focus:border-f1-red transition-all cursor-pointer"
@@ -235,13 +235,15 @@ const RaceControl: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
                     {/* PANEL IZQUIERDO */}
-                    <div className="lg:col-span-3 bg-white p-6 rounded-[2rem] shadow-lg border border-gray-100 h-fit sticky top-6">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-4">Añadir Comparativa</h3>
+                    <div className="lg:col-span-3 bg-white p-5 rounded-2xl md:rounded-[2rem] shadow-lg border border-gray-100 h-fit lg:sticky lg:top-6">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">Añadir Comparativa</h3>
                         <div className="relative mb-4">
                             <Search className="absolute left-3 top-3 text-gray-400" size={16} />
-                            <input type="text" placeholder="Buscar usuario..." className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm font-bold focus:outline-none focus:border-f1-red transition-colors" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            <input type="text" placeholder="Buscar usuario..." className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-sm font-bold focus:outline-none focus:border-f1-red transition-colors" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                         </div>
-                        <div className="flex flex-wrap gap-2 mb-6">
+                        
+                        {/* Tags de usuarios seleccionados */}
+                        <div className="flex flex-wrap gap-2 mb-4 max-h-[120px] overflow-y-auto pr-1">
                             <AnimatePresence>
                                 {selectedUsers.map(u => (
                                     <motion.button key={u} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} onClick={() => toggleUser(u)} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${u === currentUser ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-red-50 hover:text-red-600'}`}>
@@ -250,161 +252,146 @@ const RaceControl: React.FC = () => {
                                 ))}
                             </AnimatePresence>
                         </div>
-                        <div className="max-h-[400px] overflow-y-auto space-y-1 pr-2 custom-scrollbar">
+
+                        <div className="max-h-[300px] lg:max-h-[400px] overflow-y-auto space-y-1 pr-2 custom-scrollbar border-t border-gray-50 pt-3">
                             {availableUsers.map(p => (
-                                <button key={p.username} onClick={() => toggleUser(p.username)} className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors group text-left">
-                                    <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900">{p.username}</span>
-                                    <div className="bg-gray-100 p-1 rounded-full text-gray-400 group-hover:bg-f1-red group-hover:text-white transition-colors"><Plus size={14} /></div>
+                                <button key={p.username} onClick={() => toggleUser(p.username)} className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50 transition-colors group text-left">
+                                    <span className="text-xs font-bold text-gray-600 group-hover:text-gray-900 truncate pr-2">{p.username}</span>
+                                    <div className="bg-gray-100 p-1 rounded-full text-gray-400 group-hover:bg-f1-red group-hover:text-white transition-colors flex-shrink-0"><Plus size={12} /></div>
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    {/* PANEL DERECHO */}
-                    <div className="lg:col-span-9 overflow-x-auto pb-4">
-                        <div className="flex gap-4 min-w-max">
+                    {/* PANEL DERECHO: COMPARATIVA */}
+                    <div className="lg:col-span-9 relative">
+                        <div className="overflow-x-auto pb-4 custom-scrollbar rounded-2xl md:rounded-[2rem]">
+                            <div className="flex gap-4 min-w-max p-1">
 
-                            {/* COLUMNA 1: RESULTADO OFICIAL */}
-                            {raceResult && (
-                                <div className="w-[280px] flex-shrink-0">
-                                    {/* HEADER DE RESULTADOS AJUSTADO AL TAMAÑO DEL USUARIO */}
-                                    <div className="bg-gray-900 text-white p-4 rounded-t-2xl flex flex-col items-center justify-center h-[130px]">
-                                        <Trophy size={28} className="text-yellow-400 mb-2" />
-                                        <h3 className="font-black uppercase italic tracking-tighter text-xl">Resultados</h3>
-                                        <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mt-1">Oficiales</span>
-                                    </div>
-
-                                    <div className="bg-white border-x border-b border-gray-200 rounded-b-2xl shadow-sm p-4 space-y-2">
-                                        {[...Array(10)].map((_, i) => (
-                                            <div key={i + 1} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg border border-gray-100">
-                                                <span className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded text-xs font-black text-gray-600">{i + 1}</span>
-                                                <span className="text-sm font-bold text-gray-900">{raceResult.positions[(i + 1).toString()]}</span>
-                                            </div>
-                                        ))}
-                                        <div className="border-t border-dashed border-gray-200 my-4 pt-2"></div>
-                                        {Object.entries(raceResult.events)
-                                            .filter(([key]) => !IGNORED_EVENTS.includes(key))
-                                            .map(([key, val]) => (
-                                                <div key={key} className="flex justify-between items-center text-xs p-2">
-                                                    <span className="font-bold text-gray-500 uppercase">{key}</span>
-                                                    <span className="font-black text-gray-900 bg-gray-100 px-2 py-1 rounded">{val}</span>
-                                                </div>
-                                            ))}
-                                        <div className="flex flex-col gap-1 p-2 bg-red-50 rounded border border-red-100 mt-1">
-                                            <span className="font-bold text-[10px] text-red-500 uppercase">Lista de Abandonos</span>
-                                            <div className="flex flex-wrap gap-1">
-                                                {raceResult.events["DNF_DRIVER"] && raceResult.events["DNF_DRIVER"].trim() !== "" ? (
-                                                    raceResult.events["DNF_DRIVER"].split(",").map((d, idx) => (
-                                                        <span key={idx} className="text-[10px] font-black bg-white text-red-600 px-1.5 py-0.5 rounded border border-red-200 shadow-sm">{d.trim()}</span>
-                                                    ))
-                                                ) : <span className="text-[10px] font-bold text-gray-400 italic">Ningún abandono</span>}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* COLUMNAS DE USUARIOS */}
-                            {viewData.map((p) => {
-                                const podiumStatus = getPodiumStatus(p.positions, raceResult?.positions);
-
-                                // Calculamos multiplicador real (ignore BD)
-                                const calculatedMult = calculateMultiplierValue(p.events, raceResult, podiumStatus);
-
-                                return (
-                                    <div key={p.username} className="w-[280px] flex-shrink-0">
-
-                                        {/* CABECERA USUARIO: LIMPIA Y DESCRIPTIVA */}
-                                        <div className={`p-4 rounded-t-2xl flex flex-col items-center justify-center relative overflow-hidden h-[130px] transition-all ${p.username === currentUser ? 'bg-blue-600 text-white shadow-md' : 'bg-white border-t border-x border-gray-200 text-gray-900'}`}>
-                                            <h3 className="font-black text-lg text-center leading-tight break-words line-clamp-2 min-h-[2.2rem]">{p.username}</h3>
-
-                                            {/* PUNTUACIÓN */}
-                                            <div className="flex items-baseline gap-1 mb-1">
-                                                <span className="text-4xl font-black tracking-tight">{p.points.toFixed(0)}</span>
-                                                <span className="text-xs font-bold uppercase opacity-60">PTS</span>
-                                            </div>
-
-                                            {/* DESGLOSE BONITO */}
-                                            {p.base_points !== undefined && (
-                                                <div className={`flex items-center gap-2 text-[11px] font-mono px-4 py-1.5 rounded-full border ${p.username === currentUser ? 'bg-blue-700/50 border-blue-500/50 text-blue-100' : 'bg-gray-100 border-gray-200 text-gray-600'}`}>
-                                                    <div className="flex flex-col items-center leading-none">
-                                                        <span className="font-bold">{p.base_points}</span>
-                                                        <span className="text-[8px] opacity-70 uppercase">Base</span>
-                                                    </div>
-                                                    <span className="opacity-50">×</span>
-                                                    <div className="flex flex-col items-center leading-none">
-                                                        <span className="font-bold">{calculatedMult.toFixed(2)}</span>
-                                                        <span className="text-[8px] opacity-70 uppercase">Mult</span>
-                                                    </div>
-                                                </div>
-                                            )}
+                                {/* COLUMNA 1: RESULTADO OFICIAL */}
+                                {raceResult && (
+                                    <div className="w-[180px] md:w-[280px] flex-shrink-0 sticky left-0 z-20">
+                                        <div className="bg-gray-900 text-white p-3 md:p-4 rounded-t-2xl flex flex-col items-center justify-center h-[110px] md:h-[130px] border-r border-gray-800">
+                                            <Trophy size={20} className="text-yellow-400 mb-1 md:size-28" />
+                                            <h3 className="font-black uppercase italic tracking-tighter text-base md:text-xl leading-none">Resultados</h3>
+                                            <span className="text-[8px] md:text-[10px] font-bold text-gray-400 tracking-widest uppercase mt-1">Oficiales</span>
                                         </div>
 
-                                        <div className="bg-white border-x border-b border-gray-200 rounded-b-2xl shadow-sm p-4 space-y-2">
-
-                                            {/* --- PODIO CONDICIONAL (SOLO SI ACIERTA) --- */}
-                                            {podiumStatus !== "none" ? (
-                                                <div className={`relative rounded-xl p-2 mb-3 mt-1 ${podiumStatus === "exact" ? "border-2 border-yellow-400 bg-yellow-50/50 shadow-[0_0_15px_rgba(250,204,21,0.2)]" : "border-2 border-slate-300 bg-slate-50 shadow-sm"}`}>
-                                                    <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full uppercase flex items-center gap-1 whitespace-nowrap shadow-sm border ${podiumStatus === "exact" ? "bg-yellow-400 text-yellow-900 border-yellow-500" : "bg-slate-200 text-slate-700 border-slate-300"}`}>
-                                                        {podiumStatus === "exact" ? <><Trophy size={10} /> Podio Exacto</> : <><Medal size={10} /> Podio Parcial</>}
-                                                    </div>
-                                                    {[1, 2, 3].map((pos) => <PositionRow key={pos} pos={pos} driver={p.positions[pos.toString()] || "-"} result={raceResult} />)}
+                                        <div className="bg-white border-x border-b border-gray-200 rounded-b-2xl shadow-xl p-3 md:p-4 space-y-1.5 md:space-y-2 border-r-2 border-gray-300">
+                                            {[...Array(10)].map((_, i) => (
+                                                <div key={i + 1} className="flex items-center gap-2 md:gap-3 p-1.5 md:p-2 bg-gray-50 rounded-lg border border-gray-100">
+                                                    <span className="w-5 h-5 md:w-6 md:h-6 flex items-center justify-center bg-gray-200 rounded text-[10px] md:text-xs font-black text-gray-600">{i + 1}</span>
+                                                    <span className="text-[11px] md:text-sm font-bold text-gray-900 truncate">{raceResult.positions[(i + 1).toString()]}</span>
                                                 </div>
-                                            ) : (
-                                                // LISTA NORMAL
-                                                <>
-                                                    {[1, 2, 3].map((pos) => <PositionRow key={pos} pos={pos} driver={p.positions[pos.toString()] || "-"} result={raceResult} />)}
-                                                </>
-                                            )}
-
-                                            {/* RESTO POSICIONES */}
-                                            {[4, 5, 6, 7, 8, 9, 10].map((pos) => (
-                                                <PositionRow key={pos} pos={pos} driver={p.positions[pos.toString()] || "-"} result={raceResult} />
                                             ))}
-
-                                            <div className="border-t border-dashed border-gray-200 my-4 pt-2">
-                                                <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2 block">Eventos</span>
-                                            </div>
-
-                                            {/* EVENTOS */}
-                                            {Object.entries(p.events)
+                                            <div className="border-t border-dashed border-gray-200 my-2 md:my-4 pt-2"></div>
+                                            {Object.entries(raceResult.events)
                                                 .filter(([key]) => !IGNORED_EVENTS.includes(key))
-                                                .map(([key, val]) => {
-                                                    const isCorrect = raceResult && normalize(raceResult.events[key]) === normalize(val);
+                                                .map(([key, val]) => (
+                                                    <div key={key} className="flex justify-between items-center text-[10px] md:text-xs p-1 md:p-2">
+                                                        <span className="font-bold text-gray-400 uppercase">{key}</span>
+                                                        <span className="font-black text-gray-900 bg-gray-100 px-2 py-0.5 md:py-1 rounded">{val}</span>
+                                                    </div>
+                                                ))}
+                                            <div className="flex flex-col gap-1 p-2 bg-red-50 rounded border border-red-100 mt-1">
+                                                <span className="font-bold text-[8px] md:text-[10px] text-red-500 uppercase">Abandonos</span>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {raceResult.events["DNF_DRIVER"] && raceResult.events["DNF_DRIVER"].trim() !== "" ? (
+                                                        raceResult.events["DNF_DRIVER"].split(",").map((d, idx) => (
+                                                            <span key={idx} className="text-[8px] md:text-[10px] font-black bg-white text-red-600 px-1.5 py-0.5 rounded border border-red-200 shadow-sm">{d.trim()}</span>
+                                                        ))
+                                                    ) : <span className="text-[8px] md:text-[10px] font-bold text-gray-400 italic">Ninguno</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* COLUMNAS DE USUARIOS */}
+                                {viewData.map((p) => {
+                                    const podiumStatus = getPodiumStatus(p.positions, raceResult?.positions);
+                                    const calculatedMult = calculateMultiplierValue(p.events, raceResult, podiumStatus);
+
+                                    return (
+                                        <div key={p.username} className="w-[200px] md:w-[280px] flex-shrink-0">
+                                            {/* CABECERA USUARIO */}
+                                            <div className={`p-3 md:p-4 rounded-t-2xl flex flex-col items-center justify-center relative overflow-hidden h-[110px] md:h-[130px] transition-all border-l ${p.username === currentUser ? 'bg-blue-600 text-white shadow-md border-transparent' : 'bg-white border-t border-r border-gray-200 text-gray-900'}`}>
+                                                <h3 className="font-black text-sm md:text-lg text-center leading-tight break-words line-clamp-2 min-h-[1.5rem] md:min-h-[2.2rem]">{p.username}</h3>
+                                                <div className="flex items-baseline gap-1 mt-1 md:mt-0">
+                                                    <span className="text-2xl md:text-4xl font-black tracking-tight">{p.points.toFixed(0)}</span>
+                                                    <span className="text-[8px] md:text-xs font-bold uppercase opacity-60">PTS</span>
+                                                </div>
+                                                {p.base_points !== undefined && (
+                                                    <div className={`flex items-center gap-1.5 md:gap-2 text-[9px] md:text-[11px] font-mono px-3 md:px-4 py-0.5 md:py-1 rounded-full border mt-1 ${p.username === currentUser ? 'bg-blue-700/50 border-blue-500/50 text-blue-100' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+                                                        <span className="font-bold">{p.base_points}</span>
+                                                        <span className="opacity-50 text-[8px]">×</span>
+                                                        <span className="font-bold">{calculatedMult.toFixed(2)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="bg-white border-x border-b border-gray-200 rounded-b-2xl shadow-sm p-3 md:p-4 space-y-1.5 md:space-y-2">
+                                                {/* PODIO */}
+                                                {podiumStatus !== "none" ? (
+                                                    <div className={`relative rounded-xl p-1.5 md:p-2 mb-2 md:mb-3 mt-1 ${podiumStatus === "exact" ? "border-2 border-yellow-400 bg-yellow-50/50 shadow-[0_0_15px_rgba(250,204,21,0.2)]" : "border-2 border-slate-300 bg-slate-50 shadow-sm"}`}>
+                                                        <div className={`absolute -top-2 md:-top-2.5 left-1/2 -translate-x-1/2 text-[8px] md:text-[9px] font-black px-2 py-0.5 rounded-full uppercase flex items-center gap-1 whitespace-nowrap shadow-sm border ${podiumStatus === "exact" ? "bg-yellow-400 text-yellow-900 border-yellow-500" : "bg-slate-200 text-slate-700 border-slate-300"}`}>
+                                                            {podiumStatus === "exact" ? <><Trophy size={8} /> Exacto</> : <><Medal size={8} /> Parcial</>}
+                                                        </div>
+                                                        {[1, 2, 3].map((pos) => <PositionRow key={pos} pos={pos} driver={p.positions[pos.toString()] || "-"} result={raceResult} />)}
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-1 mb-1">
+                                                        {[1, 2, 3].map((pos) => <PositionRow key={pos} pos={pos} driver={p.positions[pos.toString()] || "-"} result={raceResult} />)}
+                                                    </div>
+                                                )}
+
+                                                <div className="space-y-1">
+                                                    {[4, 5, 6, 7, 8, 9, 10].map((pos) => (
+                                                        <PositionRow key={pos} pos={pos} driver={p.positions[pos.toString()] || "-"} result={raceResult} />
+                                                    ))}
+                                                </div>
+
+                                                <div className="border-t border-dashed border-gray-200 my-2 md:my-4 pt-2">
+                                                    <span className="text-[8px] md:text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 md:mb-2 block">Eventos</span>
+                                                </div>
+
+                                                {Object.entries(p.events)
+                                                    .filter(([key]) => !IGNORED_EVENTS.includes(key))
+                                                    .map(([key, val]) => {
+                                                        const isCorrect = raceResult && normalize(raceResult.events[key]) === normalize(val);
+                                                        return (
+                                                            <div key={key} className={`flex justify-between items-center text-[10px] md:text-xs p-1.5 md:p-2 rounded border mb-0.5 md:mb-1 transition-colors ${isCorrect ? 'bg-green-50 border-green-200' : 'border-transparent'}`}>
+                                                                <span className={`font-bold uppercase truncate max-w-[80px] md:max-w-[100px] ${isCorrect ? 'text-green-700' : 'text-gray-500'}`}>{key}</span>
+                                                                <span className={`font-black px-1 md:px-2 py-0.5 md:py-1 rounded flex items-center gap-1 ${isCorrect ? 'bg-green-200 text-green-900' : 'bg-gray-100 text-gray-900'}`}>
+                                                                    {val}
+                                                                    {isCorrect && <CheckCircle2 size={10} />}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })}
+
+                                                {(() => {
+                                                    let isDnfHit = false;
+                                                    const userDnfPrediction = p.events["DNF_DRIVER"];
+                                                    const realDnfList = raceResult ? raceResult.events["DNF_DRIVER"] : "";
+                                                    if (raceResult) isDnfHit = isDnfCorrect(userDnfPrediction, realDnfList);
+                                                    const displayText = (["", "0", "none"].includes(normalize(userDnfPrediction))) ? "Ninguno" : userDnfPrediction;
+
                                                     return (
-                                                        <div key={key} className={`flex justify-between items-center text-xs p-2 rounded border mb-1 transition-colors ${isCorrect ? 'bg-green-50 border-green-200' : 'border-transparent'}`}>
-                                                            <span className={`font-bold uppercase truncate max-w-[100px] ${isCorrect ? 'text-green-700' : 'text-gray-500'}`}>{key}</span>
-                                                            <span className={`font-black px-2 py-1 rounded flex items-center gap-1 ${isCorrect ? 'bg-green-200 text-green-900' : 'bg-gray-100 text-gray-900'}`}>
-                                                                {val}
-                                                                {isCorrect && <CheckCircle2 size={10} />}
+                                                        <div className={`flex justify-between items-center text-[10px] md:text-xs p-1.5 md:p-2 rounded border mb-0.5 md:mb-1 transition-colors ${isDnfHit ? 'bg-green-50 border-green-200' : 'border-transparent'}`}>
+                                                            <span className={`font-bold uppercase truncate max-w-[80px] md:max-w-[100px] ${isDnfHit ? 'text-green-700' : 'text-gray-500'}`}>ABANDONO</span>
+                                                            <span className={`font-black px-1 md:px-2 py-0.5 md:py-1 rounded flex items-center gap-1 ${isDnfHit ? 'bg-green-200 text-green-900' : 'bg-gray-100 text-gray-900'}`}>
+                                                                {displayText}
+                                                                {isDnfHit && <CheckCircle2 size={10} />}
                                                             </span>
                                                         </div>
-                                                    );
-                                                })}
-
-                                            {/* DNF USUARIO */}
-                                            {(() => {
-                                                let isDnfHit = false;
-                                                const userDnfPrediction = p.events["DNF_DRIVER"];
-                                                const realDnfList = raceResult ? raceResult.events["DNF_DRIVER"] : "";
-                                                if (raceResult) isDnfHit = isDnfCorrect(userDnfPrediction, realDnfList);
-
-                                                const displayText = (["", "0", "none"].includes(normalize(userDnfPrediction))) ? "Ninguno" : userDnfPrediction;
-
-                                                return (
-                                                    <div className={`flex justify-between items-center text-xs p-2 rounded border mb-1 transition-colors ${isDnfHit ? 'bg-green-50 border-green-200' : 'border-transparent'}`}>
-                                                        <span className={`font-bold uppercase truncate max-w-[100px] ${isDnfHit ? 'text-green-700' : 'text-gray-500'}`}>ABANDONO</span>
-                                                        <span className={`font-black px-2 py-1 rounded flex items-center gap-1 ${isDnfHit ? 'bg-green-200 text-green-900' : 'bg-gray-100 text-gray-900'}`}>
-                                                            {displayText}
-                                                            {isDnfHit && <CheckCircle2 size={10} />}
-                                                        </span>
-                                                    </div>
-                                                )
-                                            })()}
+                                                    )
+                                                })()}
+                                            </div>
                                         </div>
-                                    </div>
-                                )
-                            })}
+                                    );
+                                })}
+                            </div>
                         </div>
                     </div>
                 </div>

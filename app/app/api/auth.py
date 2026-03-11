@@ -7,8 +7,13 @@ from app.core.deps import get_current_user
 from app.services.email import send_verification_email_sync
 from datetime import timedelta
 from sqlalchemy import or_
+import re
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
+def is_valid_email(email: str) -> bool:
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
 
 @router.post("/register")
 def register(user: UserCreate):
@@ -23,29 +28,30 @@ def register(user: UserCreate):
     if existing_user:
         raise HTTPException(status_code=400, detail="El email, usuario o acrónimo ya está registrado")
     
-    # 2. Validar acrónimo
+    # 2. Validar formato email
+    if not is_valid_email(user.email):
+        raise HTTPException(status_code=400, detail="El formato del email no es válido")
+
+    # 3. Validar acrónimo
     if len(user.acronym) > 3:
         raise HTTPException(status_code=400, detail="El acrónimo debe tener máximo 3 letras")
 
-    # 3. Crear usuario
-    token = create_verification_token()
+    # 4. Crear usuario (Ya verificado por defecto)
     new_user = User(
         email=user.email,
         username=user.username,
-        acronym=user.acronym.upper(), # Guardar siempre en mayúsculas
+        acronym=user.acronym.upper(),
         hashed_password=hash_password(user.password),
-        role="user", # Por defecto
-        is_verified=False,
-        verification_token=token
+        role="user",
+        is_verified=True,
+        verification_token=None
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     db.close()
 
-    send_verification_email_sync(new_user.email, token, new_user.username)
-
-    return {"message": "Usuario creado exitosamente. Por favor verifica tu correo."}
+    return {"message": "Usuario creado exitosamente. Ya puedes iniciar sesión."}
 
 @router.post("/login")
 def login(user: UserLogin):
