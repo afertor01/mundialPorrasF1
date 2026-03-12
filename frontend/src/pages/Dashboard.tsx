@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import BarChartTop20 from "../components/BarChartTop20";
 import ComparisonLineChart from "../components/ComparisonLineChart";
+import TelemetryBoot from "../components/TelemetryBoot";
 
 // --- TYPE DEFINITIONS ---
 interface CustomJwtPayload {
@@ -71,6 +72,7 @@ const Dashboard: React.FC = () => {
     const [mode, setMode] = useState<"total" | "base" | "multiplier">("total");
     const [view, setView] = useState<"drivers" | "teams">("drivers");
     const [activeSeason, setActiveSeason] = useState<ActiveSeason | null>(null);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     // Estados de Datos
     const [rankingDataDrivers, setRankingDataDrivers] = useState<RankingData | null>(null);
@@ -151,8 +153,12 @@ const Dashboard: React.FC = () => {
 
                 const evoTeamsData = await API.getEvolution(active.id, "teams", [], [], mode);
                 setEvolutionTeams(evoTeamsData);
+
+                // Simulate a minimum loading time for the effect to be appreciated
+                setTimeout(() => setIsInitialLoad(false), 2000);
             } catch (error) {
                 console.error("Error cargando dashboard:", error);
+                setIsInitialLoad(false);
             }
         };
 
@@ -269,8 +275,18 @@ const Dashboard: React.FC = () => {
     const isLogarithmic = mode === 'multiplier';
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-            <div className="max-w-7xl mx-auto space-y-8">
+        <AnimatePresence mode="wait">
+            {isInitialLoad ? (
+                <TelemetryBoot key="boot" />
+            ) : (
+                <motion.div
+                    key="dashboard"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.8 }}
+                    className="min-h-screen bg-gray-50 p-4 md:p-8"
+                >
+                    <div className="max-w-7xl mx-auto space-y-8">
 
                 {/* HEADER & CONTROLS */}
                 <header className="flex flex-col xl:flex-row justify-between items-center gap-6 bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
@@ -415,7 +431,18 @@ const Dashboard: React.FC = () => {
                                             <th className="px-6 py-5 text-right">Total Puntos</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-50">
+                                    <motion.tbody 
+                                        variants={{
+                                            visible: {
+                                                transition: {
+                                                    staggerChildren: 0.05
+                                                }
+                                            }
+                                        }}
+                                        initial="hidden"
+                                        animate="visible"
+                                        className="divide-y divide-gray-50"
+                                    >
                                         {finalTableData.length > 0 ? (
                                             finalTableData.map((row) => {
                                                 const index = tableData.findIndex(r => r.name === row.name);
@@ -429,7 +456,14 @@ const Dashboard: React.FC = () => {
                                                 }
 
                                                 return (
-                                                    <tr key={row.name} className={`transition-colors ${isMe ? 'bg-blue-50/60' : 'hover:bg-gray-50/50'}`}>
+                                                    <motion.tr 
+                                                        key={row.name} 
+                                                        variants={{
+                                                            hidden: { opacity: 0, x: -20 },
+                                                            visible: { opacity: 1, x: 0 }
+                                                        }}
+                                                        className={`transition-colors ${isMe ? 'bg-blue-50/60' : 'hover:bg-gray-50/50'}`}
+                                                    >
                                                         <td className="px-6 py-4">
                                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${realPos === 1 ? 'bg-yellow-400 text-white shadow-lg shadow-yellow-100' :
                                                                 realPos === 2 ? 'bg-gray-300 text-white' :
@@ -470,7 +504,7 @@ const Dashboard: React.FC = () => {
                                                         <td className="px-6 py-4 text-right font-black text-gray-900 tabular-nums">
                                                             {formatPoints(row.accumulated)}
                                                         </td>
-                                                    </tr>
+                                                    </motion.tr>
                                                 );
                                             })
                                         ) : (
@@ -480,7 +514,7 @@ const Dashboard: React.FC = () => {
                                                 </td>
                                             </tr>
                                         )}
-                                    </tbody>
+                                    </motion.tbody>
                                 </table>
                             </div>
                         </section>
@@ -518,7 +552,9 @@ const Dashboard: React.FC = () => {
                     </motion.div>
                 </AnimatePresence>
             </div>
-        </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
     );
 };
 
