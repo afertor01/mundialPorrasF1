@@ -11,10 +11,12 @@ const Login: React.FC = () => {
   const { login } = useContext(AuthContext) as any;
   const navigate = useNavigate();
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
     try {
       const res = await apiLogin(identifier, password);
       login(res.access_token);
@@ -22,6 +24,8 @@ const Login: React.FC = () => {
     } catch (err: any) {
       const detail = err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : "Credenciales incorrectas. Inténtalo de nuevo.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -71,12 +75,18 @@ const Login: React.FC = () => {
           </div>
           
           <motion.button 
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={!isLoading ? { scale: 1.02 } : {}}
+            whileTap={!isLoading ? { scale: 0.98 } : {}}
             type="submit" 
-            className="w-full bg-f1-red text-white font-bold py-3 rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2"
+            disabled={isLoading}
+            className={`w-full ${isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-f1-red hover:bg-red-700 shadow-lg shadow-red-500/30"} text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2`}
           >
-            <LogIn size={20} /> Entrar
+            {isLoading ? (
+                <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+            ) : (
+                <LogIn size={20} />
+            )}
+            {isLoading ? "Entrando al box..." : "Entrar"}
           </motion.button>
         </form>
 
