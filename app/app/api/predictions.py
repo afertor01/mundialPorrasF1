@@ -134,8 +134,27 @@ def get_all_predictions_for_gp(
             "base_points": p.points_base,
             "multiplier": p.multiplier,
             "positions": {pos.position: pos.driver_name for pos in p.positions},
-            "events": {evt.event_type: evt.value for evt in p.events}
         })
         
     db.close()
     return results
+
+@router.get("/season/{season_id}/me/brief")
+def get_my_predictions_brief(
+    season_id: int,
+    current_user = Depends(get_current_user)
+):
+    db = SessionLocal()
+    
+    preds = (
+        db.query(Prediction.gp_id)
+        .join(GrandPrix)
+        .filter(
+            Prediction.user_id == current_user.id,
+            GrandPrix.season_id == season_id
+        )
+        .all()
+    )
+    
+    db.close()
+    return [p[0] for p in preds]

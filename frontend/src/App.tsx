@@ -29,6 +29,9 @@ import TeamHQ from "./pages/TeamHQ";
 import Bingo from "./pages/Bingo";
 import Profile from "./pages/Profile";
 
+import { jwtDecode } from "jwt-decode";
+import { useToast } from "./context/ToastContext";
+
 // --- PROTECTOR DE RUTAS PRIVADAS ---
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { token } = useContext(AuthContext) as AuthContextType;
@@ -37,7 +40,25 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 
 // --- RUTAS DE LA APP ---
 const AppRoutes = () => {
-  const { role } = useContext(AuthContext) as AuthContextType;
+  const { role, token, logout } = useContext(AuthContext) as AuthContextType;
+  const { toast } = useToast();
+  const location = useLocation();
+
+  // Validar si el token ha expirado cada vez que cambiamos de ruta o carga la app
+  React.useEffect(() => {
+    if (token) {
+      try {
+        const decoded: any = jwtDecode(token);
+        if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+          logout();
+          toast("Tu sesión ha caducado. Vuelve a iniciar sesión.", "error");
+        }
+      } catch (err) {
+        logout();
+        toast("Sesión inválida. Vuelve a iniciar sesión.", "error");
+      }
+    }
+  }, [token, location.pathname, logout, toast]);
 
   return (
     <Routes>

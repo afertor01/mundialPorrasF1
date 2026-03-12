@@ -68,9 +68,10 @@ const Predictions: React.FC = () => {
                 setDriversList(flatDrivers);
 
                 const predsMap: Record<number, boolean> = {};
-                for (const gp of gpList) {
-                    const pred = await API.getMyPrediction(gp.id);
-                    if (pred) predsMap[gp.id] = true;
+                // Pedimos de golpe todos los id de GP predichos para esta temporada
+                const predictedGpIds = await API.getMyPredictionsBrief(active.id);
+                for (const id of predictedGpIds) {
+                    predsMap[id] = true;
                 }
                 setExistingPreds(predsMap);
             }

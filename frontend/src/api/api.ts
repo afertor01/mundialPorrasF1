@@ -20,7 +20,6 @@ const client = axios.create({
 // 🔒 INTERCEPTOR: Inyecta el token automáticamente en cada petición
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
-  console.log("👮 Interceptor revisando token:", token);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -280,6 +279,15 @@ export const getMyPrediction = async (gp_id: number) => {
   } catch (error) {
     // Si devuelve 404 o null, simplemente retornamos null para que el frontend sepa que no hay predicción
     return null;
+  }
+};
+
+export const getMyPredictionsBrief = async (season_id: number) => {
+  try {
+    const res = await client.get(`/predictions/season/${season_id}/me/brief`);
+    return res.data; // Retorna un array de gp_id [1, 2, 5, ...]
+  } catch (error) {
+    return [];
   }
 };
 
