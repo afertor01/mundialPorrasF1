@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Activity, Cpu, ShieldCheck } from "lucide-react";
+import { Activity, Cpu, ShieldCheck } from "lucide-react";
 
 const TelemetryBoot: React.FC = () => {
     const [lines, setLines] = useState<string[]>([]);
