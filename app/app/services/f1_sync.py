@@ -11,6 +11,9 @@ from app.db.models.race_position import RacePosition
 from app.db.models.race_event import RaceEvent
 from app.db.models.driver import Driver
 from app.db.models.season import Season
+from app.db.models.prediction import Prediction
+from app.db.models.multiplier_config import MultiplierConfig
+from app.services.scoring import calculate_prediction_score
 from app.services.achievements_service import evaluate_race_achievements
 
 # Configuración caché
@@ -263,10 +266,24 @@ def sync_race_data_manual(db: Session, gp_id: int):
         # ==========================================
         log("🏆 Recalculando puntos y logros de usuarios...")
         try:
+            # 1. Puntos de Predicciones
+            predictions = db.query(Prediction).filter(Prediction.gp_id == gp.id).all()
+            multipliers = db.query(MultiplierConfig).filter(MultiplierConfig.season_id == gp.season_id).all()
+            
+            for p in predictions:
+                res_score = calculate_prediction_score(p, new_race_result, multipliers)
+                p.points = res_score["final_points"]
+                p.points_base = res_score["base_points"]
+                p.multiplier = res_score["multiplier"]
+            
+            db.commit()
+            log(f"✅ Puntos recalculados para {len(predictions)} predicciones.")
+
+            # 2. Logros
             evaluate_race_achievements(db, gp.id)
             log("✅ Logros actualizados.")
         except Exception as e:
-            log(f"⚠️ Error en logros: {e}")
+            log(f"⚠️ Error en cálculos finales (puntos/logros): {e}")
 
         log("🎉 Sincronización COMPLETA.")
         return True, logs

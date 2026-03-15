@@ -193,7 +193,7 @@ def ranking(
                     gp_points = 0
                     if mode == "multiplier": gp_points = 1.0
 
-                    if p:
+                    if p and gp_id in completed_gp_ids:
                         if mode == "base":
                             gp_points = p.points_base
                             acc[u.username] += gp_points
@@ -262,7 +262,7 @@ def ranking(
                     gp_points = 0
                     if mode == "multiplier": gp_points = 1.0
 
-                    if preds:
+                    if preds and gp_id in completed_gp_ids:
                         if mode == "base":
                             gp_points = sum(p.points_base for p in preds)
                             acc[t.name] += gp_points

@@ -42,6 +42,7 @@ const MULTIPLIER_VALUES = {
 const normalize = (val: any) => String(val || "").toLowerCase().trim();
 
 const isDnfCorrect = (predictedDriver: string | undefined, realDnfList: string | undefined) => {
+    if (!predictedDriver) return false;
     const pDriver = normalize(predictedDriver);
     const rListRaw = realDnfList || "";
 
@@ -58,8 +59,8 @@ const isDnfCorrect = (predictedDriver: string | undefined, realDnfList: string |
     return cleanList.includes(pDriver);
 };
 
-const getPodiumStatus = (predPos: Record<string, string>, realPos: Record<string, string> | undefined) => {
-    if (!realPos) return "none";
+const getPodiumStatus = (predPos: Record<string, string> | undefined, realPos: Record<string, string> | undefined) => {
+    if (!predPos || !realPos) return "none";
     const p1 = predPos["1"], p2 = predPos["2"], p3 = predPos["3"];
     const r1 = realPos["1"], r2 = realPos["2"], r3 = realPos["3"];
 
@@ -80,21 +81,23 @@ const getPodiumStatus = (predPos: Record<string, string>, realPos: Record<string
 
 // Cálculo de multiplicador en Frontend
 const calculateMultiplierValue = (
-    predEvents: Record<string, string>,
+    predEvents: Record<string, string> | undefined,
     result: RaceResultData | null,
     podiumStatus: string
 ) => {
-    if (!result) return 1.0;
+    if (!result || !predEvents) return 1.0;
     let mult = 1.0;
 
+    const events = result.events || {};
+
     // Safety Car
-    if (normalize(predEvents["SAFETY_CAR"]) === normalize(result.events["SAFETY_CAR"])) mult *= MULTIPLIER_VALUES.SAFETY_CAR;
+    if (normalize(predEvents["SAFETY_CAR"]) === normalize(events["SAFETY_CAR"])) mult *= MULTIPLIER_VALUES.SAFETY_CAR;
     // DNFs (Cantidad)
-    if (normalize(predEvents["DNFS"]) === normalize(result.events["DNFS"])) mult *= MULTIPLIER_VALUES.DNFS;
+    if (normalize(predEvents["DNFS"]) === normalize(events["DNFS"])) mult *= MULTIPLIER_VALUES.DNFS;
     // DNF Driver
-    if (isDnfCorrect(predEvents["DNF_DRIVER"], result.events["DNF_DRIVER"])) mult *= MULTIPLIER_VALUES.DNF_DRIVER;
+    if (isDnfCorrect(predEvents["DNF_DRIVER"], events["DNF_DRIVER"])) mult *= MULTIPLIER_VALUES.DNF_DRIVER;
     // Vuelta Rápida
-    if (normalize(predEvents["FASTEST_LAP"]) === normalize(result.events["FASTEST_LAP"])) mult *= MULTIPLIER_VALUES.FASTEST_LAP;
+    if (normalize(predEvents["FASTEST_LAP"]) === normalize(events["FASTEST_LAP"])) mult *= MULTIPLIER_VALUES.FASTEST_LAP;
     // Podio
     if (podiumStatus === "exact") mult *= MULTIPLIER_VALUES.PODIUM_TOTAL;
     else if (podiumStatus === "partial") mult *= MULTIPLIER_VALUES.PODIUM_PARTIAL;
@@ -129,8 +132,10 @@ const RaceControl: React.FC = () => {
             try {
                 const seasons = await API.getSeasons();
                 const active = seasons.find((s: any) => s.is_active);
+                console.log("Active Season:", active);
                 if (active) {
                     const gpList = await API.getGPs(active.id);
+                    console.log("GP List:", gpList);
                     setGps(gpList);
                     if (gpList.length > 0) {
                         const now = new Date();
@@ -152,11 +157,14 @@ const RaceControl: React.FC = () => {
         setAllPredictions([]);
         setRaceResult(null);
         try {
+            console.log("Loading data for GP:", gpId);
             const preds = await API.getGpPredictions(gpId);
+            console.log("Predictions:", preds);
             setAllPredictions(preds || []);
             const result = await API.getPublicRaceResult(gpId);
+            console.log("Race Result:", result);
             setRaceResult(result);
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Error loading GP data:", e); }
     };
 
     const toggleUser = (username: string) => {
@@ -177,7 +185,7 @@ const RaceControl: React.FC = () => {
     // Componente Fila Posición
     const PositionRow = ({ pos, driver, result }: { pos: number, driver: string, result: RaceResultData | null }) => {
         let status = "neutral";
-        if (result) {
+        if (result && result.positions) {
             const realDriver = result.positions[pos.toString()];
             const realPosOfDriver = Object.keys(result.positions).find(k => result.positions[k] === driver);
 
@@ -281,7 +289,7 @@ const RaceControl: React.FC = () => {
                                             {[...Array(10)].map((_, i) => (
                                                 <div key={i + 1} className="flex items-center gap-2 md:gap-3 p-1.5 md:p-2 bg-gray-50 rounded-lg border border-gray-100">
                                                     <span className="w-5 h-5 md:w-6 md:h-6 flex items-center justify-center bg-gray-200 rounded text-[10px] md:text-xs font-black text-gray-600">{i + 1}</span>
-                                                    <span className="text-[11px] md:text-sm font-bold text-gray-900 truncate">{raceResult.positions[(i + 1).toString()]}</span>
+                                                    <span className="text-[11px] md:text-sm font-bold text-gray-900 truncate">{raceResult.positions ? raceResult.positions[(i + 1).toString()] : '---'}</span>
                                                 </div>
                                             ))}
                                             <div className="border-t border-dashed border-gray-200 my-2 md:my-4 pt-2"></div>
@@ -296,7 +304,7 @@ const RaceControl: React.FC = () => {
                                             <div className="flex flex-col gap-1 p-2 bg-red-50 rounded border border-red-100 mt-1">
                                                 <span className="font-bold text-[8px] md:text-[10px] text-red-500 uppercase">Abandonos</span>
                                                 <div className="flex flex-wrap gap-1">
-                                                    {raceResult.events["DNF_DRIVER"] && raceResult.events["DNF_DRIVER"].trim() !== "" ? (
+                                                    {raceResult.events && raceResult.events["DNF_DRIVER"] && raceResult.events["DNF_DRIVER"].trim() !== "" ? (
                                                         raceResult.events["DNF_DRIVER"].split(",").map((d, idx) => (
                                                             <span key={idx} className="text-[8px] md:text-[10px] font-black bg-white text-red-600 px-1.5 py-0.5 rounded border border-red-200 shadow-sm">{d.trim()}</span>
                                                         ))
@@ -355,10 +363,10 @@ const RaceControl: React.FC = () => {
                                                     <span className="text-[8px] md:text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 md:mb-2 block">Eventos</span>
                                                 </div>
 
-                                                {Object.entries(p.events)
+                                                {Object.entries(p.events || {})
                                                     .filter(([key]) => !IGNORED_EVENTS.includes(key))
                                                     .map(([key, val]) => {
-                                                        const isCorrect = raceResult && normalize(raceResult.events[key]) === normalize(val);
+                                                        const isCorrect = raceResult && raceResult.events && normalize(raceResult.events[key]) === normalize(val);
                                                         return (
                                                             <div key={key} className={`flex justify-between items-center text-[10px] md:text-xs p-1.5 md:p-2 rounded border mb-0.5 md:mb-1 transition-colors ${isCorrect ? 'bg-green-50 border-green-200' : 'border-transparent'}`}>
                                                                 <span className={`font-bold uppercase truncate max-w-[80px] md:max-w-[100px] ${isCorrect ? 'text-green-700' : 'text-gray-500'}`}>{key}</span>
@@ -372,9 +380,9 @@ const RaceControl: React.FC = () => {
 
                                                 {(() => {
                                                     let isDnfHit = false;
-                                                    const userDnfPrediction = p.events["DNF_DRIVER"];
-                                                    const realDnfList = raceResult ? raceResult.events["DNF_DRIVER"] : "";
-                                                    if (raceResult) isDnfHit = isDnfCorrect(userDnfPrediction, realDnfList);
+                                                    const userDnfPrediction = (p.events || {})["DNF_DRIVER"];
+                                                    const realDnfList = (raceResult && raceResult.events) ? raceResult.events["DNF_DRIVER"] : "";
+                                                    if (raceResult && raceResult.events) isDnfHit = isDnfCorrect(userDnfPrediction, realDnfList);
                                                     const displayText = (["", "0", "none"].includes(normalize(userDnfPrediction))) ? "Ninguno" : userDnfPrediction;
 
                                                     return (

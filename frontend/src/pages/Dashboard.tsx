@@ -117,13 +117,16 @@ const Dashboard: React.FC = () => {
                 setActiveSeason(active);
 
                 const gpList = await API.getGPs(active.id);
+                console.log("Dashboard - GP List:", gpList);
                 setGps(gpList);
 
                 // --- CARGA DE PILOTOS ---
-                const rankData = await API.getRanking(active.id, "users", mode, 1000); // Pedimos más datos para cubrir rangos grandes
+                const rankData = await API.getRanking(active.id, "users", mode, 1000); 
+                console.log("Dashboard - Rank Data Drivers:", rankData);
                 setRankingDataDrivers(rankData);
 
                 const evoData = await API.getEvolution(active.id, "users", [], [], mode);
+                console.log("Dashboard - Evolution Drivers:", evoData);
                 setEvolutionDrivers(evoData);
 
                 // --- CARGA DE ESCUDERÍAS ---

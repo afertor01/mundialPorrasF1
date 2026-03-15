@@ -49,6 +49,8 @@ def score_gp(
             multipliers
         )
 
+        prediction.points_base = result["base_points"]
+        prediction.multiplier = result["multiplier"]
         prediction.points = result["final_points"]
 
     db.commit()

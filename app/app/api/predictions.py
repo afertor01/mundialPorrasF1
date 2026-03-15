@@ -121,19 +121,24 @@ def get_all_predictions_for_gp(
     
     predictions = (
         db.query(Prediction)
+        .options(
+            joinedload(Prediction.user),
+            joinedload(Prediction.positions),
+            joinedload(Prediction.events)
+        )
         .filter(Prediction.gp_id == gp_id)
         .all()
     )
     
     results = []
     for p in predictions:
-        # Construimos un diccionario limpio
         results.append({
             "username": p.user.username,
             "points": p.points,
             "base_points": p.points_base,
             "multiplier": p.multiplier,
             "positions": {pos.position: pos.driver_name for pos in p.positions},
+            "events": {ev.event_type: ev.value for ev in p.events},
         })
         
     db.close()

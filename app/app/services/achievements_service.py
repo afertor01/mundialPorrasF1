@@ -12,6 +12,7 @@ from app.db.models.race_result import RaceResult
 from app.db.models.race_position import RacePosition
 from app.db.models.race_event import RaceEvent
 from app.db.models.grand_prix import GrandPrix
+from app.db.models.season import Season
 from app.db.models.user import User
 from app.db.models.driver import Driver
 from app.db.models.constructor import Constructor
@@ -718,13 +719,21 @@ def rebuild_all_achievements(db: Session):
         # Simplificación: Al final de procesar un GP, miramos si era el último de esa season en nuestra lista de 'past_gps'.
         season_gps = gps_by_season[gp.season_id]
         if season_gps[-1].id == gp.id:
-            # Es el último GP jugado de esta temporada
-            # ¿Pero ha terminado la temporada?
-            # Asumiremos que si estamos reconstruyendo, queremos dar los premios de final de temporada
-            # si ya se han jugado todos los GPs previstos O si es una temporada pasada.
-            # Por simplicidad: Siempre evaluamos "Season Finale" al terminar el último GP disponible de una season.
-            # Si luego hay más carreras, se recalculará.
-            print(f"   🏆 Cerrando Temporada {gp.season_id}...")
-            evaluate_season_finale_achievements(db, gp.season_id)
+            # ¿Ha terminado la temporada?
+            # 1. Obtenemos la temporada
+            season_obj = db.query(Season).filter(Season.id == gp.season_id).first()
+            if not season_obj: continue
+            
+            # 2. Contamos cuántos GPs hay programados en total para esta temporada
+            total_scheduled = db.query(GrandPrix).filter(GrandPrix.season_id == gp.season_id).count()
+            
+            # 3. Solo evaluamos final de temporada si:
+            #    - La temporada ya no está activa (is_active=False)
+            #    - O si ya se han disputado todos los GPs programados
+            if not season_obj.is_active or len(season_gps) >= total_scheduled:
+                print(f"   🏆 Cerrando Temporada {gp.season_id}...")
+                evaluate_season_finale_achievements(db, gp.season_id)
+            else:
+                print(f"   ⏳ Temporada {gp.season_id} ({season_obj.year}) todavía en curso ({len(season_gps)}/{total_scheduled} GPs). Saltando logros de final de temporada.")
 
     print("✅ RECONSTRUCCIÓN COMPLETADA.")
