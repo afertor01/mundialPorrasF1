@@ -5,9 +5,11 @@ import { jwtDecode } from "jwt-decode";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Flag, MapPin, Calendar, Search, Plus, X,
-    CheckCircle2, Trophy, Medal
+    CheckCircle2, Trophy, Medal, Info
 } from "lucide-react";
 import { getTrackImage } from "../utils/getTrackImage";
+import TelemetryBoot from "../components/TelemetryBoot";
+
 
 // --- INTERFACES ---
 interface PredictionData {
@@ -115,6 +117,8 @@ const RaceControl: React.FC = () => {
     const [raceResult, setRaceResult] = useState<RaceResultData | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [showHelp, setShowHelp] = useState<boolean>(false);
 
     useEffect(() => {
         if (token) {
@@ -154,17 +158,25 @@ const RaceControl: React.FC = () => {
     }, [selectedGpId]);
 
     const loadGpData = async (gpId: number) => {
+        setIsLoading(true);
         setAllPredictions([]);
         setRaceResult(null);
         try {
             console.log("Loading data for GP:", gpId);
+            const start = Date.now();
             const preds = await API.getGpPredictions(gpId);
             console.log("Predictions:", preds);
             setAllPredictions(preds || []);
             const result = await API.getPublicRaceResult(gpId);
             console.log("Race Result:", result);
             setRaceResult(result);
-        } catch (e) { console.error("Error loading GP data:", e); }
+            const elapsed = Date.now() - start;
+            if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
+        } catch (e) {
+            console.error("Error loading GP data:", e);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const toggleUser = (username: string) => {
@@ -228,19 +240,47 @@ const RaceControl: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="relative w-full md:min-w-[300px]">
-                        <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-2">Seleccionar Gran Premio</label>
-                        <select
-                            className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-900 font-bold text-sm py-3 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-f1-red/20 focus:border-f1-red transition-all cursor-pointer"
-                            value={selectedGpId || ""}
-                            onChange={(e) => setSelectedGpId(Number(e.target.value))}
+                    <div className="flex flex-col md:flex-row gap-2 relative w-full md:w-auto">
+                        <div className="relative w-full md:min-w-[280px]">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-2">Seleccionar Gran Premio</label>
+                            <select
+                                className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-900 font-bold text-sm py-3 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-f1-red/20 focus:border-f1-red transition-all cursor-pointer"
+                                value={selectedGpId || ""}
+                                onChange={(e) => setSelectedGpId(Number(e.target.value))}
+                            >
+                                {gps.map(gp => <option key={gp.id} value={gp.id}>Round {gp.id}: {gp.name}</option>)}
+                            </select>
+                        </div>
+                        <button 
+                            onClick={() => setShowHelp(true)}
+                            className="bg-gray-100 hover:bg-gray-200 text-gray-600 p-3 md:mt-5 rounded-xl transition-colors shrink-0 flex items-center justify-center self-end h-[46px]"
+                            title="Sistema de puntuación"
                         >
-                            {gps.map(gp => <option key={gp.id} value={gp.id}>Round {gp.id}: {gp.name}</option>)}
-                        </select>
+                            <Info size={20} />
+                        </button>
                     </div>
                 </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <AnimatePresence mode="wait">
+                    {isLoading ? (
+                        <motion.div
+                            key="loading"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="flex justify-center items-center py-20"
+                        >
+                            <TelemetryBoot />
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="content"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="grid grid-cols-1 lg:grid-cols-12 gap-6"
+                        >
+
 
                     {/* PANEL IZQUIERDO */}
                     <div className="lg:col-span-3 bg-white p-5 rounded-2xl md:rounded-[2rem] shadow-lg border border-gray-100 h-fit lg:sticky lg:top-6">
@@ -402,9 +442,125 @@ const RaceControl: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
+
+            <AnimatePresence>
+                {showHelp && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100"
+                        >
+                            <div className="p-6 md:p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                <h2 className="text-xl md:text-2xl font-black uppercase italic tracking-tighter text-gray-900 flex items-center gap-3">
+                                    <Info className="text-f1-red" size={24} /> Sistema de Puntuación
+                                </h2>
+                                <button onClick={() => setShowHelp(false)} className="p-2 bg-gray-200 hover:bg-gray-300 rounded-full text-gray-600 transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar space-y-8">
+                                {/* BASE POINTS */}
+                                <section>
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-gray-500 mb-4 border-b pb-2">Puntos Base (Posiciones)</h3>
+                                    <p className="text-sm text-gray-600 font-medium mb-4">
+                                        Los puntos base se calculan comparando tu predicción de los 10 primeros pilotos con el resultado oficial real.
+                                    </p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="bg-green-50/50 border border-green-100 rounded-xl p-4">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <span className="text-[10px] md:text-xs font-black uppercase text-green-700 bg-green-200 px-2 py-1 rounded">Acierto Exacto (+3 PTS)</span>
+                                            </div>
+                                            <p className="text-xs text-gray-600 mb-4 font-medium">Aciertas exactamente la posición en la que acabó el piloto.</p>
+                                            <div className="bg-white rounded-lg p-2 border border-green-100 shadow-sm">
+                                                <PositionRow pos={1} driver="VER" result={{ positions: { "1": "VER" }, events: {} } as any} />
+                                            </div>
+                                        </div>
+                                        <div className="bg-yellow-50/50 border border-yellow-100 rounded-xl p-4">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <span className="text-[10px] md:text-xs font-black uppercase text-yellow-700 bg-yellow-200 px-2 py-1 rounded">Casi Exacto (+1 PTS)</span>
+                                            </div>
+                                            <p className="text-xs text-gray-600 mb-4 font-medium">El piloto acaba justo 1 posición por encima o por debajo de tú predicción.</p>
+                                            <div className="bg-white rounded-lg p-2 border border-yellow-100 shadow-sm">
+                                                  <PositionRow pos={2} driver="ALO" result={{ positions: { "1": "ALO", "2": "SAI" }, events: {} } as any} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* MULTIPLIERS */}
+                                <section>
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-gray-500 mb-4 border-b pb-2">Multiplicadores de Eventos</h3>
+                                    <p className="text-sm text-gray-600 font-medium mb-4">
+                                        Los puntos base totales se multiplican según aciertes los eventos especiales. *(Nota: Estos valores mostrados son los actualmente configurados y pueden variar por temporada)*.
+                                    </p>
+                                    <div className="space-y-3">
+                                        <div className="flex flex-col bg-gray-50/80 p-3 rounded-xl border border-gray-100 gap-1.5 shadow-sm">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[11px] md:text-sm font-bold text-gray-700 uppercase flex items-center gap-2"><Trophy size={14} className="text-yellow-500" /> Acierto Exacto de Podio</span>
+                                                <span className="text-[11px] md:text-sm font-black text-f1-red bg-red-50 px-2 py-0.5 rounded border border-red-100">x{MULTIPLIER_VALUES.PODIUM_TOTAL}</span>
+                                            </div>
+                                            <p className="text-[10px] md:text-xs text-gray-500 font-medium">Acertar qué pilotos quedan 1º, 2º y 3º en el <strong>orden exacto</strong>. <span className="text-red-500 italic">(Solo se sumará si no consigues este, el multiplicador del podio parcial. No se acumulan)</span>.</p>
+                                        </div>
+
+                                        <div className="flex flex-col bg-gray-50/80 p-3 rounded-xl border border-gray-100 gap-1.5 shadow-sm">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[11px] md:text-sm font-bold text-gray-700 uppercase flex items-center gap-2"><Medal size={14} className="text-slate-500" /> Acierto Parcial de Podio</span>
+                                                <span className="text-[11px] md:text-sm font-black text-f1-red bg-red-50 px-2 py-0.5 rounded border border-red-100">x{MULTIPLIER_VALUES.PODIUM_PARTIAL}</span>
+                                            </div>
+                                            <p className="text-[10px] md:text-xs text-gray-500 font-medium">Acertar los 3 pilotos que suben al cajón, pero <strong>sin importar el orden exacto</strong>. <span className="text-red-500 italic">(Excluyente con el podio exacto)</span>.</p>
+                                        </div>
+
+                                        <div className="flex flex-col bg-gray-50/80 p-3 rounded-xl border border-gray-100 gap-1.5 shadow-sm">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[11px] md:text-sm font-bold text-gray-700 uppercase">Aparición de Safety Car</span>
+                                                <span className="text-[11px] md:text-sm font-black text-f1-red bg-red-50 px-2 py-0.5 rounded border border-red-100">x{MULTIPLIER_VALUES.SAFETY_CAR}</span>
+                                            </div>
+                                            <p className="text-[10px] md:text-xs text-gray-500 font-medium">Acertar correctamente si saldrá a pista el coche de seguridad ("Sí" o "No").</p>
+                                        </div>
+
+                                        <div className="flex flex-col bg-gray-50/80 p-3 rounded-xl border border-gray-100 gap-1.5 shadow-sm">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[11px] md:text-sm font-bold text-gray-700 uppercase">Cantidad de Abandonos (DNFs)</span>
+                                                <span className="text-[11px] md:text-sm font-black text-f1-red bg-red-50 px-2 py-0.5 rounded border border-red-100">x{MULTIPLIER_VALUES.DNFS}</span>
+                                            </div>
+                                            <p className="text-[10px] md:text-xs text-gray-500 font-medium">Acertar <strong>el número exacto de pilotos</strong> que no logran terminar la carrera.</p>
+                                        </div>
+
+                                        <div className="flex flex-col bg-gray-50/80 p-3 rounded-xl border border-gray-100 gap-1.5 shadow-sm">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[11px] md:text-sm font-bold text-gray-700 uppercase">Piloto que Abandona</span>
+                                                <span className="text-[11px] md:text-sm font-black text-f1-red bg-red-50 px-2 py-0.5 rounded border border-red-100">x{MULTIPLIER_VALUES.DNF_DRIVER}</span>
+                                            </div>
+                                            <p className="text-[10px] md:text-xs text-gray-500 font-medium">Acertar el acrónimo de un piloto específico que sufrirá DNF. <em>(Debe dejarse vacío si crees que no abandonará nadie; en ese caso aplicarás el multiplicador si efectivamente la carrera acaba sin abandonos)</em>.</p>
+                                        </div>
+
+                                        <div className="flex flex-col bg-gray-50/80 p-3 rounded-xl border border-gray-100 gap-1.5 shadow-sm">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[11px] md:text-sm font-bold text-gray-700 uppercase">Vuelta Rápida</span>
+                                                <span className="text-[11px] md:text-sm font-black text-f1-red bg-red-50 px-2 py-0.5 rounded border border-red-100">x{MULTIPLIER_VALUES.FASTEST_LAP}</span>
+                                            </div>
+                                            <p className="text-[10px] md:text-xs text-gray-500 font-medium">Acertar qué piloto registrará la <strong>vuelta más rápida</strong> oficial de la carrera.</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="mt-6 bg-blue-50/50 p-4 border border-blue-100 rounded-xl text-xs md:text-sm text-blue-800 flex items-start gap-2">
+                                        <Info className="flex-shrink-0 mt-0.5" size={16} />
+                                        <p><strong>Recuerda:</strong> El multiplicador final es el resultado de la acumulación de todos tus aciertos. Mínimo es <strong>x1.00</strong> si no aciertas ningún evento base.</p>
+                                    </div>
+                                </section>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
+
     );
 };
 

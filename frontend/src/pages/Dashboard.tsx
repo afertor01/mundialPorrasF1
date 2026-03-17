@@ -12,6 +12,7 @@ import {
 import BarChartTop20 from "../components/BarChartTop20";
 import ComparisonLineChart from "../components/ComparisonLineChart";
 import TelemetryBoot from "../components/TelemetryBoot";
+import f1DashboardHero from "../assets/f1_dashboard_hero.png";
 
 // --- TYPE DEFINITIONS ---
 interface CustomJwtPayload {
@@ -287,37 +288,44 @@ const Dashboard: React.FC = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.8 }}
-                    className="min-h-screen bg-gray-50 p-4 md:p-8"
+                    className="min-h-screen bg-gray-50 pb-8 md:pb-12 xl:pb-16 relative"
                 >
-                    <div className="max-w-7xl mx-auto space-y-8">
+                    {/* HERO HEADER BACKGROUND */}
+                    <div className="absolute top-0 left-0 w-full h-[350px] md:h-[400px] z-0 overflow-hidden pointer-events-none">
+                        <img src={f1DashboardHero} alt="F1 Dashboard Hero" className="w-full h-full object-cover object-center opacity-100" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-gray-900/60 to-gray-50"></div>
+                        <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-f1-red to-transparent opacity-80"></div>
+                    </div>
+
+                    <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 relative z-10 pt-6 md:pt-10 px-4 md:px-8">
 
                 {/* HEADER & CONTROLS */}
-                <header className="flex flex-col xl:flex-row justify-between items-center gap-6 bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
-                    <div className="flex items-center gap-4 w-full xl:w-auto">
-                        <div className="bg-f1-red p-3 rounded-2xl shadow-lg shadow-red-200 shrink-0">
-                            <LayoutDashboard className="text-white" size={28} />
+                <header className="flex flex-col xl:flex-row justify-between items-center gap-6 bg-white/95 backdrop-blur-md p-5 md:p-6 rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-black/5 border border-white/20">
+                    <div className="flex items-center gap-4 w-full xl:w-auto justify-center md:justify-start">
+                        <div className="bg-f1-red p-3 rounded-2xl shadow-lg shadow-f1-red/30 shrink-0">
+                            <LayoutDashboard className="text-white" size={26} />
                         </div>
                         <div>
-                            <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tighter uppercase italic">Telemetría</h1>
-                            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
+                            <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tighter uppercase italic drop-shadow-sm">Telemetría</h1>
+                            <p className="text-gray-500 text-[10px] md:text-xs font-bold uppercase tracking-widest">
                                 Temporada {activeSeason?.year || "---"}
                             </p>
                         </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto">
+                    <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto">
                         {/* SELECTOR DE VISTA */}
-                        <div className="flex bg-gray-900 p-1.5 rounded-2xl">
-                            <button onClick={() => setView('drivers')} className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${view === 'drivers' ? "bg-f1-red text-white shadow-lg" : "text-gray-400 hover:text-white"}`}>
-                                <Users size={14} /> Pilotos
+                        <div className="flex bg-gray-900 p-1.5 rounded-2xl w-full md:w-auto shadow-inner">
+                            <button onClick={() => setView('drivers')} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase transition-all ${view === 'drivers' ? "bg-f1-red text-white shadow-lg" : "text-gray-400 hover:text-white"}`}>
+                                <Users size={14} className="hidden sm:block" /> Pilotos
                             </button>
-                            <button onClick={() => setView('teams')} className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${view === 'teams' ? "bg-f1-red text-white shadow-lg" : "text-gray-400 hover:text-white"}`}>
-                                <Shield size={14} /> Escuderías
+                            <button onClick={() => setView('teams')} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase transition-all ${view === 'teams' ? "bg-f1-red text-white shadow-lg" : "text-gray-400 hover:text-white"}`}>
+                                <Shield size={14} className="hidden sm:block" /> Escuderías
                             </button>
                         </div>
 
                         {/* SELECTOR DE MODO */}
-                        <div className="flex bg-gray-100 p-1.5 rounded-2xl overflow-x-auto">
+                        <div className="flex bg-gray-100 p-1.5 rounded-2xl w-full md:w-auto overflow-hidden shadow-inner">
                             {[
                                 { id: 'total', label: 'General', icon: <Trophy size={14} /> },
                                 { id: 'base', label: 'Base', icon: <Target size={14} /> },
@@ -326,10 +334,10 @@ const Dashboard: React.FC = () => {
                                 <button
                                     key={tab.id}
                                     onClick={() => setMode(tab.id as any)}
-                                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase transition-all whitespace-nowrap ${mode === tab.id ? "bg-white text-gray-900 shadow-md" : "text-gray-400 hover:text-gray-600"
+                                    className={`flex-1 md:flex-none flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2.5 md:py-2 text-[10px] sm:text-xs font-black uppercase transition-all rounded-xl whitespace-nowrap ${mode === tab.id ? "bg-white text-gray-900 shadow-sm border border-gray-200/50" : "text-gray-400 hover:text-gray-600"
                                         }`}
                                 >
-                                    {tab.icon} {tab.label}
+                                    <span className="hidden xs:inline-block">{tab.icon}</span> <span>{tab.label}</span>
                                 </button>
                             ))}
                         </div>
@@ -337,7 +345,7 @@ const Dashboard: React.FC = () => {
                 </header>
 
                 {/* STATS CARDS */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                     <StatCard
                         icon={<Award className="text-yellow-500" />}
                         label={view === 'drivers' ? "Tu Posición" : "Pos. Escudería"}

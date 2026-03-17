@@ -2,8 +2,8 @@ import React, { useEffect, useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import * as API from "../api/api";
-import { motion } from "framer-motion";
-import { Trophy, CheckCircle2, Hexagon, TrendingUp, Loader2, XCircle, MousePointerClick } from "lucide-react";
+import { Trophy, CheckCircle2, Hexagon, TrendingUp, Loader2, XCircle, MousePointerClick, Info, X } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { jwtDecode } from "jwt-decode";
 
 // LÍMITE DE SELECCIONES PARA EVITAR EL "ALL-IN"
@@ -26,6 +26,7 @@ const Bingo: React.FC = () => {
     const [activeTab, setActiveTab] = useState<"board" | "standings">("board");
     const [loading, setLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
+    const [showHelp, setShowHelp] = useState(false);
     const [status, setStatus] = useState<"preseason" | "closed" | "admin_force_open">("closed");
 
     useEffect(() => {
@@ -127,13 +128,21 @@ const Bingo: React.FC = () => {
                                 <span className="text-xs font-black uppercase tracking-[0.3em] text-gray-400">Official Game</span>
                             </div>
                             <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter uppercase leading-none">
-                                Season <br />
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-f1-red to-orange-500">Bingo</span>
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-f1-red to-orange-500 font-black italic">Bingo</span>
                             </h1>
-                            <p className="text-gray-400 font-medium max-w-lg text-sm md:text-base border-l-2 border-f1-red pl-4">
-                                Tienes <strong>{MAX_SELECTIONS} fichas</strong>. Úsalas sabiamente.
-                                Cuanto menos gente elija una casilla, más puntos valdrá si ocurre.
-                            </p>
+                            <div className="flex items-center gap-3">
+                                <p className="text-gray-400 font-medium max-w-lg text-sm md:text-base border-l-2 border-f1-red pl-4">
+                                    Tienes <strong>{MAX_SELECTIONS} fichas</strong>. Úsalas sabiamente.
+                                    Cuanto menos gente elija una casilla, más puntos valdrá si ocurre.
+                                </p>
+                                <button 
+                                    onClick={() => setShowHelp(true)}
+                                    className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-full transition-all border border-white/10 shadow-lg"
+                                    title="¿Cómo jugar?"
+                                >
+                                    <Info size={20} />
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex gap-4 w-full md:w-auto">
@@ -426,6 +435,164 @@ const Bingo: React.FC = () => {
                     </motion.div>
                 )}
             </div>
+
+            {/* MODAL DE AYUDA BINGO */}
+            <AnimatePresence>
+                {showHelp && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/80 backdrop-blur-md">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 30 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 30 }}
+                            className="bg-white rounded-[2.5rem] shadow-3xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200"
+                        >
+                            {/* Cabecera Modal */}
+                            <div className="p-6 md:p-10 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-f1-red rounded-xl text-white shadow-lg shadow-red-200">
+                                            <Hexagon size={24} fill="currentColor" />
+                                        </div>
+                                        <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-gray-900">
+                                            Cómo Jugar al <span className="text-f1-red">Bingo</span>
+                                        </h2>
+                                    </div>
+                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-12">El desafío de la regularidad y la suerte</p>
+                                </div>
+                                <button 
+                                    onClick={() => setShowHelp(false)} 
+                                    className="p-3 bg-gray-200 hover:bg-gray-300 rounded-2xl text-gray-600 transition-all hover:rotate-90"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            {/* Cuerpo Modal */}
+                            <div className="p-6 md:p-10 overflow-y-auto custom-scrollbar space-y-10">
+                                {/* REGLA 1: EL PLAZO */}
+                                <section className="space-y-4">
+                                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-f1-red flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-f1-red rounded-full"></div> Plazo de Selección
+                                    </h3>
+                                    <div className="bg-amber-50 border border-amber-100 p-5 rounded-3xl text-amber-900 text-sm leading-relaxed">
+                                        <p className="font-bold mb-2 flex items-center gap-2 animate-pulse">
+                                            <XCircle size={18} className="text-amber-600" /> ¡Atención! Ventana limitada
+                                        </p>
+                                        Tu selección del Bingo debe realizarse íntegramente durante la <strong>Pretemporada</strong> (antes de que se apague el semáforo de la Round 1). Una vez comenzado el mundial, el tablero se bloquea de forma permanente para todos los jugadores.
+                                        <div className="mt-3 text-xs opacity-70 italic border-t border-amber-200/50 pt-2">
+                                            * Excepcionalmente, un administrador podría abrir el bingo durante la temporada si se añaden nuevas casillas o eventos especiales.
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* REGLA 2: LAS FICHAS */}
+                                <section className="space-y-4">
+                                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-900 flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div> Las 20 Fichas
+                                    </h3>
+                                    <p className="text-gray-600 text-sm leading-relaxed">
+                                        Dispones de un presupuesto máximo de <strong>{MAX_SELECTIONS} fichas</strong>. No es obligatorio gastarlas todas, pero cada una es una oportunidad de puntuar. Elije eventos que creas que ocurrirán a lo largo de toda la temporada (desde accidentes concretos hasta hazañas de pilotos).
+                                    </p>
+                                </section>
+
+                                {/* REGLA 3: EL PUNTAJE (RAREZA) */}
+                                <section className="space-y-6">
+                                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-900 flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div> Sistema de Rareza
+                                    </h3>
+                                    <div className="bg-gray-900 rounded-[2rem] p-6 text-white overflow-hidden relative border border-gray-700">
+                                        <TrendingUp className="absolute -right-8 -bottom-8 w-48 h-48 text-white/5 pointer-events-none" />
+                                        <div className="relative z-10 space-y-4">
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-relaxed">
+                                                Los puntos son dinámicos: cuanto menos gente elija una casilla, más valor tendrá si el evento se completa.
+                                            </p>
+                                            <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl p-4">
+                                                <div className="flex-1 space-y-1">
+                                                    <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                                                        <div className="w-[15%] h-full bg-f1-red shadow-[0_0_10px_#ff1801]"></div>
+                                                    </div>
+                                                    <div className="flex justify-between text-[10px] uppercase font-black tracking-widest text-gray-500 italic">
+                                                        <span>Common</span>
+                                                        <span className="text-f1-red">Jackpot</span>
+                                                    </div>
+                                                </div>
+                                                <div className="text-2xl font-black italic text-f1-red">10-100 <span className="text-xs opacity-50">PTS</span></div>
+                                            </div>
+                                            <p className="text-[10px] text-gray-500 italic">
+                                                * El valor puede fluctuar durante la pretemporada mientras la gente cambia sus votos. Se congela al cerrar el periodo de apuestas.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* LEYENDA VISUAL */}
+                                <section className="space-y-4">
+                                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-900 flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div> Estados de las Casillas
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div className="flex items-center gap-4 p-3 bg-gray-900 text-white rounded-2xl border border-gray-800 shadow-lg">
+                                            <div className="w-4 h-4 rounded-full border-4 border-f1-red bg-f1-red shrink-0" />
+                                            <div>
+                                                <div className="text-xs font-black uppercase tracking-widest text-white leading-none mb-1">Tu Apuesta</div>
+                                                <div className="text-[10px] text-gray-400 font-medium">Casilla seleccionada por ti, pendiente de ocurrir.</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4 p-3 bg-gradient-to-br from-yellow-300 to-yellow-500 text-yellow-950 rounded-2xl border border-yellow-400 shadow-xl shadow-yellow-500/20">
+                                            <div className="bg-yellow-950 rounded-full p-0.5 shrink-0"><CheckCircle2 className="text-yellow-400" size={16} /></div>
+                                            <div>
+                                                <div className="text-xs font-black uppercase tracking-widest leading-none mb-1 text-yellow-900">Jackpot</div>
+                                                <div className="text-[10px] text-yellow-800 font-medium font-black italic">+ Puntos sumados a tu marcador.</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4 p-3 bg-green-500 text-white rounded-2xl border border-green-600 shadow-lg shadow-green-200">
+                                            <CheckCircle2 className="text-white shrink-0" size={24} />
+                                            <div>
+                                                <div className="text-xs font-black uppercase tracking-widest leading-none mb-1">Ocurrió</div>
+                                                <div className="text-[10px] text-green-100 font-medium">Este evento ha sido marcado por un admin, pero no lo elegiste.</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4 p-3 bg-white text-gray-800 rounded-2xl border-2 border-gray-100 hover:border-blue-300">
+                                            <div className="w-4 h-4 rounded-full border-4 border-gray-300 shrink-0" />
+                                            <div>
+                                                <div className="text-xs font-black uppercase tracking-widest leading-none mb-1">Disponible</div>
+                                                <div className="text-[10px] text-gray-400 font-medium italic select-none">Evento no reclamado aún.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* CLASIFICACIÓN */}
+                                <section className="space-y-4">
+                                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-900 flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div> Clasificación
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                             <div className="text-[10px] font-black uppercase tracking-widest text-green-600 mb-1">Hits</div>
+                                             <div className="text-sm font-bold text-gray-800">Total de aciertos que has tenido.</div>
+                                        </div>
+                                        <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                             <div className="text-[10px] font-black uppercase tracking-widest text-red-500 mb-1">Missed</div>
+                                             <div className="text-sm font-bold text-gray-800">Eventos completados que no elegiste.</div>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+
+                            {/* Footer Modal */}
+                            <div className="p-6 md:p-10 border-t border-gray-100 bg-gray-50/80">
+                                <button 
+                                    onClick={() => setShowHelp(false)}
+                                    className="w-full bg-gray-900 text-white py-4 rounded-3xl font-black uppercase tracking-[0.2em] italic shadow-xl shadow-gray-400/30 hover:bg-gray-800 transition-all hover:scale-[1.02] active:scale-95"
+                                >
+                                    ¡Entendido, Capitán! 🏎️
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

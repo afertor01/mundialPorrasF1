@@ -131,8 +131,6 @@ const Predictions: React.FC = () => {
         const msUntilClose = raceDate.getTime() - now.getTime();
         
         if (msUntilClose <= 0) {
-            toast("¡TIEMPO AGOTADO! El plazo para enviar la predicción ha terminado.", "error");
-            setSelectedGp(null);
             return;
         }
 
