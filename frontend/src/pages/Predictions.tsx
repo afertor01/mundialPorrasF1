@@ -129,7 +129,17 @@ const Predictions: React.FC = () => {
         const raceDate = new Date(selectedGp.race_datetime);
         const now = new Date();
         const msUntilClose = raceDate.getTime() - now.getTime();
-        if (msUntilClose > 0) {
+        
+        if (msUntilClose <= 0) {
+            toast("¡TIEMPO AGOTADO! El plazo para enviar la predicción ha terminado.", "error");
+            setSelectedGp(null);
+            return;
+        }
+
+        // JS setTimeout tiene un límite de 32 bits (aprox 24.8 días).
+        // Si msUntilClose supera ese límite, falla y se ejecuta inmediatamente (overflow).
+        const MAX_TIMEOUT = 2147483647; 
+        if (msUntilClose <= MAX_TIMEOUT) {
             const timer = setTimeout(() => {
                 toast("¡TIEMPO AGOTADO! El plazo para enviar la predicción ha terminado.", "error");
                 setSelectedGp(null);
