@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { register as apiRegister } from "../api/api";
 import { useToast } from "../context/ToastContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { UserPlus, Mail, Lock, User, Hash, ChevronLeft } from "lucide-react";
+import { UserPlus, Mail, Lock, User, Hash, ChevronLeft, Zap } from "lucide-react";
 
 const Register: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -13,17 +13,24 @@ const Register: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [showSlowMessage, setShowSlowMessage] = useState(false);
+  const [secondsElapsed, setSecondsElapsed] = useState(0);
+
+  React.useEffect(() => {
+    let interval: any;
+    if (isLoading) {
+      setSecondsElapsed(0);
+      interval = setInterval(() => {
+        setSecondsElapsed(prev => prev + 1);
+      }, 1000);
+    } else {
+      setSecondsElapsed(0);
+    }
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    let timer: any;
     setIsLoading(true);
-    setShowSlowMessage(false);
-
-    timer = setTimeout(() => {
-      setShowSlowMessage(true);
-    }, 10000);
 
     try {
       await apiRegister({ email, username, password, acronym });
@@ -33,9 +40,7 @@ const Register: React.FC = () => {
       console.error(err);
       toast("Error: " + (err.response?.data?.detail || "Error en el registro"), "error");
     } finally {
-      clearTimeout(timer);
       setIsLoading(false);
-      setShowSlowMessage(false);
     }
   };
 
@@ -142,15 +147,24 @@ const Register: React.FC = () => {
             {isLoading ? "Conectando al paddock..." : "Registrarse"}
           </motion.button>
 
+          {isLoading && (
+             <p className="text-gray-400 text-[10px] mt-4 font-mono text-center">T+ {secondsElapsed}s</p>
+          )}
+
           <AnimatePresence>
-            {showSlowMessage && (
+            {secondsElapsed >= 10 && (
               <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-medium text-center leading-relaxed"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 shadow-lg shadow-amber-900/5 text-center"
               >
-                🚀 El servidor está arrancando. <br/>
-                Por favor, ten paciencia, esto puede tardar hasta un minuto en el plan gratuito de Render.
+                <div className="flex items-center justify-center gap-2 mb-2 text-amber-600">
+                  <Zap size={14} fill="currentColor" />
+                  <span className="font-bold uppercase tracking-wider text-[10px]">Cold Start Detectado</span>
+                </div>
+                <p className="text-[11px] leading-relaxed">
+                  El servidor está arrancando. En el plan gratuito de Render, esto puede tardar <strong>hasta 1 minuto</strong>.
+                </p>
               </motion.div>
             )}
           </AnimatePresence>

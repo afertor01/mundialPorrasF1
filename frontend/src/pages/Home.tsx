@@ -129,63 +129,67 @@ const Home: React.FC = () => {
               <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-f1-red/10 to-transparent pointer-events-none" />
             </div>
 
-            {/* --- MENU GRID --- */}
-            <div className="max-w-7xl mx-auto px-6 -mt-16 relative z-20 pb-24">
-              <motion.div 
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-              >
-                <MenuCard 
-                  to={token ? "/dashboard" : "/login"} 
-                  title="Clasificación" 
-                  desc="Ranking global y telemetría de puntos acumulados."
-                  icon={<Trophy size={28} />}
-                  accent="bg-yellow-500"
-                />
-                
-                <MenuCard 
-                  to={token ? "/predict" : "/login"} 
-                  title="Hacer Porra" 
-                  desc="Predice el Top 10 y eventos antes del GP."
-                  icon={<Target size={28} />}
-                  accent="bg-f1-red"
-                />
+            {/* --- CONTENT BASED ON AUTH --- */}
+            {token ? (
+              <div className="max-w-7xl mx-auto px-6 -mt-16 relative z-20 pb-24">
+                <motion.div 
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                  <MenuCard 
+                    to="/dashboard" 
+                    title="Clasificación" 
+                    desc="Ranking global y telemetría de puntos acumulados."
+                    icon={<Trophy size={28} />}
+                    accent="bg-yellow-500"
+                  />
+                  
+                  <MenuCard 
+                    to="/predict" 
+                    title="Hacer Porra" 
+                    desc="Predice el Top 10 y eventos antes del GP."
+                    icon={<Target size={28} />}
+                    accent="bg-f1-red"
+                  />
 
-                <MenuCard 
-                  to={token ? "/bingo" : "/login"} 
-                  title="Bingo F1" 
-                  desc="Estrategia a largo plazo: tacha eventos de la temporada."
-                  icon={<LayoutGrid size={28} />}
-                  accent="bg-orange-500"
-                />
+                  <MenuCard 
+                    to="/bingo" 
+                    title="Bingo F1" 
+                    desc="Estrategia a largo plazo: tacha eventos de la temporada."
+                    icon={<LayoutGrid size={28} />}
+                    accent="bg-orange-500"
+                  />
 
-                <MenuCard 
-                  to={token ? "/race-control" : "/login"} 
-                  title="Race Control" 
-                  desc="Comparativa detallada driver-to-driver."
-                  icon={<Flag size={28} />}
-                  accent="bg-blue-600"
-                />
+                  <MenuCard 
+                    to="/race-control" 
+                    title="Race Control" 
+                    desc="Comparativa detallada driver-to-driver."
+                    icon={<Flag size={28} />}
+                    accent="bg-blue-600"
+                  />
 
-                <MenuCard 
-                  to={token ? "/team-hq" : "/login"} 
-                  title="Escudería" 
-                  desc="Gestiona tu equipo y compite en el mundial por equipos."
-                  icon={<Shield size={28} />}
-                  accent="bg-teal-500"
-                />
+                  <MenuCard 
+                    to="/team-hq" 
+                    title="Escudería" 
+                    desc="Gestiona tu equipo y compite en el mundial por equipos."
+                    icon={<Shield size={28} />}
+                    accent="bg-teal-500"
+                  />
 
-                <MenuCard 
-                  to={token ? "/profile" : "/login"} 
-                  title="Ajustes Piloto" 
-                  desc="Stats detalladas, logros y configuración de cuenta."
-                  icon={<Settings size={28} />}
-                  accent="bg-purple-600"
-                />
-              </motion.div>
-            </div>
+                  <MenuCard 
+                    to="/profile" 
+                    title="Ajustes Piloto" 
+                    desc="Stats detalladas, logros y configuración de cuenta."
+                    icon={<Settings size={28} />}
+                    accent="bg-purple-600"
+                  />
+                </motion.div>
+              </div>
+            ) : (
+              <LandingFeatures />
+            )}
 
             {/* --- SUPPORT SECTION --- */}
             <div className="max-w-7xl mx-auto px-6 pb-24">
@@ -281,3 +285,113 @@ const MenuCard = ({ to, title, desc, icon, accent }: any) => (
 );
 
 export default Home;
+
+const LandingFeatures = () => (
+  <div className="max-w-7xl mx-auto px-6 relative z-20 pb-20 pt-8 space-y-12 md:space-y-16">
+    {/* Feature 1 */}
+    <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10">
+      <div className="flex-1 space-y-4">
+        <div className="inline-flex p-3 rounded-2xl bg-red-50 text-f1-red">
+          <Target size={24} />
+        </div>
+        <h2 className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter text-gray-900 leading-tight">
+          Predice el <span className="text-f1-red">Gran Premio</span>
+        </h2>
+        <p className="text-sm md:text-base text-gray-500 font-medium leading-relaxed">
+          Demuestra tus conocimientos en cada carrera. Adivina el Top 10 de la parrilla, pronostica quién hará la Vuelta Rápida, y atrévete a predecir la aparición del Safety Car o si habrá abandonos. Cada detalle cuenta en la lucha por el campeonato mundial.
+        </p>
+      </div>
+      <div className="flex-1 w-full bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-inner">
+        <div className="aspect-video max-h-48 md:max-h-none mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center justify-center relative overflow-hidden group">
+             <div className="absolute inset-0 bg-gradient-to-br from-f1-red/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+             <Target className="text-gray-200 w-16 h-16 md:w-20 md:h-20 mb-3 group-hover:scale-110 group-hover:text-f1-red/20 transition-all duration-300" />
+             <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-gray-300">Modo Porras</span>
+        </div>
+      </div>
+    </div>
+
+    {/* Feature 2 */}
+    <div className="flex flex-col md:flex-row-reverse items-center gap-6 md:gap-10">
+      <div className="flex-1 space-y-4">
+        <div className="inline-flex p-3 rounded-2xl bg-orange-50 text-orange-500">
+          <LayoutGrid size={24} />
+        </div>
+        <h2 className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter text-gray-900 leading-tight">
+          El <span className="text-orange-500">Bingo F1</span> de la Suerte
+        </h2>
+        <p className="text-sm md:text-base text-gray-500 font-medium leading-relaxed">
+          Un panel lleno de eventos posibles (y probabilidades locas) a lo largo del año. Tienes 20 fichas para gastar antes de que empiece la Round 1. Cuanto más raro sea tu pronóstico y menos gente lo tenga, ¡más puntos te llevarás!
+        </p>
+      </div>
+      <div className="flex-1 w-full bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-inner">
+        <div className="aspect-video max-h-48 md:max-h-none mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center justify-center relative overflow-hidden group">
+             <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+             <LayoutGrid className="text-gray-200 w-16 h-16 md:w-20 md:h-20 mb-3 group-hover:scale-110 group-hover:text-orange-500/20 transition-all duration-300" />
+             <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-gray-300">Jackpots y Rarezas</span>
+        </div>
+      </div>
+    </div>
+
+    {/* Feature 3 */}
+    <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10">
+      <div className="flex-1 space-y-4">
+        <div className="inline-flex p-3 rounded-2xl bg-teal-50 text-teal-500">
+          <Shield size={24} />
+        </div>
+        <h2 className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter text-gray-900 leading-tight">
+          Funda tu <span className="text-teal-500">Escudería</span>
+        </h2>
+        <p className="text-sm md:text-base text-gray-500 font-medium leading-relaxed">
+          La Fórmula 1 es un deporte de equipo. Únete a un compañero, cread una escudería para el campeonato, y pelead juntos en un mundial cooperativo dentro de la Clasificación de Constructores. ¡Dividid y venced!
+        </p>
+      </div>
+      <div className="flex-1 w-full bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-inner">
+        <div className="aspect-video max-h-48 md:max-h-none mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center justify-center relative overflow-hidden group">
+             <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+             <Shield className="text-gray-200 w-16 h-16 md:w-20 md:h-20 mb-3 group-hover:scale-110 group-hover:text-teal-500/20 transition-all duration-300" />
+             <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-gray-300">Modo Cooperativo</span>
+        </div>
+      </div>
+    </div>
+
+    {/* Feature 4 */}
+    <div className="flex flex-col md:flex-row-reverse items-center gap-6 md:gap-10">
+      <div className="flex-1 space-y-4">
+        <div className="inline-flex p-3 rounded-2xl bg-purple-50 text-purple-600">
+          <Settings size={24} />
+        </div>
+        <h2 className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter text-gray-900 leading-tight">
+          <span className="text-purple-600">Compite</span> y Personaliza
+        </h2>
+        <p className="text-sm md:text-base text-gray-500 font-medium leading-relaxed">
+          Consigue logros exclusivos y personaliza tu cuenta con avatares de piloto. Analiza de cerca las tendencias y compara tu rendimiento frente al resto de rivales revisando estadísticas globales, gráficas y la telemetría del Race Control.
+        </p>
+      </div>
+      <div className="flex-1 w-full bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-inner">
+        <div className="aspect-video max-h-48 md:max-h-none mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center justify-center relative overflow-hidden group">
+             <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+             <Trophy className="text-gray-200 w-16 h-16 md:w-20 md:h-20 mb-3 group-hover:scale-110 group-hover:text-purple-600/20 transition-all duration-300" />
+             <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-gray-300">Logros y Telemetría</span>
+        </div>
+      </div>
+    </div>
+    
+    {/* Contenedor CTA final */}
+    <div className="bg-f1-dark rounded-3xl p-8 md:p-12 text-center relative overflow-hidden shadow-2xl mt-8">
+       <div className="absolute top-0 right-0 w-64 h-64 bg-f1-red/20 rounded-full blur-3xl -mr-32 -mt-32"></div>
+       <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -ml-32 -mb-32"></div>
+       
+       <div className="relative z-10 space-y-6 flex flex-col items-center">
+         <h2 className="text-2xl md:text-4xl font-black uppercase italic tracking-tighter text-white">
+           ¿A qué esperas para correr?
+         </h2>
+         <p className="text-gray-400 text-sm md:text-base font-medium max-w-lg mb-2">
+           Únete ya a la temporada activa, revisa las estadísticas en tiempo real y levanta el trofeo en Abu Dhabi.
+         </p>
+         <Link to="/register" className="inline-flex items-center gap-2 bg-f1-red hover:bg-red-700 text-white px-8 py-4 rounded-xl font-black uppercase tracking-widest italic transition-all shadow-lg shadow-red-500/30 hover:shadow-red-500/50 hover:-translate-y-1 text-sm md:text-base">
+            <UserPlus size={20} /> Crear mi Cuenta Gratis
+         </Link>
+       </div>
+    </div>
+  </div>
+);

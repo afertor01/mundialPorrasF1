@@ -3,7 +3,7 @@ import { AuthContext } from "../context/AuthContext";
 import { login as apiLogin } from "../api/api";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogIn, Lock, User } from "lucide-react";
+import { LogIn, Lock, User, Zap } from "lucide-react";
 
 const Login: React.FC = () => {
   const [identifier, setIdentifier] = useState("");
@@ -12,20 +12,25 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showSlowMessage, setShowSlowMessage] = useState(false);
+  const [secondsElapsed, setSecondsElapsed] = useState(0);
+
+  React.useEffect(() => {
+    let interval: any;
+    if (isLoading) {
+      setSecondsElapsed(0);
+      interval = setInterval(() => {
+        setSecondsElapsed(prev => prev + 1);
+      }, 1000);
+    } else {
+      setSecondsElapsed(0);
+    }
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    let timer: any;
     setIsLoading(true);
-    setShowSlowMessage(false);
     
-    // Timer para mostrar mensaje si el servidor tarda (>10s)
-    timer = setTimeout(() => {
-      setShowSlowMessage(true);
-    }, 10000);
-
     try {
       const res = await apiLogin(identifier, password);
       login(res.access_token);
@@ -34,9 +39,7 @@ const Login: React.FC = () => {
       const detail = err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : "Credenciales incorrectas. Inténtalo de nuevo.");
     } finally {
-      clearTimeout(timer);
       setIsLoading(false);
-      setShowSlowMessage(false);
     }
   };
 
@@ -124,16 +127,24 @@ const Login: React.FC = () => {
           >
              <div className="w-16 h-16 border-4 border-f1-red border-t-transparent rounded-full animate-spin mx-auto mb-4" />
              <p className="text-f1-dark font-black italic uppercase tracking-widest">Iniciando Sistemas...</p>
+             <p className="text-gray-400 text-xs mt-2 font-mono">T+ {secondsElapsed}s</p>
              
              <AnimatePresence>
-                {showSlowMessage && (
+                {secondsElapsed >= 10 && (
                   <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-8 max-w-xs mx-auto p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-medium"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="mt-8 max-w-xs mx-auto p-5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 shadow-xl shadow-amber-900/5"
                   >
-                    🚀 El servidor está arrancando. <br/>
-                    Por favor, ten paciencia, esto puede tardar hasta un minuto en el plan gratuito de Render.
+                    <div className="flex items-center gap-2 mb-2 text-amber-600">
+                      <Zap size={16} fill="currentColor" />
+                      <span className="font-bold uppercase tracking-wider text-[10px]">Cold Start Detectado</span>
+                    </div>
+                    <p className="text-xs leading-relaxed">
+                      El servidor está arrancando tras un periodo de inactividad. 
+                      En el plan gratuito de Render, esto puede tardar <strong>hasta 1 minuto</strong>. 
+                      ¡Gracias por tu paciencia!
+                    </p>
                   </motion.div>
                 )}
              </AnimatePresence>
