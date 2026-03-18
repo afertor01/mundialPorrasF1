@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { register as apiRegister } from "../api/api";
 import { useToast } from "../context/ToastContext";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { UserPlus, Mail, Lock, User, Hash, ChevronLeft } from "lucide-react";
 
 const Register: React.FC = () => {
@@ -13,10 +13,18 @@ const Register: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [showSlowMessage, setShowSlowMessage] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    let timer: any;
     setIsLoading(true);
+    setShowSlowMessage(false);
+
+    timer = setTimeout(() => {
+      setShowSlowMessage(true);
+    }, 10000);
+
     try {
       await apiRegister({ email, username, password, acronym });
       toast("¡Registro completado! Ya puedes iniciar sesión.", "success");
@@ -25,7 +33,9 @@ const Register: React.FC = () => {
       console.error(err);
       toast("Error: " + (err.response?.data?.detail || "Error en el registro"), "error");
     } finally {
+      clearTimeout(timer);
       setIsLoading(false);
+      setShowSlowMessage(false);
     }
   };
 
@@ -131,6 +141,19 @@ const Register: React.FC = () => {
             )}
             {isLoading ? "Conectando al paddock..." : "Registrarse"}
           </motion.button>
+
+          <AnimatePresence>
+            {showSlowMessage && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-medium text-center leading-relaxed"
+              >
+                🚀 El servidor está arrancando. <br/>
+                Por favor, ten paciencia, esto puede tardar hasta un minuto en el plan gratuito de Render.
+              </motion.div>
+            )}
+          </AnimatePresence>
         </form>
 
         <div className="mt-8 text-center pt-6 border-t border-gray-100">

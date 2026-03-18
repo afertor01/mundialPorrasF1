@@ -12,7 +12,10 @@ import {
   Zap,
   ChevronRight,
   Shield,
-  Settings
+  Settings,
+  Mail,
+  MessageCircle,
+  HelpCircle
 } from "lucide-react";
 import SpeedStreak from "../components/SpeedStreak";
 
@@ -182,6 +185,58 @@ const Home: React.FC = () => {
                   accent="bg-purple-600"
                 />
               </motion.div>
+            </div>
+
+            {/* --- SUPPORT SECTION --- */}
+            <div className="max-w-7xl mx-auto px-6 pb-24">
+              <div className="bg-gray-50 rounded-[3rem] p-8 md:p-12 border border-gray-100 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-f1-red/5 rounded-full blur-3xl -mr-32 -mt-32" />
+                
+                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
+                  <div className="space-y-4 text-center md:text-left">
+                    <div className="flex items-center justify-center md:justify-start gap-3 text-f1-red">
+                      <HelpCircle size={24} />
+                      <span className="text-xs font-black uppercase tracking-[0.3em]">Centro de Asistencia</span>
+                    </div>
+                    <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase text-gray-900 leading-none">
+                      ¿Necesitas <br /> <span className="text-gray-400 font-medium">Soporte Técnico?</span>
+                    </h2>
+                    <p className="text-gray-500 font-medium max-w-sm">
+                      Si tienes problemas con tu cuenta, bugs o sugerencias, estamos a un mensaje de distancia.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+                    <a 
+                      href="mailto:mundialporrasf1@gmail.com"
+                      className="flex items-center justify-center gap-4 bg-white border border-gray-200 p-6 rounded-3xl hover:border-f1-red hover:shadow-xl transition-all group lg:min-w-[280px]"
+                    >
+                      <div className="p-3 bg-gray-50 rounded-2xl text-gray-400 group-hover:bg-f1-red group-hover:text-white transition-all">
+                        <Mail size={24} />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-f1-red transition-colors">Escríbenos</div>
+                        <div className="text-sm font-black text-gray-900 truncate">mundialporrasf1@gmail.com</div>
+                      </div>
+                    </a>
+
+                    <a 
+                      href="https://whatsapp.com/channel/0029VbCxZADGZNCqXOkrXu1X"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-4 bg-[#25D366]/5 border border-[#25D366]/20 p-6 rounded-3xl hover:bg-[#25D366]/10 hover:shadow-xl transition-all group lg:min-w-[280px]"
+                    >
+                      <div className="p-3 bg-[#25D366] text-white rounded-2xl shadow-lg shadow-[#25D366]/20 group-hover:scale-110 transition-transform">
+                        <MessageCircle size={24} />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-[#25D366]">Canal Oficial</div>
+                        <div className="text-sm font-black text-gray-900">Avisos y Novedades</div>
+                      </div>
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
             
             {/* Footer decoration */}

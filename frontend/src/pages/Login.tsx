@@ -12,11 +12,20 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showSlowMessage, setShowSlowMessage] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    let timer: any;
     setIsLoading(true);
+    setShowSlowMessage(false);
+    
+    // Timer para mostrar mensaje si el servidor tarda (>10s)
+    timer = setTimeout(() => {
+      setShowSlowMessage(true);
+    }, 10000);
+
     try {
       const res = await apiLogin(identifier, password);
       login(res.access_token);
@@ -25,7 +34,9 @@ const Login: React.FC = () => {
       const detail = err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : "Credenciales incorrectas. Inténtalo de nuevo.");
     } finally {
+      clearTimeout(timer);
       setIsLoading(false);
+      setShowSlowMessage(false);
     }
   };
 
@@ -113,6 +124,19 @@ const Login: React.FC = () => {
           >
              <div className="w-16 h-16 border-4 border-f1-red border-t-transparent rounded-full animate-spin mx-auto mb-4" />
              <p className="text-f1-dark font-black italic uppercase tracking-widest">Iniciando Sistemas...</p>
+             
+             <AnimatePresence>
+                {showSlowMessage && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-8 max-w-xs mx-auto p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-medium"
+                  >
+                    🚀 El servidor está arrancando. <br/>
+                    Por favor, ten paciencia, esto puede tardar hasta un minuto en el plan gratuito de Render.
+                  </motion.div>
+                )}
+             </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
