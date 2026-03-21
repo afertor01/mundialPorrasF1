@@ -28,6 +28,7 @@ interface Gp {
 interface RankingRow {
     name: string;
     acronym: string;
+    avatar?: string;
     gp_points: number;
     accumulated: number;
 }
@@ -435,7 +436,8 @@ const Dashboard: React.FC = () => {
                                     <thead>
                                         <tr className="text-[10px] uppercase tracking-widest text-gray-400 border-b border-gray-50">
                                             <th className="px-6 py-5">Pos</th>
-                                            <th className="px-4 py-5">{view === 'drivers' ? "Piloto" : "Escudería"}</th>
+                                            <th className="px-2 py-5 w-10"></th>
+                                            <th className="px-2 py-5">{view === 'drivers' ? "Piloto" : "Escudería"}</th>
                                             {showDiff && <th className="px-4 py-5 text-center">Cambio</th>}
                                             <th className="px-4 py-5">{view === 'drivers' ? "Escudería" : ""}</th>
                                             {showDiff && <th className="px-4 py-5 text-right">Puntos GP</th>}
@@ -477,11 +479,22 @@ const Dashboard: React.FC = () => {
                                                     >
                                                         <td className="px-6 py-4">
                                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${realPos === 1 ? 'bg-yellow-400 text-white shadow-lg shadow-yellow-100' :
-                                                                realPos === 2 ? 'bg-gray-300 text-white' :
+                                                                realPos === 2 ? 'bg-gray-200 text-white' :
                                                                     realPos === 3 ? 'bg-amber-600 text-white' : 'text-gray-400 bg-gray-100'
                                                                 }`}>
                                                                 {realPos > 0 ? realPos : '-'}
                                                             </div>
+                                                        </td>
+                                                        <td className="px-2 py-4">
+                                                            {view === 'drivers' && (
+                                                                <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-100 bg-gray-50 shadow-sm">
+                                                                    <img 
+                                                                        src={API.getAvatarFullUrl(row.avatar || 'default.png')} 
+                                                                        alt={row.acronym} 
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                </div>
+                                                            )}
                                                         </td>
                                                         <td className="px-4 py-4">
                                                             <div className="flex items-center gap-3">
@@ -520,7 +533,7 @@ const Dashboard: React.FC = () => {
                                             })
                                         ) : (
                                             <tr>
-                                                <td colSpan={6} className="text-center py-8 text-gray-400 font-bold italic">
+                                                <td colSpan={7} className="text-center py-8 text-gray-400 font-bold italic">
                                                     No se encontraron resultados en el rango seleccionado.
                                                 </td>
                                             </tr>

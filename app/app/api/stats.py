@@ -210,7 +210,8 @@ def ranking(
 
                     gp_ranking.append({
                         "name": u.username,
-                        "acronym": u.acronym, # <--- Devolvemos el acrónimo
+                        "acronym": u.acronym,
+                        "avatar": u.avatar, # <--- Añadimos el avatar
                         "gp_points": gp_points,
                         "accumulated": round(acc[u.username], 4)
                     })
@@ -230,7 +231,8 @@ def ranking(
             overall_list = [
                 {
                     "name": u.username, 
-                    "acronym": u.acronym, # <--- Devolvemos el acrónimo
+                    "acronym": u.acronym,
+                    "avatar": u.avatar, # <--- Añadimos el avatar
                     "accumulated": round(acc[u.username], 4)
                 }
                 for u in sorted(users, key=lambda u: acc[u.username], reverse=True)
